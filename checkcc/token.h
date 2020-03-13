@@ -288,6 +288,75 @@ static const char* token_repr(const token_kind_e kind)
     return "(!unk)";
 }
 
+bool_t token_unary(token_kind_e kind)
+{
+    return kind == token_kind_kw_not; // unary - is handled separately
+}
+
+bool_t token_rassoc(token_kind_e kind)
+{
+    return kind == token_kind_period || kind == token_kind_pow;
+}
+
+uint8_t token_prec(token_kind_e kind)
+{ // if templateStr then precedence of < and > should be 0
+    switch (kind) {
+        case token_kind_period:
+            return 90;
+        case token_kind_pipe:
+            return 80;
+        case token_kind_pow:
+            return 70;
+        case token_kind_times:
+        case token_kind_slash:
+            return 60;
+        case token_kind_plus:
+        case token_kind_minus:
+            return 50;
+        case token_kind_op_colon:
+            return 45;
+        case token_kind_op_le:
+        case token_kind_op_lt:
+        case token_kind_op_gt:
+        case token_kind_op_ge:
+        case token_kind_kw_in:
+            // case token_kind_kw_notin:
+            return 41;
+        case token_kind_op_eq:
+        case token_kind_op_ne:
+            return 40;
+        case token_kind_kw_not:
+            return 32;
+        case token_kind_kw_and:
+            return 31;
+        case token_kind_kw_or:
+            return 30;
+        case token_kind_op_asn:
+            return 22;
+        case token_kind_pluseq:
+        case token_kind_coleq:
+        case token_kind_minuseq:
+        case token_kind_timeseq:
+        case token_kind_slasheq:
+            return 20;
+        case token_kind_comma:
+            return 10;
+        case token_kind_kw_do:
+            return 5;
+        case token_kind_paren_open:
+        case token_kind_paren_close:
+            return 0;
+        case token_kind_brace_open:
+        case token_kind_brace_close:
+            return 0;
+        case token_kind_array_open:
+        case token_kind_array_close:
+            return 0;
+        default:
+            return 255;
+    }
+}
+
 static char* token_strdup(const token_t* const token)
 {
     return strndup(token->pos, token->matchlen);
@@ -310,8 +379,8 @@ char peekcharafter(token_t* token)
     return *(token->pos + token->matchlen + 1);
 }
 
-#define token_compare_kw(tok)                                                  \
-if (sizeof(#tok) - 1 == l && !strncmp(#tok, s, l))                         \
+#define token_compare_kw(tok) \
+if (sizeof(#tok) - 1 == l && !strncmp(#tok, s, l)) \
 return token_kind_kw_##tok
 
 // Check if an (ident) token matches a keyword and return its type

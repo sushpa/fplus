@@ -109,73 +109,6 @@ static node_t* parse_typespec(parser_t* parser)
     return node;
 }
 
-bool_t token_unary(token_kind_e kind)
-{
-    return kind == token_kind_kw_not; // unary - is handled separately
-}
-bool_t token_rassoc(token_kind_e kind)
-{
-    return kind == token_kind_period || kind == token_kind_pow;
-}
-uint8_t token_prec(token_kind_e kind)
-{ // if templateStr then precedence of < and > should be 0
-    switch (kind) {
-    case token_kind_period:
-        return 90;
-    case token_kind_pipe:
-        return 80;
-    case token_kind_pow:
-        return 70;
-    case token_kind_times:
-    case token_kind_slash:
-        return 60;
-    case token_kind_plus:
-    case token_kind_minus:
-        return 50;
-    case token_kind_op_colon:
-        return 45;
-    case token_kind_op_le:
-    case token_kind_op_lt:
-    case token_kind_op_gt:
-    case token_kind_op_ge:
-    case token_kind_kw_in:
-        // case token_kind_kw_notin:
-        return 41;
-    case token_kind_op_eq:
-    case token_kind_op_ne:
-        return 40;
-    case token_kind_kw_not:
-        return 32;
-    case token_kind_kw_and:
-        return 31;
-    case token_kind_kw_or:
-        return 30;
-    case token_kind_op_asn:
-        return 22;
-    case token_kind_pluseq:
-    case token_kind_coleq:
-    case token_kind_minuseq:
-    case token_kind_timeseq:
-    case token_kind_slasheq:
-        return 20;
-    case token_kind_comma:
-        return 10;
-    case token_kind_kw_do:
-        return 5;
-    case token_kind_paren_open:
-    case token_kind_paren_close:
-        return 0;
-    case token_kind_brace_open:
-    case token_kind_brace_close:
-        return 0;
-    case token_kind_array_open:
-    case token_kind_array_close:
-        return 0;
-    default:
-        return 255;
-    }
-}
-
 static node_t* parse_expr(parser_t* parser)
 {
     token_t* token = &parser->token;
@@ -229,6 +162,7 @@ static node_t* parse_expr(parser_t* parser)
     }
     return result.items[0];
 }
+
 static node_t* parse_args(parser_t* parser)
 {
     parser->token.flags.mergearraydims = true;
@@ -286,6 +220,7 @@ static node_t* parse_func(parser_t* parser)
 }
 
 static node_t* parse_test(parser_t* parser) { return NULL; }
+
 static node_t* parse_type(parser_t* parser)
 {
     node_t* node = new_node_from_current_token(parser);
@@ -330,13 +265,13 @@ static node_t* parse_var(parser_t* parser)
         node->init = parse_expr(parser);
     return node;
 }
+
 static node_t* parse_import(parser_t* parser) { return NULL; }
 
 static void print_tree(const node_t* const node, int level)
 {
-    print_sizes();
-    printf("%s\n", "Tree:");
-    printf("%s\n", node_repr(node->kind));
+   // printf("%s\n", "Tree:");
+   // printf("%s\n", node_repr(node->kind));
     switch (node->kind) {
     case node_kind_mod:
         printf("! module %s\n", node->name);
@@ -352,9 +287,7 @@ static void print_tree(const node_t* const node, int level)
         node_t* arg = node->args;
         while (arg) {
             printf("%s: %s", arg->name, arg->typespec->name);
-            arg = arg->next;
-            if (arg)
-                printf(", ");
+            if ((arg = arg->next)) printf(", ");
         }
         printf("): %s\n", node->typespec->name);
         break;
