@@ -19,7 +19,7 @@ typedef struct parser_t {
 } parser_t;
 
 #define FILE_SIZE_MAX 1 << 24
-static parser_t* parser_new(char* filename, bool_t skipws)
+ parser_t* parser_new(char* filename, bool_t skipws)
 {
     FILE* file = fopen(filename, "r");
     fprintf(stdout, "compiling %s\n", filename);
@@ -44,8 +44,8 @@ static parser_t* parser_new(char* filename, bool_t skipws)
             .token = { //
                 .pos = data,
                 .kind = token_kind_unknown,
-                .line = 1,
-                .col = 1,
+                .line = 0,
+                .col = 0,
                 .flags = { //
                     .skipws = skipws //
                 } //

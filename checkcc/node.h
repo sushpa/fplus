@@ -2,30 +2,30 @@
 // NODE STRUCTS
 //=============================================================================
 
-typedef struct node_var_t node_var_t;
-typedef struct node_function_t node_function_t;
-typedef struct node_type_t node_type_t;
-typedef struct node_typespec_t node_typespec_t;
-typedef struct node_ident_t node_ident_t;
-typedef struct node_module_t node_module_t;
-typedef struct node_expr_t node_expr_t;
-typedef struct node_scope_t node_scope_t;
-typedef struct node_if_t node_if_t;
-typedef struct node_for_t node_for_t;
-typedef struct node_while_t node_while_t;
-typedef struct node_match_t node_match_t;
-typedef struct node_literal_t node_literal_t;
-typedef struct node_token_t node_token_t;
-typedef struct node_units_t node_units_t;
-typedef struct node_test_t node_test_t;
-typedef struct node_import_t node_import_t;
+//typedef struct node_var_t node_var_t;
+//typedef struct node_function_t node_function_t;
+//typedef struct node_type_t node_type_t;
+//typedef struct node_typespec_t node_typespec_t;
+//typedef struct node_ident_t node_ident_t;
+//typedef struct node_module_t node_module_t;
+//typedef struct node_expr_t node_expr_t;
+//typedef struct node_scope_t node_scope_t;
+//typedef struct node_if_t node_if_t;
+//typedef struct node_for_t node_for_t;
+//typedef struct node_while_t node_while_t;
+//typedef struct node_match_t node_match_t;
+//typedef struct node_literal_t node_literal_t;
+//typedef struct node_token_t node_token_t;
+//typedef struct node_units_t node_units_t;
+//typedef struct node_test_t node_test_t;
+//typedef struct node_import_t node_import_t;
 typedef struct node_t node_t;
 
 #define MAKE_STRUCT_DEFS                                                       \
     struct {                                                                   \
         node_t* typespec;                                                      \
         union {                                                                \
-            struct { /*node_var_t */                                           \
+            struct { /*node_var_t, node_param_t */                                           \
                 node_t* init;                                                  \
             };                                                                 \
             struct { /* node_function_t or node_test_t */                      \
@@ -154,6 +154,7 @@ typedef enum node_kind_e {
     node_kind_in,
     node_kind_ident,
     node_kind_index,
+    node_kind_import,
     node_kind_le,
     node_kind_list,
     node_kind_lit,
@@ -167,12 +168,14 @@ typedef enum node_kind_e {
     node_kind_notgives,
     node_kind_notin,
     node_kind_or,
+    node_kind_param,
     node_kind_pow,
     node_kind_poweq,
     node_kind_range,
     node_kind_semi,
     node_kind_sub,
     node_kind_subeq,
+    node_kind_scope,
     node_kind_then,
     node_kind_type,
     node_kind_typespec,
@@ -286,9 +289,8 @@ char* node_repr(node_kind_e kind)
         return "node_kind_unit";
     case node_kind_var:
         return "node_kind_var";
-    default:
-        return "(unknown)";
     }
+    return "node_unknown";
 }
 
 struct node_t {
@@ -362,24 +364,24 @@ static void stack_push(node_stack_t* stack, node_t* node)
     }
 }
 
-static inline node_t* stack_pop(node_stack_t* stack)
+ node_t* stack_pop(node_stack_t* stack)
 {
     return stack->count ? stack->items[--stack->count] : NULL;
 }
 
-static inline node_t* stack_top(const node_stack_t* const stack)
+ node_t* stack_top(const node_stack_t* const stack)
 {
     return stack->count ? stack->items[stack->count] : NULL;
 }
 
-static inline bool_t stack_empty(const node_stack_t* const stack)
+ bool_t stack_empty(const node_stack_t* const stack)
 {
     return stack->count == 0;
 }
 
 // send the *pointer* by reference. if list is NULL, then 'append'ing
 // something puts it at index 0
-static inline void list_append(node_t** list, node_t* item)
+ void list_append(node_t** list, node_t* item)
 {
     if (*list) {
         node_t* l = *list;
@@ -392,7 +394,7 @@ static inline void list_append(node_t** list, node_t* item)
 }
 
 // send the *pointer* by reference
-static inline void list_prepend(node_t** list, node_t* item)
+ void list_prepend(node_t** list, node_t* item)
 {
     assert(item != NULL);
     item->next = *list;

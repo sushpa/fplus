@@ -5,7 +5,7 @@
 
 #define ERR_MAX 20
 
-static inline void error__increment(parser_t* parser)
+void error__increment(parser_t* parser)
 {
     parser->errCount++;
     if (parser->errCount >= ERR_MAX) {
@@ -14,7 +14,7 @@ static inline void error__increment(parser_t* parser)
     }
 }
 
-static inline void error_unexpectedToken(
+void error_unexpectedToken(
     parser_t* parser, token_kind_e expected)
 {
     fprintf(stderr, "./%s:%d:%d: expected '%s' found '%.*s'\n",

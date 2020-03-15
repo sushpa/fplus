@@ -32,6 +32,7 @@ typedef enum token_kind_e {
     token_kind_number,
     token_kind_ws,
     token_kind_spc,
+    token_kind_onespc, // exactly 1 space
     token_kind_tab,
     token_kind_nl,
     token_kind_linecomment,
@@ -107,7 +108,7 @@ typedef struct token_t {
 } token_t;
 
 // Return the repr of a token kind (for debug)
-static const char* token_repr(const token_kind_e kind)
+const char* token_repr(const token_kind_e kind)
 {
     switch (kind) {
         case token_kind__source:
@@ -143,7 +144,7 @@ static const char* token_repr(const token_kind_e kind)
         case token_kind_kw_else:
             return "else";
         case token_kind_kw_type:
-            return "kind";
+            return "type";
         case token_kind_kw_template:
             return "template";
         case token_kind_kw_base:
@@ -284,7 +285,10 @@ static const char* token_repr(const token_kind_e kind)
             return "*=";
         case token_kind_slasheq:
             return "/=";
+        case token_kind_onespc:
+            return "sp1";
     }
+    printf("unknown kind: %d\n", kind);
     return "(!unk)";
 }
 
@@ -357,7 +361,7 @@ uint8_t token_prec(token_kind_e kind)
     }
 }
 
-static char* token_strdup(const token_t* const token)
+char* token_strdup(const token_t* const token)
 {
     return strndup(token->pos, token->matchlen);
 }
@@ -385,7 +389,7 @@ return token_kind_kw_##tok
 
 // Check if an (ident) token matches a keyword and return its type
 // accordingly.
-static token_kind_e token_trykwmatch(const token_t* token)
+token_kind_e token_trykwmatch(const token_t* token)
 {
     if (token->kind != token_kind_ident)
         return token->kind;
@@ -429,7 +433,7 @@ static token_kind_e token_trykwmatch(const token_t* token)
 
 // Get the token kind based only on the char at the current position (or an
 // offset).
-static token_kind_e token_gettype_atoffset(
+token_kind_e token_gettype_atoffset(
                                            const token_t* self, const size_t offset)
 {
     const char c = self->pos[offset];
@@ -548,15 +552,15 @@ static token_kind_e token_gettype_atoffset(
 }
 
 // Scans ahead from the current position until the actual end of the token.
-static void token_detect(token_t* token)
+void token_detect(token_t* token)
 {
     token_kind_e tt = token_gettype(token);
-    token_kind_e tt_ret;
+    token_kind_e tt_ret;// = tt;
     token_kind_e tmp;
     char* start = token->pos;
     bool_t found_e = false, found_dot = false, found_cmt = false;
     uint8_t found_spc = 0;
-    
+
     switch (tt) {
         case token_kind_str_boundary:
         case token_kind_inl_boundary:
@@ -713,13 +717,18 @@ static void token_detect(token_t* token)
             }
             tt_ret = token_kind_number;
             break;
+
+       /* case token_kind_nl:
+            token->line++;
+            token->col=1;
+            break; */
             
         case token_kind_op_eq:
         case token_kind_op_ge:
         case token_kind_op_le:
         case token_kind_op_ne:
         case token_kind_op_results:
-        case token_kind_op_notresults:
+        case token_kind_op_notresults: // this is 3-char, is it not?
         case token_kind_brace_empty:
         case token_kind_backslash:
         case token_kind_paren_empty:
@@ -732,22 +741,27 @@ static void token_detect(token_t* token)
             token_advance1(token);
             break;
     }
-    
-    token->matchlen = (uint32_t) (token->pos - start);
+
+    token->matchlen = (uint32_t)(token->pos - start);
     token->pos = start; // rewind. but why! then again advance rewind
                         // advance rewind
     token->kind = tt_ret;
-    if (tt_ret == token_kind_ident)
-        token->kind = token_trykwmatch(token);
+    // keywords have their own token type
+    if (token->kind == token_kind_ident) token->kind = token_trykwmatch(token);
+    // exactly one space is token_kind_onespc, otherwise token_kind_spc.
+    // the compiler needs to check one space frequently in strict mode.
+    // FIXME figure it out later
+if (token->kind == token_kind_spc && token->matchlen==1) token->kind = token_kind_onespc;
 }
 
 // Advances the parser to the next token and skips whitespace if the
 // parser's flag `skipws` is set.
-static inline void token_advance(token_t* token)
+ void token_advance(token_t* token)
 {
     token->pos += token->matchlen;
     token->col += token->matchlen;
     token->matchlen = 0;
+    //token_advance1(token);
     token_detect(token);
     if (token->flags.skipws && token->kind == token_kind_spc)
         token_advance(token);
