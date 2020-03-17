@@ -5,7 +5,7 @@
 
 #define ERR_MAX 10
 
-void error__increment(parser_t* parser)
+void error__increment(Parser* parser)
 {
     parser->errCount++;
     if (parser->errCount >= ERR_MAX) {
@@ -15,11 +15,11 @@ void error__increment(parser_t* parser)
 }
 
 void error_unexpectedToken(
-    parser_t* parser, token_kind_e expected, const char* funcName)
+    Parser* parser, TokenKind expected, const char* funcName)
 {
     fprintf(stderr, "in %s: ./%s:%d:%d: expected '%s' found '%.*s'\n",
         funcName, parser->filename, parser->token.line, parser->token.col,
-        token_repr(expected), parser->token.matchlen, parser->token.pos);
+        Token_repr(expected), parser->token.matchlen, parser->token.pos);
     error__increment(parser);
 }
 #define error_unexpectedToken(a, b) error_unexpectedToken(a, b, __func__)

@@ -3,101 +3,102 @@
 //=============================================================================
 
 // Various kinds of tokens.
-typedef enum token_kind_e {
-    token_kind__source,
-    token_kind__end,
-    token_kind_kw_cheater,
-    token_kind_kw_for,
-    token_kind_kw_while,
-    token_kind_kw_if,
-    token_kind_kw_end,
-    token_kind_kw_function,
-    token_kind_kw_test,
-    token_kind_kw_not,
-    token_kind_kw_and,
-    token_kind_kw_or,
-    token_kind_kw_in,
-    token_kind_kw_do,
-    token_kind_kw_then,
-    token_kind_kw_as,
-    token_kind_kw_else,
-    token_kind_kw_type,
-    token_kind_kw_template,
-    token_kind_kw_base,
-    token_kind_kw_var,
-    token_kind_kw_let,
-    token_kind_kw_import,
-    token_kind_kw_only,
-    token_kind_ident,
-    token_kind_identf,
-    token_kind_identa,
-    token_kind_number,
-    token_kind_ws,
-    token_kind_spc,
-    token_kind_onespc, // exactly 1 space
-    token_kind_tab,
-    token_kind_nl,
-    token_kind_linecomment,
-    token_kind_alpha,
-    token_kind_amp,
-    token_kind_array_close, // ]
-    token_kind_array_empty, // []
-    token_kind_array_open, //  [
-    token_kind_array_dims, // [:,:,:]
-    token_kind_at,
-    token_kind_brace_close,
-    token_kind_brace_empty,
-    token_kind_brace_open,
-    token_kind_digit,
-    token_kind_hash,
-    token_kind_excl,
-    token_kind_pipe,
-    token_kind_op_asn,
-    token_kind_op_eq,
-    token_kind_op_ne,
-    token_kind_op_ge,
-    token_kind_op_gt,
-    token_kind_op_le,
-    token_kind_op_lsh,
-    token_kind_op_lt,
-    token_kind_op_mod,
-    token_kind_op_rsh,
-    token_kind_op_results,
-    token_kind_op_notresults,
-    token_kind_paren_close,
-    token_kind_paren_empty,
-    token_kind_paren_open,
-    token_kind_period,
-    token_kind_comma,
-    token_kind_op_colon,
-    token_kind_str_boundary, // "
-    token_kind_str_empty, // ""
-    token_kind_str, // "string"
-    token_kind_rgx_boundary, // '
-    token_kind_rgx_empty, // ''
-    token_kind_rgx, // '[a-zA-Z0-9]+'
-    token_kind_inl_boundary,
-    token_kind_inl_empty,
-    token_kind_inl,
-    token_kind_underscore,
-    token_kind_slash,
-    token_kind_backslash,
-    token_kind_plus,
-    token_kind_minus,
-    token_kind_times,
-    token_kind_pow,
-    token_kind_usd,
-    token_kind_units,
-    token_kind_unknown,
-    token_kind_pluseq,
-    token_kind_minuseq,
-    token_kind_slasheq,
-    token_kind_timeseq,
-    token_kind_coleq
-} token_kind_e;
+typedef enum TokenKind {
+    //    TK_source,
+    TKNullChar,
+    TKKeyword_cheater,
+    TKKeyword_for,
+    TKKeyword_while,
+    TKKeyword_if,
+    TKKeyword_end,
+    TKKeyword_function,
+    TKKeyword_test,
+    TKKeyword_not,
+    TKKeyword_and,
+    TKKeyword_or,
+    TKKeyword_in,
+    TKKeyword_do,
+    TKKeyword_then,
+    TKKeyword_as,
+    TKKeyword_else,
+    TKKeyword_type,
+    TKKeyword_print,
+    TKKeyword_base,
+    TKKeyword_var,
+    TKKeyword_let,
+    TKKeyword_import,
+    TKKeyword_check,
+    TKIdentifier,
+    TKFunctionCall,
+    TKSubscript,
+    TKNumber,
+    //    TKWs,
+    TKSpaces,
+    TKOneSpace, // exactly 1 space
+    TKTab,
+    TKNewline,
+    TKLineComment,
+    TKAlphabet,
+    TKAmpersand,
+    TKArrayClose, // ]
+    // TKArray_empty, // []
+    TKArrayOpen, //  [
+    TKArrayDims, // [:,:,:]
+    TKAt,
+    TKBraceClose,
+    //    TKBrace_empty,
+    TKBraceOpen,
+    TKDigit,
+    TKHash,
+    TKExclamation,
+    TKPipe,
+    TKOpAssign,
+    TKOpEQ,
+    TKOpNE,
+    TKOpGE,
+    TKOpGT,
+    TKOpLE,
+    //    TKOpLeftShift,
+    TKOpLT,
+    TKOpMod,
+    //    TKOpRightShift,
+    TKOpResults,
+    TKOpNotResults,
+    TKParenClose,
+    //    TKParen_empty,
+    TKParenOpen,
+    TKPeriod,
+    TKComma,
+    TKOpColon,
+    TKStringBoundary, // "
+    //    TKStr_empty, // ""
+    TKString, // "string"
+    TKRegexBoundary, // '
+    //    TKRgx_empty, // ''
+    TKRegex, // '[a-zA-Z0-9]+'
+    TKInlineBoundary, // `
+    //    TKInl_empty,
+    TKInline, // `something`
+    TKUnderscore,
+    TKSlash,
+    TKBackslash,
+    TKPlus,
+    TKMinus,
+    TKTimes,
+    TKPower,
+    TKDollar,
+    TKUnits,
+    TKUnknown,
+    TKPlusEq,
+    TKMinusEq,
+    TKSlashEq,
+    TKTimesEq,
+    TKColEq,
+    TKQuestion
+} TokenKind;
 
 // Holds information about a syntax token.
-typedef struct token_t {
+typedef struct Token {
     char* pos;
     uint32_t matchlen : 24;
     struct {
@@ -107,294 +108,298 @@ typedef struct token_t {
     } flags;
     uint16_t line;
     uint8_t col;
-    token_kind_e kind : 8;
-} token_t;
+    TokenKind kind : 8;
+} Token;
+
 
 // Return the repr of a token kind (for debug)
-const char* token_repr(const token_kind_e kind)
+const char* Token_repr(const TokenKind kind)
 {
     switch (kind) {
-    case token_kind__source:
-        return "(src)";
-    case token_kind__end:
-        return "(EOF)";
-    case token_kind_kw_cheater:
+//    case TK_source:
+//        return "(src)";
+    case TKNullChar:
+        return "EOF";
+    case TKKeyword_cheater:
         return "cheater";
-    case token_kind_kw_for:
+    case TKKeyword_for:
         return "for";
-    case token_kind_kw_while:
+    case TKKeyword_while:
         return "while";
-    case token_kind_kw_if:
+    case TKKeyword_if:
         return "if";
-    case token_kind_kw_then:
+    case TKKeyword_then:
         return "then";
-    case token_kind_kw_as:
+    case TKKeyword_as:
         return "as";
-    case token_kind_kw_end:
+    case TKKeyword_end:
         return "end";
-    case token_kind_kw_function:
+    case TKKeyword_function:
         return "func";
-    case token_kind_kw_test:
+    case TKKeyword_test:
         return "test";
-    case token_kind_kw_not:
+    case TKKeyword_not:
         return "not";
-    case token_kind_kw_and:
+    case TKKeyword_and:
         return "and";
-    case token_kind_kw_or:
+    case TKKeyword_or:
         return "or";
-    case token_kind_kw_in:
+    case TKKeyword_in:
         return "in";
-    case token_kind_kw_else:
+    case TKKeyword_else:
         return "else";
-    case token_kind_kw_type:
+    case TKKeyword_type:
         return "type";
-    case token_kind_kw_template:
-        return "template";
-    case token_kind_kw_base:
+    case TKKeyword_check:
+        return "check";
+    case TKKeyword_base:
         return "base";
-    case token_kind_kw_var:
+    case TKKeyword_var:
         return "var";
-    case token_kind_kw_let:
+    case TKKeyword_let:
         return "let";
-    case token_kind_kw_import:
+    case TKKeyword_import:
         return "import";
-    case token_kind_kw_only:
-        return "only";
-    case token_kind_ident:
-        return "(id)";
-    case token_kind_identf:
-        return "(fn)";
-    case token_kind_identa:
-        return "(arr)";
-    case token_kind_number:
+    case TKKeyword_print:
+        return "print";
+    case TKIdentifier:
+        return "id";
+    case TKFunctionCall:
+        return "f()";
+    case TKSubscript:
+        return "a[]";
+    case TKNumber:
         return "#";
-    case token_kind_ws:
-        return "(ws)";
-    case token_kind_spc:
+//    case TKWs:
+//        return "(ws)";
+    case TKSpaces:
         return "(spc)";
-    case token_kind_tab:
+    case TKTab:
         return "(tab)";
-    case token_kind_nl:
+    case TKNewline:
         return "(nl)";
-    case token_kind_linecomment:
+    case TKLineComment:
         return "(cmt)";
-    case token_kind_amp:
+    case TKAmpersand:
         return "&";
-    case token_kind_digit:
+    case TKDigit:
         return "1";
-    case token_kind_pow:
+    case TKPower:
         return "^";
-    case token_kind_units:
+    case TKUnits:
         return "|kg";
-    case token_kind_alpha:
+    case TKAlphabet:
         return "a";
-    case token_kind_array_close:
+    case TKArrayClose:
         return "]";
-    case token_kind_array_empty:
-        return "[]";
-    case token_kind_array_open:
+//    case TKArrayEmpty:
+//        return "[]";
+    case TKArrayOpen:
         return "[";
-    case token_kind_array_dims:
+    case TKArrayDims:
         return "[:,:]";
-    case token_kind_at:
+    case TKAt:
         return "@";
-    case token_kind_brace_close:
+    case TKBraceClose:
         return "}";
-    case token_kind_brace_empty:
-        return "{}";
-    case token_kind_brace_open:
+//    case TKBrace_empty:
+//        return "{}";
+    case TKBraceOpen:
         return "{";
-    case token_kind_hash:
+    case TKHash:
         return "#";
-    case token_kind_excl:
+    case TKExclamation:
         return "!";
-    case token_kind_pipe:
+    case TKPipe:
         return "!";
-    case token_kind_op_asn:
+    case TKOpAssign:
         return "=";
-    case token_kind_op_eq:
+    case TKOpEQ:
         return "==";
-    case token_kind_op_ne:
+    case TKOpNE:
         return "=/";
-    case token_kind_op_ge:
+    case TKOpGE:
         return ">=";
-    case token_kind_op_gt:
+    case TKOpGT:
         return ">";
-    case token_kind_op_le:
+    case TKOpLE:
         return "<";
-    case token_kind_op_lsh:
-        return "<<";
-    case token_kind_op_lt:
+//    case TKOp_lsh:
+//        return "<<";
+    case TKOpLT:
         return "<";
-    case token_kind_op_mod:
+    case TKOpMod:
         return "%";
-    case token_kind_op_rsh:
-        return ">>";
-    case token_kind_op_results:
+//    case TKOpRightShift:
+//        return ">>";
+    case TKOpResults:
         return "=>";
-    case token_kind_op_notresults:
+    case TKOpNotResults:
         return "=/>";
-    case token_kind_paren_close:
+    case TKParenClose:
         return ")";
-    case token_kind_paren_empty:
-        return "()";
-    case token_kind_paren_open:
+//    case TKParen_empty:
+//        return "()";
+    case TKParenOpen:
         return "(";
-    case token_kind_period:
+    case TKPeriod:
         return ".";
-    case token_kind_comma:
+    case TKComma:
         return ",";
-    case token_kind_op_colon:
+    case TKOpColon:
         return ":";
-    case token_kind_str_boundary:
+    case TKStringBoundary:
         return "\"";
-    case token_kind_str_empty:
-        return "\"\"";
-    case token_kind_str:
-        return "(str)";
-    case token_kind_rgx_boundary:
+//    case TKStringEmpty:
+//        return "\"\"";
+    case TKString:
+        return "\"..\"";
+    case TKRegexBoundary:
         return "'";
-    case token_kind_rgx_empty:
-        return "''";
-    case token_kind_rgx:
+//    case TKRegexEmpty:
+//        return "''";
+    case TKRegex:
         return "(rgx)";
-    case token_kind_inl_boundary:
+    case TKInlineBoundary:
         return "`";
-    case token_kind_inl_empty:
-        return "``";
-    case token_kind_inl:
-        return "(inl)";
-    case token_kind_underscore:
+//    case TKInlineEmpty:
+//        return "``";
+    case TKInline:
+        return "`..`";
+    case TKUnderscore:
         return "_";
-    case token_kind_slash:
+    case TKSlash:
         return "/";
-    case token_kind_backslash:
+    case TKBackslash:
         return "\\";
-    case token_kind_plus:
+    case TKPlus:
         return "+";
-    case token_kind_minus:
+    case TKMinus:
         return "-";
-    case token_kind_times:
+    case TKTimes:
         return "*";
-    case token_kind_usd:
+    case TKDollar:
         return "$";
-    case token_kind_unknown:
-        return "(unk)";
-    case token_kind_kw_do:
+    case TKUnknown:
+        return "(?)";
+    case TKKeyword_do:
         return "do";
-    case token_kind_coleq:
+    case TKColEq:
         return ":=";
-    case token_kind_pluseq:
+    case TKPlusEq:
         return "+=";
-    case token_kind_minuseq:
+    case TKMinusEq:
         return "-=";
-    case token_kind_timeseq:
+    case TKTimesEq:
         return "*=";
-    case token_kind_slasheq:
+    case TKSlashEq:
         return "/=";
-    case token_kind_onespc:
+    case TKOneSpace:
         return "(sp1)";
+    case TKQuestion:
+        return "?";
     }
     printf("unknown kind: %d\n", kind);
     return "(!unk)";
 }
 
-bool_t token_unary(token_kind_e kind)
+bool_t Token_isUnary(TokenKind kind)
 {
-    return kind == token_kind_kw_not; // unary - is handled separately
+    return kind == TKKeyword_not; // unary - is handled separately
 }
 
-bool_t token_rassoc(token_kind_e kind)
+bool_t Token_isRightAssociative(TokenKind kind)
 {
-    return kind == token_kind_period || kind == token_kind_pow;
+    return kind == TKPeriod || kind == TKPower;
 }
 
-uint8_t token_prec(token_kind_e kind)
+uint8_t Token_getPrecedence(TokenKind kind)
 { // if templateStr then precedence of < and > should be 0
     switch (kind) {
-    case token_kind_period:
+    case TKPeriod:
         return 90;
-    case token_kind_pipe:
+    case TKPipe:
         return 80;
-    case token_kind_pow:
+    case TKPower:
         return 70;
-    case token_kind_times:
-    case token_kind_slash:
+    case TKTimes:
+    case TKSlash:
         return 60;
-    case token_kind_plus:
-    case token_kind_minus:
+    case TKPlus:
+    case TKMinus:
         return 50;
-    case token_kind_op_colon:
+    case TKOpColon:
         return 45;
-    case token_kind_op_le:
-    case token_kind_op_lt:
-    case token_kind_op_gt:
-    case token_kind_op_ge:
-    case token_kind_kw_in:
-        // case token_kind_kw_notin:
+    case TKOpLE:
+    case TKOpLT:
+    case TKOpGT:
+    case TKOpGE:
+    case TKKeyword_in:
+        // case TKKw_notin:
         return 41;
-    case token_kind_op_eq:
-    case token_kind_op_ne:
+    case TKOpEQ:
+    case TKOpNE:
         return 40;
-    case token_kind_kw_not:
+    case TKKeyword_not:
         return 32;
-    case token_kind_kw_and:
+    case TKKeyword_and:
         return 31;
-    case token_kind_kw_or:
+    case TKKeyword_or:
         return 30;
-    case token_kind_op_asn:
+    case TKOpAssign:
         return 22;
-    case token_kind_pluseq:
-    case token_kind_coleq:
-    case token_kind_minuseq:
-    case token_kind_timeseq:
-    case token_kind_slasheq:
+    case TKPlusEq:
+    case TKColEq:
+    case TKMinusEq:
+    case TKTimesEq:
+    case TKSlashEq:
         return 20;
-    case token_kind_comma:
+    case TKComma:
         return 10;
-    case token_kind_kw_do:
+    case TKKeyword_do:
         return 5;
-    case token_kind_paren_open:
-    case token_kind_paren_close:
-        return 0;
-    case token_kind_brace_open:
-    case token_kind_brace_close:
-        return 0;
-    case token_kind_array_open:
-    case token_kind_array_close:
-        return 0;
+//    case TKParenOpen:
+//    case TKParenClose:
+//        return 0;
+//    case TKBraceOpen:
+//    case TKBraceClose:
+//        return 0;
+//    case TKArrayOpen:
+//    case TKArrayClose:
+//        return 0;
     default:
         return 0;
-    }
-}
-token_kind_e reverseBracket(token_kind_e kind)
-{
-    switch (kind) {
-    case token_kind_array_open:
-        return token_kind_array_close;
-    case token_kind_paren_open:
-        return token_kind_paren_close;
-    case token_kind_brace_open:
-        return token_kind_brace_close;
-    case token_kind_array_close:
-        return token_kind_array_open;
-    case token_kind_brace_close:
-        return token_kind_brace_open;
-    case token_kind_paren_close:
-        return token_kind_paren_open;
-    default:
-        printf("unexpected at %s:%d\n", __FILE__, __LINE__);
-        return token_kind_unknown;
     }
 }
 
-char* token_strdup(const token_t* const token)
+TokenKind reverseBracket(TokenKind kind)
+{
+    switch (kind) {
+    case TKArrayOpen:
+        return TKArrayClose;
+    case TKParenOpen:
+        return TKParenClose;
+    case TKBraceOpen:
+        return TKBraceClose;
+    case TKArrayClose:
+        return TKArrayOpen;
+    case TKBraceClose:
+        return TKBraceOpen;
+    case TKParenClose:
+        return TKParenOpen;
+    default:
+        printf("unexpected at %s:%d\n", __FILE__, __LINE__);
+        return TKUnknown;
+    }
+}
+
+char* Token_strdup(const Token* const token)
 {
     return strndup(token->pos, token->matchlen);
 }
 
 // Advance the token position by one char.
-void token_advance1(token_t* token)
+void Token_advance1(Token* token)
 {
     // this is called after a token has been consumed and the pointer
     // needs to advance. If skipws is set, loop until the next non-space.
@@ -405,333 +410,328 @@ void token_advance1(token_t* token)
 }
 
 // Peek at the char after the current (complete) token
-char peekcharafter(token_t* token)
+char Token_peekCharAfter(Token* token)
 {
     return *(token->pos + token->matchlen + 1);
 }
 
-#define token_compare_kw(tok)                                                  \
-    if (sizeof(#tok) - 1 == l && !strncmp(#tok, s, l))                         \
-    return token_kind_kw_##tok
+#define Token_compareKeyword(tok)                                          \
+    if (sizeof(#tok) - 1 == l && !strncmp(#tok, s, l))                     \
+    return TKKeyword_##tok
 
 // Check if an (ident) token matches a keyword and return its type
 // accordingly.
-token_kind_e token_trykwmatch(const token_t* token)
+TokenKind Token_tryKeywordMatch(const Token* token)
 {
-    if (token->kind != token_kind_ident)
-        return token->kind;
+    if (token->kind != TKIdentifier) return token->kind;
 
     const char* s = token->pos;
     const int l = token->matchlen;
 
-    token_compare_kw(and);
-    token_compare_kw(cheater);
-    token_compare_kw(for);
-    token_compare_kw(while);
-    token_compare_kw(if);
-    token_compare_kw(as);
-    token_compare_kw(end);
-    token_compare_kw(function);
-    token_compare_kw(test);
-    token_compare_kw(not);
-    token_compare_kw(and);
-    token_compare_kw(or);
-    token_compare_kw(in);
-    token_compare_kw(else);
-    token_compare_kw(type);
-    token_compare_kw(template);
-    token_compare_kw(base);
-    token_compare_kw(var);
-    token_compare_kw(let);
-    token_compare_kw(import);
-    token_compare_kw(only);
-    // token_compare_kw(notin);
-    token_compare_kw(do);
-    token_compare_kw(then);
-    return token_kind_ident;
+    Token_compareKeyword(and);
+    Token_compareKeyword(cheater);
+    Token_compareKeyword(for);
+    Token_compareKeyword(do);
+    Token_compareKeyword(while);
+    Token_compareKeyword(if);
+    Token_compareKeyword(then);
+    Token_compareKeyword(end);
+    Token_compareKeyword(function);
+    Token_compareKeyword(test);
+    Token_compareKeyword(not);
+    Token_compareKeyword(and);
+    Token_compareKeyword(or);
+    Token_compareKeyword(in);
+    Token_compareKeyword(else);
+    Token_compareKeyword(type);
+    Token_compareKeyword(check);
+    Token_compareKeyword(base);
+    Token_compareKeyword(var);
+    Token_compareKeyword(let);
+    Token_compareKeyword(import);
+    Token_compareKeyword(as);
+//    Token_compareKeyword(only);
+    Token_compareKeyword(print);
+    return TKIdentifier;
 }
 
 // Get the type based on the char at the current position.
-#define token_gettype(t) token_gettype_atoffset(t, 0)
+#define Token_gettype(t) Token_getTypeAtOffset(t, 0)
 
 // Get the type based on the char after the current position (don't conflate
-// this with char* peekcharafter(token))
-#define token_peek_nextchar(t) token_gettype_atoffset(t, 1)
+// this with char* Token_peekCharAfter(token))
+#define Token_peek_nextchar(t) Token_getTypeAtOffset(t, 1)
 
 // Get the token kind based only on the char at the current position (or an
 // offset).
-token_kind_e token_gettype_atoffset(const token_t* self, const size_t offset)
+TokenKind Token_getTypeAtOffset(const Token* self, const size_t offset)
 {
     const char c = self->pos[offset];
     const char cn = c ? self->pos[1 + offset] : 0;
 
     switch (c) {
     case 0:
-        return token_kind__end;
+        return TKNullChar;
     case '\n':
-        return token_kind_nl;
+        return TKNewline;
     case ' ':
-        return token_kind_spc;
+        return TKSpaces;
     case '\t':
-        return token_kind_tab;
+        return TKTab;
     case ':':
-        return token_kind_op_colon;
+        return TKOpColon;
     case ',':
-        return token_kind_comma;
+        return TKComma;
+    case '?':
+        return TKQuestion;
     case '"':
-        return token_kind_str_boundary;
+        return TKStringBoundary;
     case '`':
-        return token_kind_inl_boundary;
+        return TKInlineBoundary;
     case '[':
-        switch (cn) {
-
-        default:
-            return token_kind_array_open;
-        }
+        // switch (cn) {
+        // default:
+        return TKArrayOpen;
+        // }
     case '$':
-        return token_kind_usd;
+        return TKDollar;
     case '%':
-        return token_kind_op_mod;
+        return TKOpMod;
     case '.':
-        return token_kind_period;
+        return TKPeriod;
     case '\'':
-        return token_kind_rgx_boundary;
+        return TKRegexBoundary;
     case '&':
-        return token_kind_amp;
+        return TKAmpersand;
     case '^':
-        return token_kind_pow;
+        return TKPower;
     case '@':
-        return token_kind_at;
+        return TKAt;
     case '#':
-        return token_kind_hash;
+        return TKHash;
     case '|':
-        return token_kind_pipe;
+        return TKPipe;
     case '{':
-        switch (cn) {
-        case '}':
-            return token_kind_brace_empty;
-        default:
-            return token_kind_brace_open;
-        }
+        // switch (cn) {
+        // case '}':
+        //     return TKBraceEmpty;
+        // default:
+        return TKBraceOpen;
+        // }
     case '(':
-        switch (cn) {
-        case ')':
-            return token_kind_paren_empty;
-        default:
-            return token_kind_paren_open;
-        }
+        // switch (cn) {
+        // case ')':
+        //     return TKParenEmpty;
+        // default:
+        return TKParenOpen;
+        // }
     case ')':
-        return token_kind_paren_close;
+        return TKParenClose;
     case '}':
-        return token_kind_brace_close;
+        return TKBraceClose;
     case ']':
-        return token_kind_array_close;
+        return TKArrayClose;
     case '<':
         switch (cn) {
         case '=':
-            return token_kind_op_le;
-        case '<':
-            return token_kind_op_lsh;
+            return TKOpLE;
+            //        case '<':
+            //            return TKOpLeftShift;
         default:
-            return token_kind_op_lt;
+            return TKOpLT;
         }
     case '>':
         switch (cn) {
         case '=':
-            return token_kind_op_ge;
-        case '>':
-            return token_kind_op_rsh;
+            return TKOpGE;
+            //        case '>':
+            //            return TKOp_rsh;
         default:
-            return token_kind_op_gt;
+            return TKOpGT;
         }
     case '=':
         switch (cn) {
         case '=':
-            return token_kind_op_eq;
+            return TKOpEQ;
         case '/':
-            return token_kind_op_ne;
+            return TKOpNE;
         case '>':
-            return token_kind_op_results;
+            return TKOpResults;
         default:
-            return token_kind_op_asn;
+            return TKOpAssign;
         }
     case '!':
-        return token_kind_excl;
+        return TKExclamation;
     case '/':
-        return token_kind_slash;
+        return TKSlash;
     case '\\':
-        return token_kind_backslash;
+        return TKBackslash;
     case '+':
-        return token_kind_plus;
+        return TKPlus;
     case '-':
-        return token_kind_minus; // if prev token was +-*/^(<> (and some
-                                 // others?) then this is unary -
+        return TKMinus; // if prev token was +-*/^(<> (and some
+                        // others?) then this is unary -
     case '*':
-        return token_kind_times;
+        return TKTimes;
     default:
         if (isalpha(c) || c == '_') {
-            return token_kind_alpha;
+            return TKAlphabet;
         } else if (isdigit(c)) {
-            return token_kind_digit;
+            return TKDigit;
         } else {
-            return token_kind_unknown;
+            return TKUnknown;
         }
         break;
     }
 }
 
 // Scans ahead from the current position until the actual end of the token.
-void token_detect(token_t* token)
+void Token_detect(Token* token)
 {
-    token_kind_e tt = token_gettype(token);
-    token_kind_e tt_ret; // = tt;
-    token_kind_e tmp;
+    TokenKind tt = Token_gettype(token);
+    TokenKind tt_ret; // = tt;
+    TokenKind tmp;
     char* start = token->pos;
     bool_t found_e = false, found_dot = false, found_cmt = false;
     uint8_t found_spc = 0;
 
     switch (tt) {
-    case token_kind_str_boundary:
-    case token_kind_inl_boundary:
-    case token_kind_rgx_boundary:
+    case TKStringBoundary:
+    case TKInlineBoundary:
+    case TKRegexBoundary:
         tmp = tt; // remember which it is exactly
 
-        // Incrementing pos is a side effect of token_gettype(...)
-        while (tt != token_kind__end) {
+        // Incrementing pos is a side effect of Token_gettype(...)
+        while (tt != TKNullChar) {
             // here we want to consume the ending " so we move next before
-            token_advance1(token);
-            tt = token_gettype(token);
-            if (tt == token_kind__end || tt == tmp) {
-                token_advance1(token);
+            Token_advance1(token);
+            tt = Token_gettype(token);
+            if (tt == TKNullChar || tt == tmp) {
+                Token_advance1(token);
                 break;
             }
-            if (tt == token_kind_backslash)
-                if (token_peek_nextchar(token) == tmp) { // why if?
-                    token_advance1(token);
+            if (tt == TKBackslash)
+                if (Token_peek_nextchar(token) == tmp) { // why if?
+                    Token_advance1(token);
                 }
         }
         switch (tmp) {
-        case token_kind_str_boundary:
-            tt_ret = token_kind_str;
+        case TKStringBoundary:
+            tt_ret = TKString;
             break;
-        case token_kind_inl_boundary:
-            tt_ret = token_kind_inl;
+        case TKInlineBoundary:
+            tt_ret = TKInline;
             break;
-        case token_kind_rgx_boundary:
-            tt_ret = token_kind_rgx;
+        case TKRegexBoundary:
+            tt_ret = TKRegex;
             break;
         default:
-            tt_ret = token_kind_unknown;
-            printf("unreachable\n");
+            tt_ret = TKUnknown;
+            printf("unreachable %s:%d\n", __FILE__, __LINE__);
         }
         break;
 
-    case token_kind_spc:
-        while (tt != token_kind__end) {
+    case TKSpaces:
+        while (tt != TKNullChar) {
             // here we dont want to consume the end char, so break before
-            tt = token_peek_nextchar(token);
-            token_advance1(token);
-            if (tt != token_kind_spc)
-                break;
+            tt = Token_peek_nextchar(token);
+            Token_advance1(token);
+            if (tt != TKSpaces) break;
         }
-        tt_ret = token_kind_spc;
+        tt_ret = TKSpaces;
         break;
 
-    case token_kind_comma:
-        while (tt != token_kind__end) {
-            tt = token_peek_nextchar(token);
-            token_advance1(token);
+    case TKComma:
+        while (tt != TKNullChar) {
+            tt = Token_peek_nextchar(token);
+            Token_advance1(token);
             // line number should be incremented for line continuations
-            if (tt == token_kind_spc) {
+            if (tt == TKSpaces) {
                 found_spc++;
             }
-            if (tt == token_kind_excl) {
+            if (tt == TKExclamation) {
                 found_cmt = true;
             }
-            if (tt == token_kind_nl) {
+            if (tt == TKNewline) {
                 token->line++;
                 token->col = -found_spc - 1; // account for extra spaces
                                              // after , and for nl itself
                 found_spc = 0;
             }
-            if (found_cmt && tt != token_kind_nl) {
+            if (found_cmt && tt != TKNewline) {
                 found_spc++;
                 continue;
             }
-            if (tt != token_kind_spc && tt != token_kind_nl)
-                break;
+            if (tt != TKSpaces && tt != TKNewline) break;
         }
-        tt_ret = token_kind_comma;
+        tt_ret = TKComma;
         break;
 
-    case token_kind_array_open:
+    case TKArrayOpen:
         // mergearraydims should be set only when reading func args
-        if (!token->flags.mergearraydims)
-            goto defaultToken;
+        if (!token->flags.mergearraydims) goto defaultToken;
 
-        while (tt != token_kind__end) {
-            tt = token_peek_nextchar(token);
-            token_advance1(token);
-            if (tt != token_kind_op_colon && tt != token_kind_comma)
-                break;
+        while (tt != TKNullChar) {
+            tt = Token_peek_nextchar(token);
+            Token_advance1(token);
+            if (tt != TKOpColon && tt != TKComma) break;
         }
-        tt = token_gettype(token);
-        if (tt != token_kind_array_close) {
+        tt = Token_gettype(token);
+        if (tt != TKArrayClose) {
             fprintf(stderr, "expected a ']', found a '%c'. now what?\n",
                 *token->pos);
         }
-        token_advance1(token);
-        tt_ret = token_kind_array_dims;
+        Token_advance1(token);
+        tt_ret = TKArrayDims;
         break;
 
-    case token_kind_alpha:
-        while (tt != token_kind__end) {
-            tt = token_peek_nextchar(token);
-            token_advance1(token);
-            if (tt != token_kind_alpha //
-                && tt != token_kind_digit //
-                && tt != token_kind_underscore && tt != token_kind_period)
+    case TKAlphabet:
+        while (tt != TKNullChar) {
+            tt = Token_peek_nextchar(token);
+            Token_advance1(token);
+            if (tt != TKAlphabet //
+                && tt != TKDigit //
+                && tt != TKUnderscore && tt != TKPeriod)
                 break; /// validate in parser not here
         }
-        tt_ret = token_kind_ident;
+        tt_ret = TKIdentifier;
         break;
 
-    case token_kind_excl:
-        while (tt != token_kind__end) {
-            tt = token_peek_nextchar(token);
-            token_advance1(token);
-            if (tt == token_kind_nl)
+    case TKExclamation:
+        while (tt != TKNullChar) {
+            tt = Token_peek_nextchar(token);
+            Token_advance1(token);
+            if (tt == TKNewline) break;
+        }
+        tt_ret = TKLineComment;
+        break;
+
+    case TKPipe:
+        while (tt != TKNullChar) {
+            tt = Token_peek_nextchar(token);
+            Token_advance1(token);
+            if (tt != TKAlphabet && tt != TKDigit && tt != TKSlash
+                && tt != TKPeriod)
                 break;
         }
-        tt_ret = token_kind_linecomment;
+        tt_ret = TKUnits;
         break;
 
-    case token_kind_pipe:
-        while (tt != token_kind__end) {
-            tt = token_peek_nextchar(token);
-            token_advance1(token);
-            if (tt != token_kind_alpha && tt != token_kind_digit
-                && tt != token_kind_slash && tt != token_kind_period)
-                break;
-        }
-        tt_ret = token_kind_units;
-        break;
-
-    case token_kind_digit:
-        while (tt != token_kind__end) // EOF, basically null char
+    case TKDigit:
+        while (tt != TKNullChar) // EOF, basically null char
         {
-            tt = token_peek_nextchar(token);
+            tt = Token_peek_nextchar(token);
             // numbers such as 1234500.00 are allowed
             // very crude, error-checking is parser's job
-            //            if (tt==token_kind_digit //
-            //                || tt==token_kind_plus //
-            //                || tt==token_kind_minus //
-            //                || tt==token_kind_period //
+            //            if (tt==TKDigit //
+            //                || tt==TKPlus //
+            //                || tt==TKMinus //
+            //                || tt==TKPeriod //
             //                || *token->pos == 'e' //
             //                || *token->pos == 'E' //
             //                || *token->pos == 'd'
             //                || *token->pos == 'D')
-            token_advance1(token);
+            Token_advance1(token);
 
             if (*token->pos == 'e' //
                 || *token->pos == 'E' //
@@ -740,46 +740,46 @@ void token_detect(token_t* token)
                 found_e = true;
                 continue;
             }
-            if (found_e) { //}&& (*token->pos == '-' || *token->pos == '+')) {
+            if (found_e) { //}&& (*token->pos == '-' || *token->pos == '+'))
+                           //{
                 found_e = false;
                 continue;
             }
-            if (tt == token_kind_period) {
+            if (tt == TKPeriod) {
                 found_dot = true;
                 continue;
             }
-            //            if (found_dot && tt == token_kind_period) {
+            //            if (found_dot && tt == TKPeriod) {
             //                fprintf(stderr, "raise error: multiple dots in
             //                number\n"); break;
             //            }
             // lets allow that for IP addresses etc., or just bytes
-            if (tt != token_kind_digit && tt != token_kind_period)
-                break;
+            if (tt != TKDigit && tt != TKPeriod) break;
         }
-        tt_ret = token_kind_number;
+        tt_ret = TKNumber;
         break;
 
-        /* case token_kind_nl:
+        /* case TKNl:
              token->line++;
              token->col=1;
              break; */
 
-    case token_kind_op_eq:
-    case token_kind_op_ge:
-    case token_kind_op_le:
-    case token_kind_op_ne:
-    case token_kind_op_results:
-    case token_kind_op_notresults: // this is 3-char, is it not?
-    case token_kind_brace_empty:
-    case token_kind_backslash:
-    case token_kind_paren_empty:
+    case TKOpEQ:
+    case TKOpGE:
+    case TKOpLE:
+    case TKOpNE:
+    case TKOpResults:
+    case TKOpNotResults: // this is 3-char, is it not?
+    // case TKBraceEmpty:
+    case TKBackslash:
+        // case TKParenEmpty:
         // two-char tokens
-        token_advance1(token);
+        Token_advance1(token);
         // don'self break
     default:
     defaultToken:
         tt_ret = tt;
-        token_advance1(token);
+        Token_advance1(token);
         break;
     }
 
@@ -788,32 +788,32 @@ void token_detect(token_t* token)
                         // advance rewind
     token->kind = tt_ret;
     // keywords have their own token type
-    if (token->kind == token_kind_ident)
-        token->kind = token_trykwmatch(token);
-    // exactly one space is token_kind_onespc, otherwise token_kind_spc.
+    if (token->kind == TKIdentifier)
+        token->kind = Token_tryKeywordMatch(token);
+    // exactly one space is TKOnespc, otherwise TKSpc.
     // the compiler needs to check one space frequently in strict mode.
     // FIXME figure it out later
-    if (token->kind == token_kind_spc && token->matchlen == 1)
-        token->kind = token_kind_onespc;
+    if (token->kind == TKSpaces && token->matchlen == 1)
+        token->kind = TKOneSpace;
 }
 
 // Advances the parser to the next token and skips whitespace if the
 // parser's flag `skipws` is set.
-void token_advance(token_t* token)
+void Token_advance(Token* token)
 {
     token->pos += token->matchlen;
     token->col += token->matchlen;
     token->matchlen = 0;
-    // token_advance1(token);
-    token_detect(token);
+    // Token_advance1(token);
+    Token_detect(token);
     if (token->flags.skipws
-        && (token->kind == token_kind_spc
+        && (token->kind == TKSpaces
 #ifndef PARSE_STRICT
-            || token->kind == token_kind_onespc
+            || token->kind == TKOneSpace
 #endif
             ))
-        token_advance(token);
-    if (token->kind == token_kind_nl) {
+        Token_advance(token);
+    if (token->kind == TKNewline) {
         token->line++;
         token->col = 0; // position of the nl itself is 0
     }

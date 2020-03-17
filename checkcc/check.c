@@ -23,8 +23,8 @@ int main(int argc, char* argv[])
 {
     if (argc == 1) return 1;
     print_sizes();
-    parser_t* parser = parser_new(argv[1], skipws);
-    parse(parser);
+    Parser* parser = Parser_new(argv[1], skipws);
+    Parser_parse(parser);
     if (!parser->errCount) print_tree(parser->modules, 0);
     alloc_stat();
     return 0;

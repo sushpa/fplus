@@ -18,10 +18,10 @@
                                                                            \
     void alloc_stat_##Type()                                               \
     {                                                                      \
-        fprintf(stderr, "*** %u (%s) allocated (%ld B)\n", alloc_total_##Type, \
-            #Type, alloc_total_##Type * sizeof(Type));                     \
+        fprintf(stderr, "*** %u (%s) allocated (%ld B)\n",                 \
+            alloc_total_##Type, #Type, alloc_total_##Type * sizeof(Type)); \
     }
 
-MAKE_ALLOCATOR(node_t, 512)
+MAKE_ALLOCATOR(Node, 512)
 
-void alloc_stat() { alloc_stat_node_t(); }
+void alloc_stat() { alloc_stat_Node(); }
