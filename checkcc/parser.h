@@ -669,124 +669,120 @@ Node* Parser_parse(Parser* parser)
 const char* spaces = "                              "
                      "                                  ";
 
-void print_tree(const Node* const node, int level)
+void ChWriter_gen(const Node* const node, int level);
+
+ void ChWriter_genModule(int level, const Node *node) {
+    printf("! module %s\n", node->name);
+    Node* type = node->types;
+    while (type) {
+        ChWriter_gen(type, level);
+        type = type->next;
+    }
+    Node* func = node->funcs;
+    while (func) {
+        ChWriter_gen(func, level);
+        func = func->next;
+    }
+}
+
+ void ChWriter_genVar(int level, const Node *node) {
+    printf("%.*s%s %s", level * 4, spaces,
+           node->flags.var.isLet ? "let" : "var", node->name);
+    if (node->typespec)
+        ChWriter_gen(node->typespec, level + 1);
+    else
+        printf(": Unknown");
+    if (node->init) {
+        printf(" = ");
+        ChWriter_gen(node->init, level + 1);
+    }
+    puts("");
+}
+
+ void ChWriter_genFunc(int level, const Node *node) {
+    printf("function %s(", node->name);
+    Node* arg = node->args;
+    while (arg) {
+        printf("%s: %s", arg->name, arg->typespec->name);
+        if ((arg = arg->next)) printf(", ");
+    }
+    if (node->typespec) printf("): %s\n", node->typespec->name);
+    ChWriter_gen(node->body, level);
+    puts("end function\n");
+}
+
+ void ChWriter_genType(int level, const Node *node) {
+    printf("type %s\n", node->name);
+    if (node->super) printf("    base %s\n", node->super);
+    Node* member = node->members;
+    while (member) {
+        ChWriter_gen(member, level + 1);
+        member = member->next;
+    }
+    puts("end type\n");
+}
+
+ void ChWriter_genScope(int level, const Node *node) {
+    printf("!begin scope\n");
+    Node* stmt = node->stmts;
+    while (stmt) {
+        ChWriter_gen(stmt, level + 1);
+        stmt = stmt->next;
+    }
+}
+
+ void ChWriter_genExpr(int level, const Node *node) {
+    switch (node->subkind) {
+    case TKIdentifier:
+    case TKNumber:
+    case TKString:
+        printf("%.*s", node->len, node->value.string);
+        break;
+    case TKFunctionCall:
+    case TKSubscript:
+        // NYI
+        break;
+    default:
+        if (!node->prec) break; // not an operator
+        if (node->left) {
+            if (node->left->kind == NKExpr && node->left->prec < node->prec)
+                putc('(', stdout);
+            ChWriter_gen(node->left, level + 1);
+            if (node->left->kind == NKExpr && node->left->prec < node->prec)
+                putc(')', stdout);
+        }
+        printf(" %s ", Token_repr(node->subkind));
+        if (node->right) {
+            if (node->right->kind == NKExpr && node->right->prec < node->prec)
+                putc('(', stdout);
+            ChWriter_gen(node->right, level + 1);
+            if (node->right->kind == NKExpr && node->right->prec < node->prec)
+                putc(')', stdout);
+        }
+    }
+}
+
+ void ChWriter_genUnits(const Node *node) {
+     printf("|%s", node->name);
+}
+
+ void ChWriter_genTypeSpec(const Node *node) {
+    printf(": %s", node->name);
+    if (node->dims) printf("%s", node->dims->name);
+}
+
+void ChWriter_gen(const Node* const node, int level)
 {
     if (!node) return;
-
     switch (node->kind) {
-    case NKModule:
-        printf("! module %s\n", node->name);
-        Node* type = node->types;
-        while (type) {
-            print_tree(type, level);
-            type = type->next;
-        }
-        Node* func = node->funcs;
-        while (func) {
-            print_tree(func, level);
-            func = func->next;
-        }
-        break;
-
-    case NKVar:
-        printf("%.*s%s %s", level * 4, spaces,
-            node->flags.var.isLet ? "let" : "var", node->name);
-        if (node->typespec)
-            print_tree(node->typespec, level + 1);
-        else
-            printf(": UNKNownType");
-        if (node->init) {
-            printf(" = ");
-            print_tree(node->init, level + 1);
-        }
-        puts("");
-        break;
-
-    case NKFunc:
-        printf("function %s(", node->name);
-        Node* arg = node->args;
-        while (arg) {
-            printf("%s: %s", arg->name, arg->typespec->name);
-            if ((arg = arg->next)) printf(", ");
-        }
-        if (node->typespec) printf("): %s\n", node->typespec->name);
-        print_tree(node->body, level);
-        puts("end function\n");
-        break;
-
-    case NKType:
-        printf("type %s\n", node->name);
-        if (node->super) printf("    base %s\n", node->super);
-        Node* member = node->members;
-        while (member) {
-            print_tree(member, level + 1);
-            member = member->next;
-        }
-        puts("end type\n");
-        break;
-
-    case NKScope:
-        printf("!begin scope\n");
-        Node* stmt = node->stmts;
-        while (stmt) {
-            print_tree(stmt, level + 1);
-            stmt = stmt->next;
-        }
-        break;
-
-        // case NKToken:
-        // printf(
-        //    "@@@ found unresolved token of kind %s",
-        //    token_repr(node->subkind));
-        // actually you should raise an error here since NKToken should
-        // be resolved to NKLiteral or something while Parser_parse_expr
-        // pushes it on the result stack. but for now let's work with it:
-        //        switch(node->subkind) {
-        //                case TKNumber:
-        //                  printf("%g")
-        //}
-        // break;
-
-    case NKExpr:
-        switch (node->subkind) {
-        case TKIdentifier:
-        case TKNumber:
-        case TKString:
-            printf("%.*s", node->len, node->value.string);
-            break;
-        case TKFunctionCall:
-        case TKSubscript:
-            // NYI
-            break;
-        default:
-            if (!node->prec) break; // not an operator
-            if (node->left) {
-                if (node->left->kind == NKExpr && node->left->prec < node->prec)
-                    putc('(', stdout);
-                print_tree(node->left, level + 1);
-                if (node->left->kind == NKExpr && node->left->prec < node->prec)
-                    putc(')', stdout);
-            }
-            printf(" %s ", Token_repr(node->subkind));
-            if (node->right) {
-                if (node->right->kind == NKExpr && node->right->prec < node->prec)
-                    putc('(', stdout);
-                print_tree(node->right, level + 1);
-                if (node->right->kind == NKExpr && node->right->prec < node->prec)
-                    putc(')', stdout);
-            }
-        }
-        break;
-
-    case NKUnits:
-        printf("|%s", node->name);
-        break;
-
-    case NKTypeSpec:
-        printf(": %s", node->name);
-        if (node->dims) printf("%s", node->dims->name);
-        break;
-
+    case NKModule: ChWriter_genModule(level, node); break;
+    case NKVar: ChWriter_genVar(level, node); break;
+    case NKFunc: ChWriter_genFunc(level, node); break;
+    case NKType: ChWriter_genType(level, node); break;
+    case NKScope: ChWriter_genScope(level, node); break;
+    case NKExpr: ChWriter_genExpr(level, node); break;
+    case NKUnits: ChWriter_genUnits(node); break;
+    case NKTypeSpec: ChWriter_genTypeSpec(node); break;
     default:
         printf("!!! can't print %s", NodeKind_repr(node->kind));
         break;
