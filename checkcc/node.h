@@ -51,7 +51,7 @@ typedef struct node_t node_t;
     struct { /* node_units_t */                                                \
         uint8_t putSomethingHere, powers[7];                                   \
         double* factors; /* will be double[7] */                               \
-        \ 
+                                                                               \
         double factor; /* final conv factor */                                 \
     };                                                                         \
     struct { /* node_type_t */                                                 \
@@ -241,6 +241,12 @@ char* node_repr(node_kind_e kind)
         return "node_kind_ident";
     case node_kind_index:
         return "node_kind_index";
+    case node_kind_expr:
+        return "node_kind_expr";
+    case node_kind_param:
+        return "node_kind_param";
+    case node_kind_scope:
+        return "node_kind_scope";
     case node_kind_le:
         return "node_kind_le";
     case node_kind_list:
@@ -255,6 +261,9 @@ char* node_repr(node_kind_e kind)
         return "node_kind_modeq";
     case node_kind_mul:
         return "node_kind_mul";
+    case node_kind_import:
+        return "node_kind_import";
+
     case node_kind_muleq:
         return "node_kind_muleq";
     case node_kind_neq:
@@ -385,15 +394,26 @@ static void stack_push(node_stack_t* stack, node_t* node)
         stack->items[stack->count++] = node;
     } else {
         stack->cap = stack->cap ? 2 * stack->cap : 8;
-        stack->items
-            = realloc(stack->items, stack->cap); // !! realloc can NULL the ptr!
+        stack->items = realloc(stack->items,
+            sizeof(node_t*) * stack->cap); // !! realloc can NULL the ptr!
         stack->items[stack->count++] = node;
+        int i;
+        for (i = stack->count; i < stack->cap; i++)
+            stack->items[i] = NULL;
     }
 }
 
 node_t* stack_pop(node_stack_t* stack)
 {
-    return stack->count ? stack->items[--stack->count] : NULL;
+    node_t* ret = NULL;
+    if (stack->count) {
+        ret = stack->items[stack->count - 1];
+        // stack->items[stack->count-1] = NULL;
+        stack->count--;
+    } else {
+        printf("error: pop from empty list\n");
+    }
+    return ret; // stack->count ? stack->items[--stack->count] : NULL;
 }
 
 node_t* stack_top(const node_stack_t* const stack)

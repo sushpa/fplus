@@ -6,7 +6,7 @@ node_t* new_node_from_current_token(parser_t* parser)
     token_t* token = &parser->token;
 
     node_t* node = alloc_node_t();
-    *node = (node_t){ //
+    *node = (node_t) { //
         .kind = node_kind_token,
         .subkind = token->kind,
         .len = token->matchlen,
@@ -32,6 +32,11 @@ node_t* new_node_from_current_token(parser_t* parser)
         node->rassoc = token_rassoc(token->kind);
         node->unary = token_unary(token->kind);
         break;
+    }
+    if (token->kind == token_kind_number) {
+        str_tr_ip(node->value.string, 'd', 'e');
+        str_tr_ip(node->value.string, 'D', 'e');
+        str_tr_ip(node->value.string, 'E', 'e');
     }
     parser_advance(parser);
     return node;
@@ -95,19 +100,108 @@ char* parse_ident(parser_t* parser)
     return p;
 }
 
-token_kind_e reverseBracket (token_kind_e kind) {
-    switch(kind) {
-    case token_kind_array_open:
-        return token_kind_array_close;
-    case token_kind_paren_open:
-        return token_kind_paren_close;
-    case token_kind_brace_open:
-        return token_kind_brace_close;
+node_t* parse_expr(parser_t* parser)
+{
+    token_t* token = &parser->token;
+
+    // we could make this static and set len to 0 upon func exit
+    node_stack_t rpn = { NULL, 0, 0 }, ops = { NULL, 0, 0 };
+    int prec_top = 0;
+    node_t* p;
+
+    while (token->kind != token_kind_nl
+        && token->kind != token_kind_linecomment) { // build RPN
+        int i;
+        puts("\nop-stack:");
+        for (i = 0; i < ops.count; i++)
+            if (ops.items[i])
+                printf("%s ", token_repr(ops.items[i]->subkind));
+        puts("\nres-stack:");
+        for (i = 0; i < rpn.count; i++)
+            if (rpn.items[i])
+                printf("%s ", token_repr(rpn.items[i]->subkind));
+        puts("");
+
+        node_t* node = new_node_from_current_token(parser);
+        int prec = node->prec;
+        bool_t rassoc = node->rassoc;
+
+        if (node->subkind == token_kind_ident
+            && token->kind == token_kind_paren_open) {
+            node->subkind = token_kind_identf;
+            node->prec = 100;
+            stack_push(&ops, node);
+        } else if (node->subkind == token_kind_ident
+            && token->kind == token_kind_array_open) {
+            //stack_push(&rpn, node);
+            stack_push(&ops, node);
+        } else if (node->subkind == token_kind_op_colon) {
+        } else if (node->subkind == token_kind_comma) {
+            // e.g. in func args list etc.
+            // don't need comma because identf/identa nodes will save nargs.
+        } else if (node->subkind == token_kind_paren_open
+            || node->subkind == token_kind_array_open
+            || node->subkind == token_kind_brace_open) {
+            stack_push(&ops, node);
+            stack_push(&rpn, node); // instead of marking with (, could consider pushing a NULL. (for both func calls & array indexes)
+            // TODO: this should be for funcs/arrays only
+        } else if (node->subkind == token_kind_paren_close
+            || node->subkind == token_kind_array_close
+            || node->subkind == token_kind_brace_close) {
+
+            token_kind_e revBrkt = reverseBracket(node->subkind);
+            while (!stack_empty(&ops)) {
+                p = stack_pop(&ops);
+                if (p->subkind == revBrkt)
+                    break;
+                stack_push(&rpn, p);
+            }
+
+            // stack_push(&result, node); // for funcs/arrays only. or we could
+            // not use these as seps but mark the func ident as
+            // token_kind_identf and set nargs. NOPE u need to know nargs before
+            // starting to parse args.
+        } else if (prec) { // general operators
+
+            while (!stack_empty(&ops)) //
+            {
+                prec_top = stack_top(&ops)->prec;
+                if (!prec_top)
+                    break;
+                if (prec > prec_top)
+                    break;
+                if (prec == prec_top && rassoc)
+                    break;
+                p = stack_pop(&ops);
+                stack_push(&rpn, p);
+            }
+            stack_push(&ops, node);
+        } else {
+            stack_push(&rpn, node);
+        }
     }
-    return token_kind_unknown;
+    while (!stack_empty(&ops)) //
+    {
+        p = stack_pop(&ops);
+        stack_push(&rpn, p);
+    }
+
+    int i;
+    puts("\nop-stack:");
+    for (i = 0; i < ops.count; i++)
+        printf("%s ", token_repr(ops.items[i]->subkind));
+    puts("\nres-stack:");
+    for (i = 0; i < rpn.count; i++)
+        printf("%s ", token_repr(rpn.items[i]->subkind));
+    puts("");
+
+    assert(ops.count == 0);
+    assert(rpn.count == 1);
+
+    return rpn.items[0];
 }
 
-node_t* parse_expr(parser_t* parser)
+node_t* parse_expro(parser_t* parser)
 {
     token_t* token = &parser->token;
 
@@ -116,7 +210,9 @@ node_t* parse_expr(parser_t* parser)
     int prec_top = 0;
     node_t* p;
 
-    while (token->kind != token_kind_nl) { // build RPN
+    while (token->kind != token_kind_nl
+        && token->kind != token_kind_linecomment) { // build RPN
+
         node_t* node = new_node_from_current_token(parser);
         int prec = node->prec; // token_prec(node->subkind);
         bool_t rassoc = node->rassoc; // token_rassoc(node->subkind);
@@ -131,21 +227,25 @@ node_t* parse_expr(parser_t* parser)
             && token->kind == token_kind_array_open) { // array
             stack_push(&result, node);
         } else if (node->subkind == token_kind_op_colon) { // range op
-        } else if (node->subkind==token_kind_paren_open || node->subkind==token_kind_array_open || node->subkind==token_kind_brace_open) {
+        } else if (node->subkind == token_kind_paren_open
+            || node->subkind == token_kind_array_open
+            || node->subkind == token_kind_brace_open) {
             stack_push(&ops, node);
-            //stack_push(&result, node);
-        }
-        else if(node->subkind==token_kind_paren_close || node->subkind==token_kind_array_close || node->subkind==token_kind_brace_close) {
+            // stack_push(&result, node);
+        } else if (node->subkind == token_kind_paren_close
+            || node->subkind == token_kind_array_close
+            || node->subkind == token_kind_brace_close) {
             token_kind_e revBrkt = reverseBracket(node->subkind);
-            while  (!stack_empty(&ops)){
+            while (!stack_empty(&ops)) {
                 p = stack_pop(&ops);
-                if (p->subkind == revBrkt) break;
-                if (p->prec) {
-                    p->kind = node_kind_expr;
-                    if (!p->unary)
-                        p->right = stack_pop(&result);
-                    p->left = stack_pop(&result);
-                }
+                if (p->subkind == revBrkt)
+                    break;
+                //                if (p->prec) {
+                //                    p->kind = node_kind_expr;
+                //                    if (!p->unary)
+                //                        p->right = stack_pop(&result);
+                //                    p->left = stack_pop(&result);
+                //                }
                 stack_push(&result, p);
             }
             if (!stack_empty(&ops)) {
@@ -153,9 +253,8 @@ node_t* parse_expr(parser_t* parser)
                 if (0 /*p in self.functions and token in ')>') or (p in self.arrays and token == ']' */)
                     stack_push(&result, stack_pop(&ops));
             }
-            //stack_push(&result, node);
-        }
-        else if (prec) { // general operators
+            // stack_push(&result, node);
+        } else if (prec) { // general operators
             // shunting
             // before pushing an op on the op stack, unwind the op stack as
             // long as there are tighter-binding ops
@@ -163,18 +262,20 @@ node_t* parse_expr(parser_t* parser)
             while (!stack_empty(&ops)) //
             {
                 prec_top = stack_top(&ops)->prec;
+                //                if (!prec) break;
                 if (prec > prec_top)
                     break;
                 if (prec == prec_top && rassoc)
                     break;
                 p = stack_pop(&ops);
 
-                if (p->prec) {
-                    p->kind = node_kind_expr;
-                    if (!p->unary)
-                        p->right = stack_pop(&result);
-                    p->left = stack_pop(&result);
-                }
+                //                if (p->prec) {
+                //                    p->kind = node_kind_expr;
+                //                    if (!p->unary)
+                //                        p->right = stack_pop(&result);
+                //                    p->left = stack_pop(&result);
+                //                }
+                // if (p->subkind!=token_kind_paren_open)
                 stack_push(&result, p);
                 // if (p->subkind == node_kind_identf)
                 //     stack_push(&result, ")");
@@ -214,12 +315,13 @@ node_t* parse_expr(parser_t* parser)
     while (!stack_empty(&ops)) //
     {
         p = stack_pop(&ops);
-        if (p->prec) {
-            p->kind = node_kind_expr;
-            if (!p->unary)
-                p->right = stack_pop(&result);
-            p->left = stack_pop(&result);
-        }
+        //        if (p->prec) {
+        //            p->kind = node_kind_expr;
+        //            if (!p->unary)
+        //                p->right = stack_pop(&result);
+        //            p->left = stack_pop(&result);
+        //        }
+        // if (p->subkind!=token_kind_paren_open)
         stack_push(&result, p);
         // if (p->subkind == node_kind_identf)
         //     stack_push(&result, ")");
@@ -227,6 +329,18 @@ node_t* parse_expr(parser_t* parser)
         //     stack_push(&result, "]");
     }
 
+    int i;
+    puts("\nop-stack:");
+    for (i = 0; i < ops.count; i++)
+        if (ops.items[i])
+            printf("%s ", token_repr(ops.items[i]->subkind));
+    puts("\nres-stack:");
+    for (i = 0; i < result.count; i++)
+        if (result.items[i])
+            printf("%s ", token_repr(result.items[i]->subkind));
+    puts("");
+
+    assert(ops.count == 0);
     assert(result.count == 1);
 
     return result.items[0];
@@ -400,7 +514,7 @@ node_t* parse_type(parser_t* parser)
 
     node_t* body = parse_scope(parser, node); // will set super for this type
     node->members = body->stmts;
-    node_t* item = NULL;
+    // node_t* item = NULL;
     //    for (item = body->stmts; //
     //         item != NULL; //
     //         item = item->next) {
@@ -603,11 +717,21 @@ void print_tree(const node_t* const node, int level)
         break;
 
     case node_kind_expr:
-        if (node->left)
+        if (node->left) {
+            // if(node->left->kind==node_kind_expr && node->left->prec <
+            // node->prec)  putc('(', stdout);
             print_tree(node->left, level + 1);
+            // if(node->left->kind==node_kind_expr  && node->left->prec <
+            // node->prec)putc(')', stdout);
+        }
         printf(" %s ", token_repr(node->subkind));
-        if (node->right)
+        if (node->right) {
+            // if(node->right->kind==node_kind_expr && node->right->prec <
+            // node->prec)   putc('(', stdout);
             print_tree(node->right, level + 1);
+            // if(node->right->kind==node_kind_expr && node->right->prec <
+            // node->prec)   putc(')', stdout);
+        }
         break;
 
     case node_kind_unit:

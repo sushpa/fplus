@@ -45,11 +45,21 @@ char* str_upper(const char* const str)
     return s;
 }
 
+
+void str_tr_ip( char*  str, const char oldc, const char newc)
+{
+    char* sc = str - 1;
+    while (*++sc) if (*sc == oldc) *sc = newc;
+    //return s;
+}
+
 char* str_tr(const char* const str, const char oldc, const char newc)
 {
     char* s = strdup(str);
-    char* sc = s - 1;
-    while (*++sc)
-        if (*sc == oldc) *sc = newc;
+    str_tr_ip(s,oldc,newc);
     return s;
+//    char* sc = s - 1;
+//    while (*++sc)
+//        if (*sc == oldc) *sc = newc;
+//    return s;
 }

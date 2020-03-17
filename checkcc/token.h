@@ -29,6 +29,8 @@ typedef enum token_kind_e {
     token_kind_kw_import,
     token_kind_kw_only,
     token_kind_ident,
+    token_kind_identf,
+    token_kind_identa,
     token_kind_number,
     token_kind_ws,
     token_kind_spc,
@@ -160,8 +162,12 @@ const char* token_repr(const token_kind_e kind)
         return "only";
     case token_kind_ident:
         return "(id)";
+    case token_kind_identf:
+        return "(fn)";
+    case token_kind_identa:
+        return "(arr)";
     case token_kind_number:
-        return "(num)";
+        return "#";
     case token_kind_ws:
         return "(ws)";
     case token_kind_spc:
@@ -350,15 +356,35 @@ uint8_t token_prec(token_kind_e kind)
         return 5;
     case token_kind_paren_open:
     case token_kind_paren_close:
-        return 1;
+        return 0;
     case token_kind_brace_open:
     case token_kind_brace_close:
-        return 1;
+        return 0;
     case token_kind_array_open:
     case token_kind_array_close:
-        return 1;
+        return 0;
     default:
         return 0;
+    }
+}
+token_kind_e reverseBracket(token_kind_e kind)
+{
+    switch (kind) {
+    case token_kind_array_open:
+        return token_kind_array_close;
+    case token_kind_paren_open:
+        return token_kind_paren_close;
+    case token_kind_brace_open:
+        return token_kind_brace_close;
+    case token_kind_array_close:
+        return token_kind_array_open;
+    case token_kind_brace_close:
+        return token_kind_brace_open;
+    case token_kind_paren_close:
+        return token_kind_paren_open;
+    default:
+        printf("unexpected at %s:%d\n", __FILE__, __LINE__);
+        return token_kind_unknown;
     }
 }
 
@@ -538,7 +564,8 @@ token_kind_e token_gettype_atoffset(const token_t* self, const size_t offset)
     case '+':
         return token_kind_plus;
     case '-':
-        return token_kind_minus; // if prev token was +-*/^(<> (and some others?) then this is unary -
+        return token_kind_minus; // if prev token was +-*/^(<> (and some
+                                 // others?) then this is unary -
     case '*':
         return token_kind_times;
     default:
@@ -696,13 +723,24 @@ void token_detect(token_t* token)
             tt = token_peek_nextchar(token);
             // numbers such as 1234500.00 are allowed
             // very crude, error-checking is parser's job
+            //            if (tt==token_kind_digit //
+            //                || tt==token_kind_plus //
+            //                || tt==token_kind_minus //
+            //                || tt==token_kind_period //
+            //                || *token->pos == 'e' //
+            //                || *token->pos == 'E' //
+            //                || *token->pos == 'd'
+            //                || *token->pos == 'D')
             token_advance1(token);
-            if (*token->pos == 'e' || *token->pos == 'E' || *token->pos == 'd'
-                || *token->pos == 'D') {
+
+            if (*token->pos == 'e' //
+                || *token->pos == 'E' //
+                || *token->pos == 'd'
+                || *token->pos == 'D') { // will all be changed to e btw
                 found_e = true;
                 continue;
             }
-            if (found_e && (*token->pos == '-' || *token->pos == '+')) {
+            if (found_e) { //}&& (*token->pos == '-' || *token->pos == '+')) {
                 found_e = false;
                 continue;
             }
@@ -771,9 +809,9 @@ void token_advance(token_t* token)
     if (token->flags.skipws
         && (token->kind == token_kind_spc
 #ifndef PARSE_STRICT
-               || token->kind == token_kind_onespc
+            || token->kind == token_kind_onespc
 #endif
-               ))
+            ))
         token_advance(token);
     if (token->kind == token_kind_nl) {
         token->line++;
