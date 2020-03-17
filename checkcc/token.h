@@ -99,8 +99,9 @@ typedef struct token_t {
     char* pos;
     uint32_t matchlen : 24;
     struct {
-        bool_t skipws : 1, // skip whitespace
-        mergearraydims : 1; // merge [:,:,:] into one token
+        bool_t //
+            skipws : 1, // skip whitespace
+            mergearraydims : 1; // merge [:,:,:] into one token
     } flags;
     uint16_t line;
     uint8_t col;
@@ -111,182 +112,182 @@ typedef struct token_t {
 const char* token_repr(const token_kind_e kind)
 {
     switch (kind) {
-        case token_kind__source:
-            return "(src)";
-        case token_kind__end:
-            return "(EOF)";
-        case token_kind_kw_cheater:
-            return "cheater";
-        case token_kind_kw_for:
-            return "for";
-        case token_kind_kw_while:
-            return "while";
-        case token_kind_kw_if:
-            return "if";
-        case token_kind_kw_then:
-            return "then";
-        case token_kind_kw_as:
-            return "as";
-        case token_kind_kw_end:
-            return "end";
-        case token_kind_kw_function:
-            return "func";
-        case token_kind_kw_test:
-            return "test";
-        case token_kind_kw_not:
-            return "not";
-        case token_kind_kw_and:
-            return "and";
-        case token_kind_kw_or:
-            return "or";
-        case token_kind_kw_in:
-            return "in";
-        case token_kind_kw_else:
-            return "else";
-        case token_kind_kw_type:
-            return "type";
-        case token_kind_kw_template:
-            return "template";
-        case token_kind_kw_base:
-            return "base";
-        case token_kind_kw_var:
-            return "var";
-        case token_kind_kw_let:
-            return "let";
-        case token_kind_kw_import:
-            return "import";
-        case token_kind_kw_only:
-            return "only";
-        case token_kind_ident:
-            return "(id)";
-        case token_kind_number:
-            return "(num)";
-        case token_kind_ws:
-            return "(ws)";
-        case token_kind_spc:
-            return "(spc)";
-        case token_kind_tab:
-            return "(tab)";
-        case token_kind_nl:
-            return "(nl)";
-        case token_kind_linecomment:
-            return "(cmt)";
-        case token_kind_amp:
-            return "&";
-        case token_kind_digit:
-            return "1";
-        case token_kind_pow:
-            return "^";
-        case token_kind_units:
-            return "|kg";
-        case token_kind_alpha:
-            return "a";
-        case token_kind_array_close:
-            return "]";
-        case token_kind_array_empty:
-            return "[]";
-        case token_kind_array_open:
-            return "[";
-        case token_kind_array_dims:
-            return "[:,:]";
-        case token_kind_at:
-            return "@";
-        case token_kind_brace_close:
-            return "}";
-        case token_kind_brace_empty:
-            return "{}";
-        case token_kind_brace_open:
-            return "{";
-        case token_kind_hash:
-            return "#";
-        case token_kind_excl:
-            return "!";
-        case token_kind_pipe:
-            return "!";
-        case token_kind_op_asn:
-            return "=";
-        case token_kind_op_eq:
-            return "==";
-        case token_kind_op_ne:
-            return "=/";
-        case token_kind_op_ge:
-            return ">=";
-        case token_kind_op_gt:
-            return ">";
-        case token_kind_op_le:
-            return "<";
-        case token_kind_op_lsh:
-            return "<<";
-        case token_kind_op_lt:
-            return "<";
-        case token_kind_op_mod:
-            return "%";
-        case token_kind_op_rsh:
-            return ">>";
-        case token_kind_op_results:
-            return "=>";
-        case token_kind_op_notresults:
-            return "=/>";
-        case token_kind_paren_close:
-            return ")";
-        case token_kind_paren_empty:
-            return "()";
-        case token_kind_paren_open:
-            return "(";
-        case token_kind_period:
-            return ".";
-        case token_kind_comma:
-            return ",";
-        case token_kind_op_colon:
-            return ":";
-        case token_kind_str_boundary:
-            return "\"";
-        case token_kind_str_empty:
-            return "\"\"";
-        case token_kind_str:
-            return "(str)";
-        case token_kind_rgx_boundary:
-            return "'";
-        case token_kind_rgx_empty:
-            return "''";
-        case token_kind_rgx:
-            return "(rgx)";
-        case token_kind_inl_boundary:
-            return "`";
-        case token_kind_inl_empty:
-            return "``";
-        case token_kind_inl:
-            return "(inl)";
-        case token_kind_underscore:
-            return "_";
-        case token_kind_slash:
-            return "/";
-        case token_kind_backslash:
-            return "\\";
-        case token_kind_plus:
-            return "+";
-        case token_kind_minus:
-            return "-";
-        case token_kind_times:
-            return "*";
-        case token_kind_usd:
-            return "$";
-        case token_kind_unknown:
-            return "(unk)";
-        case token_kind_kw_do:
-            return "do";
-        case token_kind_coleq:
-            return ":=";
-        case token_kind_pluseq:
-            return "+=";
-        case token_kind_minuseq:
-            return "-=";
-        case token_kind_timeseq:
-            return "*=";
-        case token_kind_slasheq:
-            return "/=";
-        case token_kind_onespc:
-            return "sp1";
+    case token_kind__source:
+        return "(src)";
+    case token_kind__end:
+        return "(EOF)";
+    case token_kind_kw_cheater:
+        return "cheater";
+    case token_kind_kw_for:
+        return "for";
+    case token_kind_kw_while:
+        return "while";
+    case token_kind_kw_if:
+        return "if";
+    case token_kind_kw_then:
+        return "then";
+    case token_kind_kw_as:
+        return "as";
+    case token_kind_kw_end:
+        return "end";
+    case token_kind_kw_function:
+        return "func";
+    case token_kind_kw_test:
+        return "test";
+    case token_kind_kw_not:
+        return "not";
+    case token_kind_kw_and:
+        return "and";
+    case token_kind_kw_or:
+        return "or";
+    case token_kind_kw_in:
+        return "in";
+    case token_kind_kw_else:
+        return "else";
+    case token_kind_kw_type:
+        return "type";
+    case token_kind_kw_template:
+        return "template";
+    case token_kind_kw_base:
+        return "base";
+    case token_kind_kw_var:
+        return "var";
+    case token_kind_kw_let:
+        return "let";
+    case token_kind_kw_import:
+        return "import";
+    case token_kind_kw_only:
+        return "only";
+    case token_kind_ident:
+        return "(id)";
+    case token_kind_number:
+        return "(num)";
+    case token_kind_ws:
+        return "(ws)";
+    case token_kind_spc:
+        return "(spc)";
+    case token_kind_tab:
+        return "(tab)";
+    case token_kind_nl:
+        return "(nl)";
+    case token_kind_linecomment:
+        return "(cmt)";
+    case token_kind_amp:
+        return "&";
+    case token_kind_digit:
+        return "1";
+    case token_kind_pow:
+        return "^";
+    case token_kind_units:
+        return "|kg";
+    case token_kind_alpha:
+        return "a";
+    case token_kind_array_close:
+        return "]";
+    case token_kind_array_empty:
+        return "[]";
+    case token_kind_array_open:
+        return "[";
+    case token_kind_array_dims:
+        return "[:,:]";
+    case token_kind_at:
+        return "@";
+    case token_kind_brace_close:
+        return "}";
+    case token_kind_brace_empty:
+        return "{}";
+    case token_kind_brace_open:
+        return "{";
+    case token_kind_hash:
+        return "#";
+    case token_kind_excl:
+        return "!";
+    case token_kind_pipe:
+        return "!";
+    case token_kind_op_asn:
+        return "=";
+    case token_kind_op_eq:
+        return "==";
+    case token_kind_op_ne:
+        return "=/";
+    case token_kind_op_ge:
+        return ">=";
+    case token_kind_op_gt:
+        return ">";
+    case token_kind_op_le:
+        return "<";
+    case token_kind_op_lsh:
+        return "<<";
+    case token_kind_op_lt:
+        return "<";
+    case token_kind_op_mod:
+        return "%";
+    case token_kind_op_rsh:
+        return ">>";
+    case token_kind_op_results:
+        return "=>";
+    case token_kind_op_notresults:
+        return "=/>";
+    case token_kind_paren_close:
+        return ")";
+    case token_kind_paren_empty:
+        return "()";
+    case token_kind_paren_open:
+        return "(";
+    case token_kind_period:
+        return ".";
+    case token_kind_comma:
+        return ",";
+    case token_kind_op_colon:
+        return ":";
+    case token_kind_str_boundary:
+        return "\"";
+    case token_kind_str_empty:
+        return "\"\"";
+    case token_kind_str:
+        return "(str)";
+    case token_kind_rgx_boundary:
+        return "'";
+    case token_kind_rgx_empty:
+        return "''";
+    case token_kind_rgx:
+        return "(rgx)";
+    case token_kind_inl_boundary:
+        return "`";
+    case token_kind_inl_empty:
+        return "``";
+    case token_kind_inl:
+        return "(inl)";
+    case token_kind_underscore:
+        return "_";
+    case token_kind_slash:
+        return "/";
+    case token_kind_backslash:
+        return "\\";
+    case token_kind_plus:
+        return "+";
+    case token_kind_minus:
+        return "-";
+    case token_kind_times:
+        return "*";
+    case token_kind_usd:
+        return "$";
+    case token_kind_unknown:
+        return "(unk)";
+    case token_kind_kw_do:
+        return "do";
+    case token_kind_coleq:
+        return ":=";
+    case token_kind_pluseq:
+        return "+=";
+    case token_kind_minuseq:
+        return "-=";
+    case token_kind_timeseq:
+        return "*=";
+    case token_kind_slasheq:
+        return "/=";
+    case token_kind_onespc:
+        return "(sp1)";
     }
     printf("unknown kind: %d\n", kind);
     return "(!unk)";
@@ -305,59 +306,59 @@ bool_t token_rassoc(token_kind_e kind)
 uint8_t token_prec(token_kind_e kind)
 { // if templateStr then precedence of < and > should be 0
     switch (kind) {
-        case token_kind_period:
-            return 90;
-        case token_kind_pipe:
-            return 80;
-        case token_kind_pow:
-            return 70;
-        case token_kind_times:
-        case token_kind_slash:
-            return 60;
-        case token_kind_plus:
-        case token_kind_minus:
-            return 50;
-        case token_kind_op_colon:
-            return 45;
-        case token_kind_op_le:
-        case token_kind_op_lt:
-        case token_kind_op_gt:
-        case token_kind_op_ge:
-        case token_kind_kw_in:
-            // case token_kind_kw_notin:
-            return 41;
-        case token_kind_op_eq:
-        case token_kind_op_ne:
-            return 40;
-        case token_kind_kw_not:
-            return 32;
-        case token_kind_kw_and:
-            return 31;
-        case token_kind_kw_or:
-            return 30;
-        case token_kind_op_asn:
-            return 22;
-        case token_kind_pluseq:
-        case token_kind_coleq:
-        case token_kind_minuseq:
-        case token_kind_timeseq:
-        case token_kind_slasheq:
-            return 20;
-        case token_kind_comma:
-            return 10;
-        case token_kind_kw_do:
-            return 5;
-        case token_kind_paren_open:
-        case token_kind_paren_close:
-            return 0;
-        case token_kind_brace_open:
-        case token_kind_brace_close:
-            return 0;
-        case token_kind_array_open:
-        case token_kind_array_close:
-            return 0;
-        default:
-            return 255;
+    case token_kind_period:
+        return 90;
+    case token_kind_pipe:
+        return 80;
+    case token_kind_pow:
+        return 70;
+    case token_kind_times:
+    case token_kind_slash:
+        return 60;
+    case token_kind_plus:
+    case token_kind_minus:
+        return 50;
+    case token_kind_op_colon:
+        return 45;
+    case token_kind_op_le:
+    case token_kind_op_lt:
+    case token_kind_op_gt:
+    case token_kind_op_ge:
+    case token_kind_kw_in:
+        // case token_kind_kw_notin:
+        return 41;
+    case token_kind_op_eq:
+    case token_kind_op_ne:
+        return 40;
+    case token_kind_kw_not:
+        return 32;
+    case token_kind_kw_and:
+        return 31;
+    case token_kind_kw_or:
+        return 30;
+    case token_kind_op_asn:
+        return 22;
+    case token_kind_pluseq:
+    case token_kind_coleq:
+    case token_kind_minuseq:
+    case token_kind_timeseq:
+    case token_kind_slasheq:
+        return 20;
+    case token_kind_comma:
+        return 10;
+    case token_kind_kw_do:
+        return 5;
+    case token_kind_paren_open:
+    case token_kind_paren_close:
+        return 1;
+    case token_kind_brace_open:
+    case token_kind_brace_close:
+        return 1;
+    case token_kind_array_open:
+    case token_kind_array_close:
+        return 1;
+    default:
+        return 0;
     }
 }
 
@@ -373,7 +374,7 @@ void token_advance1(token_t* token)
     // needs to advance. If skipws is set, loop until the next non-space.
     // do {
     token->pos++;
-    
+
     // } while (token->skipws && *(token->pos) == ' ');
 }
 
@@ -383,9 +384,9 @@ char peekcharafter(token_t* token)
     return *(token->pos + token->matchlen + 1);
 }
 
-#define token_compare_kw(tok) \
-if (sizeof(#tok) - 1 == l && !strncmp(#tok, s, l)) \
-return token_kind_kw_##tok
+#define token_compare_kw(tok)                                                  \
+    if (sizeof(#tok) - 1 == l && !strncmp(#tok, s, l))                         \
+    return token_kind_kw_##tok
 
 // Check if an (ident) token matches a keyword and return its type
 // accordingly.
@@ -393,10 +394,10 @@ token_kind_e token_trykwmatch(const token_t* token)
 {
     if (token->kind != token_kind_ident)
         return token->kind;
-    
+
     const char* s = token->pos;
     const int l = token->matchlen;
-    
+
     token_compare_kw(and);
     token_compare_kw(cheater);
     token_compare_kw(for);
@@ -433,121 +434,122 @@ token_kind_e token_trykwmatch(const token_t* token)
 
 // Get the token kind based only on the char at the current position (or an
 // offset).
-token_kind_e token_gettype_atoffset(
-                                           const token_t* self, const size_t offset)
+token_kind_e token_gettype_atoffset(const token_t* self, const size_t offset)
 {
     const char c = self->pos[offset];
     const char cn = c ? self->pos[1 + offset] : 0;
-    
+
     switch (c) {
-        case 0:
-            return token_kind__end;
-        case '\n':
-            return token_kind_nl;
-        case ' ':
-            return token_kind_spc;
-        case '\t':
-            return token_kind_tab;
-        case ':':
-            return token_kind_op_colon;
-        case ',':
-            return token_kind_comma;
-        case '"':
-            return token_kind_str_boundary;
-        case '`':
-            return token_kind_inl_boundary;
-        case '[':
-            switch (cn) {
-                    
-                default:
-                    return token_kind_array_open;
-            }
-        case '$':
-            return token_kind_usd;
-        case '%':
-            return token_kind_op_mod;
-        case '.':
-            return token_kind_period;
-        case '\'':
-            return token_kind_rgx_boundary;
-        case '&':
-            return token_kind_amp;
-        case '@':
-            return token_kind_at;
-        case '#':
-            return token_kind_hash;
-        case '|':
-            return token_kind_pipe;
-        case '{':
-            switch (cn) {
-                case '}':
-                    return token_kind_brace_empty;
-                default:
-                    return token_kind_brace_open;
-            }
-        case '(':
-            switch (cn) {
-                case ')':
-                    return token_kind_paren_empty;
-                default:
-                    return token_kind_paren_open;
-            }
-        case ')':
-            return token_kind_paren_close;
-        case '}':
-            return token_kind_brace_close;
-        case ']':
-            return token_kind_array_close;
-        case '<':
-            switch (cn) {
-                case '=':
-                    return token_kind_op_le;
-                case '<':
-                    return token_kind_op_lsh;
-                default:
-                    return token_kind_op_lt;
-            }
-        case '>':
-            switch (cn) {
-                case '=':
-                    return token_kind_op_ge;
-                case '>':
-                    return token_kind_op_rsh;
-                default:
-                    return token_kind_op_gt;
-            }
-        case '=':
-            switch (cn) {
-                case '=':
-                    return token_kind_op_eq;
-                case '/':
-                    return token_kind_op_ne;
-                case '>':
-                    return token_kind_op_results;
-                default:
-                    return token_kind_op_asn;
-            }
-        case '!':
-            return token_kind_excl;
-        case '/':
-            return token_kind_slash;
-        case '\\':
-            return token_kind_backslash;
-        case '+':
-            return token_kind_plus;
-        case '-':
-            return token_kind_minus;
-        case '*':
-            return token_kind_times;
+    case 0:
+        return token_kind__end;
+    case '\n':
+        return token_kind_nl;
+    case ' ':
+        return token_kind_spc;
+    case '\t':
+        return token_kind_tab;
+    case ':':
+        return token_kind_op_colon;
+    case ',':
+        return token_kind_comma;
+    case '"':
+        return token_kind_str_boundary;
+    case '`':
+        return token_kind_inl_boundary;
+    case '[':
+        switch (cn) {
+
         default:
-            if (isalpha(c) || c == '_') {
-                return token_kind_alpha;
-            } else if (isdigit(c)) {
-                return token_kind_digit;
-            } else {
-                return token_kind_unknown;
-            }
-            break;
+            return token_kind_array_open;
+        }
+    case '$':
+        return token_kind_usd;
+    case '%':
+        return token_kind_op_mod;
+    case '.':
+        return token_kind_period;
+    case '\'':
+        return token_kind_rgx_boundary;
+    case '&':
+        return token_kind_amp;
+    case '^':
+        return token_kind_pow;
+    case '@':
+        return token_kind_at;
+    case '#':
+        return token_kind_hash;
+    case '|':
+        return token_kind_pipe;
+    case '{':
+        switch (cn) {
+        case '}':
+            return token_kind_brace_empty;
+        default:
+            return token_kind_brace_open;
+        }
+    case '(':
+        switch (cn) {
+        case ')':
+            return token_kind_paren_empty;
+        default:
+            return token_kind_paren_open;
+        }
+    case ')':
+        return token_kind_paren_close;
+    case '}':
+        return token_kind_brace_close;
+    case ']':
+        return token_kind_array_close;
+    case '<':
+        switch (cn) {
+        case '=':
+            return token_kind_op_le;
+        case '<':
+            return token_kind_op_lsh;
+        default:
+            return token_kind_op_lt;
+        }
+    case '>':
+        switch (cn) {
+        case '=':
+            return token_kind_op_ge;
+        case '>':
+            return token_kind_op_rsh;
+        default:
+            return token_kind_op_gt;
+        }
+    case '=':
+        switch (cn) {
+        case '=':
+            return token_kind_op_eq;
+        case '/':
+            return token_kind_op_ne;
+        case '>':
+            return token_kind_op_results;
+        default:
+            return token_kind_op_asn;
+        }
+    case '!':
+        return token_kind_excl;
+    case '/':
+        return token_kind_slash;
+    case '\\':
+        return token_kind_backslash;
+    case '+':
+        return token_kind_plus;
+    case '-':
+        return token_kind_minus; // if prev token was +-*/^(<> (and some others?) then this is unary -
+    case '*':
+        return token_kind_times;
+    default:
+        if (isalpha(c) || c == '_') {
+            return token_kind_alpha;
+        } else if (isdigit(c)) {
+            return token_kind_digit;
+        } else {
+            return token_kind_unknown;
+        }
+        break;
     }
 }
 
@@ -555,191 +557,192 @@ token_kind_e token_gettype_atoffset(
 void token_detect(token_t* token)
 {
     token_kind_e tt = token_gettype(token);
-    token_kind_e tt_ret;// = tt;
+    token_kind_e tt_ret; // = tt;
     token_kind_e tmp;
     char* start = token->pos;
     bool_t found_e = false, found_dot = false, found_cmt = false;
     uint8_t found_spc = 0;
 
     switch (tt) {
-        case token_kind_str_boundary:
-        case token_kind_inl_boundary:
-        case token_kind_rgx_boundary:
-            tmp = tt; // remember which it is exactly
-            
-            // Incrementing pos is a side effect of token_gettype(...)
-            while (tt != token_kind__end) {
-                // here we want to consume the ending " so we move next before
-                token_advance1(token);
-                tt = token_gettype(token);
-                if (tt == token_kind__end || tt == tmp) {
-                    token_advance1(token);
-                    break;
-                }
-                if (tt == token_kind_backslash)
-                    if (token_peek_nextchar(token) == tmp) { // why if?
-                        token_advance1(token);
-                    }
-            }
-            switch (tmp) {
-                case token_kind_str_boundary:
-                    tt_ret = token_kind_str;
-                    break;
-                case token_kind_inl_boundary:
-                    tt_ret = token_kind_inl;
-                    break;
-                case token_kind_rgx_boundary:
-                    tt_ret = token_kind_rgx;
-                    break;
-                default:
-                    tt_ret = token_kind_unknown;
-                    printf("unreachable\n");
-            }
-            break;
-            
-        case token_kind_spc:
-            while (tt != token_kind__end) {
-                // here we dont want to consume the end char, so break before
-                tt = token_peek_nextchar(token);
-                token_advance1(token);
-                if (tt != token_kind_spc)
-                    break;
-            }
-            tt_ret = token_kind_spc;
-            break;
-            
-        case token_kind_comma:
-            while (tt != token_kind__end) {
-                tt = token_peek_nextchar(token);
-                token_advance1(token);
-                // line number should be incremented for line continuations
-                if (tt == token_kind_spc) {
-                    found_spc++;
-                }
-                if (tt == token_kind_excl) {
-                    found_cmt = true;
-                }
-                if (tt == token_kind_nl) {
-                    token->line++;
-                    token->col = -found_spc - 1; // account for extra spaces
-                                                 // after , and for nl itself
-                    found_spc = 0;
-                }
-                if (found_cmt && tt != token_kind_nl) {
-                    found_spc++;
-                    continue;
-                }
-                if (tt != token_kind_spc && tt != token_kind_nl)
-                    break;
-            }
-            tt_ret = token_kind_comma;
-            break;
-            
-        case token_kind_array_open:
-            // mergearraydims should be set only when reading func args
-            if (!token->flags.mergearraydims)
-                goto defaultToken;
-            
-            while (tt != token_kind__end) {
-                tt = token_peek_nextchar(token);
-                token_advance1(token);
-                if (tt != token_kind_op_colon && tt != token_kind_comma)
-                    break;
-            }
-            tt = token_gettype(token);
-            if (tt != token_kind_array_close) {
-                fprintf(stderr, "expected a ']', found a '%c'. now what?\n",
-                        *token->pos);
-            }
-            token_advance1(token);
-            tt_ret = token_kind_array_dims;
-            break;
-            
-        case token_kind_alpha:
-            while (tt != token_kind__end) {
-                tt = token_peek_nextchar(token);
-                token_advance1(token);
-                if (tt != token_kind_alpha //
-                    && tt != token_kind_digit //
-                    && tt != token_kind_underscore)
-                    break;
-            }
-            tt_ret = token_kind_ident;
-            break;
-            
-        case token_kind_excl:
-            while (tt != token_kind__end) {
-                tt = token_peek_nextchar(token);
-                token_advance1(token);
-                if (tt == token_kind_nl)
-                    break;
-            }
-            tt_ret = token_kind_linecomment;
-            break;
-            
-        case token_kind_pipe:
-            while (tt != token_kind__end) {
-                tt = token_peek_nextchar(token);
-                token_advance1(token);
-                if (tt != token_kind_alpha && tt != token_kind_digit
-                    && tt != token_kind_slash && tt != token_kind_period)
-                    break;
-            }
-            tt_ret = token_kind_units;
-            break;
-            
-        case token_kind_digit:
-            while (tt != token_kind__end) // EOF, basically null char
-            {
-                tt = token_peek_nextchar(token);
-                // numbers such as 1234500.00 are allowed
-                // very crude, error-checking is parser's job
-                token_advance1(token);
-                if (*token->pos == 'e' || *token->pos == 'E' || *token->pos == 'd'
-                    || *token->pos == 'D') {
-                    found_e = true;
-                    continue;
-                }
-                if (found_e && (*token->pos == '-' || *token->pos == '+')) {
-                    found_e = false;
-                    continue;
-                }
-                if (tt == token_kind_period) {
-                    found_dot = true;
-                    continue;
-                }
-                if (found_dot && tt == token_kind_period) {
-                    fprintf(stderr, "raise error: multiple dots in number\n");
-                    break;
-                }
-                if (tt != token_kind_digit && tt != token_kind_period)
-                    break;
-            }
-            tt_ret = token_kind_number;
-            break;
+    case token_kind_str_boundary:
+    case token_kind_inl_boundary:
+    case token_kind_rgx_boundary:
+        tmp = tt; // remember which it is exactly
 
-       /* case token_kind_nl:
-            token->line++;
-            token->col=1;
-            break; */
-            
-        case token_kind_op_eq:
-        case token_kind_op_ge:
-        case token_kind_op_le:
-        case token_kind_op_ne:
-        case token_kind_op_results:
-        case token_kind_op_notresults: // this is 3-char, is it not?
-        case token_kind_brace_empty:
-        case token_kind_backslash:
-        case token_kind_paren_empty:
-            // two-char tokens
+        // Incrementing pos is a side effect of token_gettype(...)
+        while (tt != token_kind__end) {
+            // here we want to consume the ending " so we move next before
             token_advance1(token);
-            // don'self break
-        default:
-        defaultToken:
-            tt_ret = tt;
-            token_advance1(token);
+            tt = token_gettype(token);
+            if (tt == token_kind__end || tt == tmp) {
+                token_advance1(token);
+                break;
+            }
+            if (tt == token_kind_backslash)
+                if (token_peek_nextchar(token) == tmp) { // why if?
+                    token_advance1(token);
+                }
+        }
+        switch (tmp) {
+        case token_kind_str_boundary:
+            tt_ret = token_kind_str;
             break;
+        case token_kind_inl_boundary:
+            tt_ret = token_kind_inl;
+            break;
+        case token_kind_rgx_boundary:
+            tt_ret = token_kind_rgx;
+            break;
+        default:
+            tt_ret = token_kind_unknown;
+            printf("unreachable\n");
+        }
+        break;
+
+    case token_kind_spc:
+        while (tt != token_kind__end) {
+            // here we dont want to consume the end char, so break before
+            tt = token_peek_nextchar(token);
+            token_advance1(token);
+            if (tt != token_kind_spc)
+                break;
+        }
+        tt_ret = token_kind_spc;
+        break;
+
+    case token_kind_comma:
+        while (tt != token_kind__end) {
+            tt = token_peek_nextchar(token);
+            token_advance1(token);
+            // line number should be incremented for line continuations
+            if (tt == token_kind_spc) {
+                found_spc++;
+            }
+            if (tt == token_kind_excl) {
+                found_cmt = true;
+            }
+            if (tt == token_kind_nl) {
+                token->line++;
+                token->col = -found_spc - 1; // account for extra spaces
+                                             // after , and for nl itself
+                found_spc = 0;
+            }
+            if (found_cmt && tt != token_kind_nl) {
+                found_spc++;
+                continue;
+            }
+            if (tt != token_kind_spc && tt != token_kind_nl)
+                break;
+        }
+        tt_ret = token_kind_comma;
+        break;
+
+    case token_kind_array_open:
+        // mergearraydims should be set only when reading func args
+        if (!token->flags.mergearraydims)
+            goto defaultToken;
+
+        while (tt != token_kind__end) {
+            tt = token_peek_nextchar(token);
+            token_advance1(token);
+            if (tt != token_kind_op_colon && tt != token_kind_comma)
+                break;
+        }
+        tt = token_gettype(token);
+        if (tt != token_kind_array_close) {
+            fprintf(stderr, "expected a ']', found a '%c'. now what?\n",
+                *token->pos);
+        }
+        token_advance1(token);
+        tt_ret = token_kind_array_dims;
+        break;
+
+    case token_kind_alpha:
+        while (tt != token_kind__end) {
+            tt = token_peek_nextchar(token);
+            token_advance1(token);
+            if (tt != token_kind_alpha //
+                && tt != token_kind_digit //
+                && tt != token_kind_underscore && tt != token_kind_period)
+                break; /// validate in parser not here
+        }
+        tt_ret = token_kind_ident;
+        break;
+
+    case token_kind_excl:
+        while (tt != token_kind__end) {
+            tt = token_peek_nextchar(token);
+            token_advance1(token);
+            if (tt == token_kind_nl)
+                break;
+        }
+        tt_ret = token_kind_linecomment;
+        break;
+
+    case token_kind_pipe:
+        while (tt != token_kind__end) {
+            tt = token_peek_nextchar(token);
+            token_advance1(token);
+            if (tt != token_kind_alpha && tt != token_kind_digit
+                && tt != token_kind_slash && tt != token_kind_period)
+                break;
+        }
+        tt_ret = token_kind_units;
+        break;
+
+    case token_kind_digit:
+        while (tt != token_kind__end) // EOF, basically null char
+        {
+            tt = token_peek_nextchar(token);
+            // numbers such as 1234500.00 are allowed
+            // very crude, error-checking is parser's job
+            token_advance1(token);
+            if (*token->pos == 'e' || *token->pos == 'E' || *token->pos == 'd'
+                || *token->pos == 'D') {
+                found_e = true;
+                continue;
+            }
+            if (found_e && (*token->pos == '-' || *token->pos == '+')) {
+                found_e = false;
+                continue;
+            }
+            if (tt == token_kind_period) {
+                found_dot = true;
+                continue;
+            }
+            //            if (found_dot && tt == token_kind_period) {
+            //                fprintf(stderr, "raise error: multiple dots in
+            //                number\n"); break;
+            //            }
+            // lets allow that for IP addresses etc., or just bytes
+            if (tt != token_kind_digit && tt != token_kind_period)
+                break;
+        }
+        tt_ret = token_kind_number;
+        break;
+
+        /* case token_kind_nl:
+             token->line++;
+             token->col=1;
+             break; */
+
+    case token_kind_op_eq:
+    case token_kind_op_ge:
+    case token_kind_op_le:
+    case token_kind_op_ne:
+    case token_kind_op_results:
+    case token_kind_op_notresults: // this is 3-char, is it not?
+    case token_kind_brace_empty:
+    case token_kind_backslash:
+    case token_kind_paren_empty:
+        // two-char tokens
+        token_advance1(token);
+        // don'self break
+    default:
+    defaultToken:
+        tt_ret = tt;
+        token_advance1(token);
+        break;
     }
 
     token->matchlen = (uint32_t)(token->pos - start);
@@ -747,23 +750,30 @@ void token_detect(token_t* token)
                         // advance rewind
     token->kind = tt_ret;
     // keywords have their own token type
-    if (token->kind == token_kind_ident) token->kind = token_trykwmatch(token);
+    if (token->kind == token_kind_ident)
+        token->kind = token_trykwmatch(token);
     // exactly one space is token_kind_onespc, otherwise token_kind_spc.
     // the compiler needs to check one space frequently in strict mode.
     // FIXME figure it out later
-if (token->kind == token_kind_spc && token->matchlen==1) token->kind = token_kind_onespc;
+    if (token->kind == token_kind_spc && token->matchlen == 1)
+        token->kind = token_kind_onespc;
 }
 
 // Advances the parser to the next token and skips whitespace if the
 // parser's flag `skipws` is set.
- void token_advance(token_t* token)
+void token_advance(token_t* token)
 {
     token->pos += token->matchlen;
     token->col += token->matchlen;
     token->matchlen = 0;
-    //token_advance1(token);
+    // token_advance1(token);
     token_detect(token);
-    if (token->flags.skipws && token->kind == token_kind_spc)
+    if (token->flags.skipws
+        && (token->kind == token_kind_spc
+#ifndef PARSE_STRICT
+               || token->kind == token_kind_onespc
+#endif
+               ))
         token_advance(token);
     if (token->kind == token_kind_nl) {
         token->line++;

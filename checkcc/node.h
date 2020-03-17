@@ -2,30 +2,30 @@
 // NODE STRUCTS
 //=============================================================================
 
-//typedef struct node_var_t node_var_t;
-//typedef struct node_function_t node_function_t;
-//typedef struct node_type_t node_type_t;
-//typedef struct node_typespec_t node_typespec_t;
-//typedef struct node_ident_t node_ident_t;
-//typedef struct node_module_t node_module_t;
-//typedef struct node_expr_t node_expr_t;
-//typedef struct node_scope_t node_scope_t;
-//typedef struct node_if_t node_if_t;
-//typedef struct node_for_t node_for_t;
-//typedef struct node_while_t node_while_t;
-//typedef struct node_match_t node_match_t;
-//typedef struct node_literal_t node_literal_t;
-//typedef struct node_token_t node_token_t;
-//typedef struct node_units_t node_units_t;
-//typedef struct node_test_t node_test_t;
-//typedef struct node_import_t node_import_t;
+// typedef struct node_var_t node_var_t;
+// typedef struct node_function_t node_function_t;
+// typedef struct node_type_t node_type_t;
+// typedef struct node_typespec_t node_typespec_t;
+// typedef struct node_ident_t node_ident_t;
+// typedef struct node_module_t node_module_t;
+// typedef struct node_expr_t node_expr_t;
+// typedef struct node_scope_t node_scope_t;
+// typedef struct node_if_t node_if_t;
+// typedef struct node_for_t node_for_t;
+// typedef struct node_while_t node_while_t;
+// typedef struct node_match_t node_match_t;
+// typedef struct node_literal_t node_literal_t;
+// typedef struct node_token_t node_token_t;
+// typedef struct node_units_t node_units_t;
+// typedef struct node_test_t node_test_t;
+// typedef struct node_import_t node_import_t;
 typedef struct node_t node_t;
 
 #define MAKE_STRUCT_DEFS                                                       \
     struct {                                                                   \
         node_t* typespec;                                                      \
         union {                                                                \
-            struct { /*node_var_t, node_param_t */                                           \
+            struct { /*node_var_t, node_param_t */                             \
                 node_t* init;                                                  \
             };                                                                 \
             struct { /* node_function_t or node_test_t */                      \
@@ -51,10 +51,11 @@ typedef struct node_t node_t;
     struct { /* node_units_t */                                                \
         uint8_t putSomethingHere, powers[7];                                   \
         double* factors; /* will be double[7] */                               \
+        \ 
         double factor; /* final conv factor */                                 \
     };                                                                         \
     struct { /* node_type_t */                                                 \
-        node_t* vars;                                                          \
+        node_t* members;                                                       \
         char* super;                                                           \
         node_t* checks;                                                        \
         node_t* params;                                                        \
@@ -82,7 +83,7 @@ typedef struct node_t node_t;
         } / * value * /;                                                       \
     };         */                                                              \
     struct { /* node_token_t */                                                \
-        uint8_t prec, rassoc;                                                  \
+        uint8_t prec, rassoc : 1, unary : 1;                                   \
         union {                                                                \
             char* string; /* kind 0 */                                         \
             double real; /* kind 1 */                                          \
@@ -173,6 +174,7 @@ typedef enum node_kind_e {
     node_kind_poweq,
     node_kind_range,
     node_kind_semi,
+    node_kind_expr,
     node_kind_sub,
     node_kind_subeq,
     node_kind_scope,
@@ -306,20 +308,43 @@ struct node_t {
             bool_t resolved;
         } typespec;
         struct {
-            bool_t islonglen : 1, isunowned : 1, type : 2, base : 2,
-                isrealstr : 1, ishugeint : 1; // base: 0:10,1:16,2:2,3:8
+            bool_t //
+                islonglen : 1, //
+                isunowned : 1, //
+                type : 2, //
+                base : 2,
+                isrealstr : 1, //
+                ishugeint : 1; // base: 0:10,1:16,2:2,3:8
         } literal;
         struct {
-            bool_t prints : 1, throws : 1, recurs : 1, net : 1, gui : 1,
-                file : 1, refl : 1, nodispatch : 1;
+            bool_t //
+                prints : 1, //
+                throws : 1, //
+                recurs : 1, //
+                net : 1, //
+                gui : 1, //
+                file : 1, //
+                refl : 1, //
+                nodispatch : 1;
         } function;
         struct {
-            bool_t unused : 1, unset : 1, islet : 1, isvar : 1, isarray : 1,
-                hasunit : 1, hasinit : 1, hastype : 1;
+            bool_t unused : 1, //
+                unset : 1, //
+                islet : 1, //
+                isvar : 1, //
+                isarray : 1,
+                hasunit : 1, //
+                hasinit : 1, //
+                hastype : 1;
         } var;
         struct {
-            bool_t unused : 1, istarget : 1 /* x = f(x,y) */, isarray : 1,
-                hasunit : 1, hasinit : 1, hastype : 1;
+            bool_t //
+                unused : 1, //
+                istarget : 1 /* x = f(x,y) */, //
+                isarray : 1, //
+                hasunit : 1, //
+                hasinit : 1, //
+                hastype : 1;
         } farg;
     } flags;
     union {
@@ -354,6 +379,8 @@ typedef struct node_stack_t {
 
 static void stack_push(node_stack_t* stack, node_t* node)
 {
+    assert(stack != NULL);
+    assert(node != NULL); // really?
     if (stack->count < stack->cap) {
         stack->items[stack->count++] = node;
     } else {
@@ -364,28 +391,29 @@ static void stack_push(node_stack_t* stack, node_t* node)
     }
 }
 
- node_t* stack_pop(node_stack_t* stack)
+node_t* stack_pop(node_stack_t* stack)
 {
     return stack->count ? stack->items[--stack->count] : NULL;
 }
 
- node_t* stack_top(const node_stack_t* const stack)
+node_t* stack_top(const node_stack_t* const stack)
 {
-    return stack->count ? stack->items[stack->count] : NULL;
+    return stack->count ? stack->items[stack->count - 1] : NULL;
 }
 
- bool_t stack_empty(const node_stack_t* const stack)
+bool_t stack_empty(const node_stack_t* const stack)
 {
     return stack->count == 0;
 }
 
 // send the *pointer* by reference. if list is NULL, then 'append'ing
 // something puts it at index 0
- void list_append(node_t** list, node_t* item)
+void list_append(node_t** list, node_t* item)
 {
+    assert(list != NULL);
     if (*list) {
         node_t* l = *list;
-        while (l->next)
+        while (l->next && l != l->next)
             l = l->next;
         l->next = item;
     } else {
@@ -394,7 +422,7 @@ static void stack_push(node_stack_t* stack, node_t* node)
 }
 
 // send the *pointer* by reference
- void list_prepend(node_t** list, node_t* item)
+void list_prepend(node_t** list, node_t* item)
 {
     assert(item != NULL);
     item->next = *list;

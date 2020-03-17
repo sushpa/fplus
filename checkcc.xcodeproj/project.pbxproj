@@ -3,12 +3,27 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 50;
+	objectVersion = 52;
 	objects = {
 
 /* Begin PBXBuildFile section */
 		859CB3E0241BB49800C32B9E /* check.c in Sources */ = {isa = PBXBuildFile; fileRef = 859CB3D8241BB49800C32B9E /* check.c */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXBuildRule section */
+		85FC574B241E54840065AD51 /* PBXBuildRule */ = {
+			isa = PBXBuildRule;
+			compilerSpec = com.apple.compilers.proxy.script;
+			fileType = sourcecode.c;
+			inputFiles = (
+				"$(SRCROOT)/*.h",
+			);
+			isEditable = 1;
+			outputFiles = (
+			);
+			script = "# <com.apple.compilers.gcc>\nclang-format -i\n";
+		};
+/* End PBXBuildRule section */
 
 /* Begin PBXCopyFilesBuildPhase section */
 		859CB3CC241BB2D400C32B9E /* CopyFiles */ = {
@@ -88,6 +103,7 @@
 				859CB3CC241BB2D400C32B9E /* CopyFiles */,
 			);
 			buildRules = (
+				85FC574B241E54840065AD51 /* PBXBuildRule */,
 			);
 			dependencies = (
 			);
