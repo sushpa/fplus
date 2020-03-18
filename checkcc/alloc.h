@@ -9,7 +9,7 @@
     Type* alloc_##Type()                                                   \
     {                                                                      \
         if (alloc_used_##Type >= alloc_max_##Type) {                       \
-            alloc_buf_##Type = calloc(alloc_max_##Type, sizeof(Type));     \
+            alloc_buf_##Type = (Type*)calloc(alloc_max_##Type, sizeof(Type));     \
             alloc_used_##Type = 0;                                         \
         }                                                                  \
         alloc_total_##Type++;                                              \
@@ -22,6 +22,6 @@
             alloc_total_##Type, #Type, alloc_total_##Type * sizeof(Type)); \
     }
 
-MAKE_ALLOCATOR(Node, 512)
+MAKE_ALLOCATOR(ASTNode, 512)
 
-void alloc_stat() { alloc_stat_Node(); }
+void alloc_stat() { alloc_stat_ASTNode(); }

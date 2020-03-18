@@ -1,15 +1,15 @@
 
 void Parser_advance(Parser* parser) { Token_advance(&parser->token); }
 
-Node* nodeFromCurrentToken(Parser* parser)
+ASTNode* nodeFromCurrentToken(Parser* parser)
 {
     Token* token = &parser->token;
 
-    Node* node = alloc_Node();
-    *node = (Node) { //
+    ASTNode* node = alloc_ASTNode();
+    *node = (ASTNode) { //
         .kind = NKExpr,
         .subkind = token->kind,
-        .len = token->matchlen,
+        .len = (uint16_t) token->matchlen,
         .line = token->line,
         .col = token->col,
         .name = Token_strdup(token),
@@ -22,22 +22,22 @@ Node* nodeFromCurrentToken(Parser* parser)
     case TKIdentifier:
     case TKNumber: // not converting for now
     case TKLineComment:
-        node->value.string = Token_strdup(token);
+        node->expr.value.string = Token_strdup(token);
         break;
     //    node->value.real = strtod(token->pos, NULL);
     //   break;
     default:
         // error_unexpectedToken(parser, token->kind);
-        node->prec = Token_getPrecedence(token->kind);
-        node->rassoc = Token_isRightAssociative(token->kind);
-        node->unary = Token_isUnary(token->kind);
+        node->expr.op.prec = Token_getPrecedence(token->kind);
+        node->expr.op.rassoc = Token_isRightAssociative(token->kind);
+        node->expr.op.unary = Token_isUnary(token->kind);
         break;
     }
     if (token->kind == TKNumber) {
         // turn all 1.0234[DdE]+01 into 1.0234e+01
-        str_tr_ip(node->value.string, 'd', 'e');
-        str_tr_ip(node->value.string, 'D', 'e');
-        str_tr_ip(node->value.string, 'E', 'e');
+        str_tr_ip(node->expr.value.string, 'd', 'e');
+        str_tr_ip(node->expr.value.string, 'D', 'e');
+        str_tr_ip(node->expr.value.string, 'E', 'e');
     }
     Parser_advance(parser);
     return node;
@@ -45,7 +45,7 @@ Node* nodeFromCurrentToken(Parser* parser)
 
 #pragma mark Parsing Primitives
 
-Node* next_token_node(
+ASTNode* next_token_node(
     Parser* parser, TokenKind expected, const bool_t ignore_error)
 {
     if (parser->token.kind == expected) {
@@ -57,13 +57,13 @@ Node* next_token_node(
 }
 
 // in the Parser_match case, token should be advanced on error
-Node* Parser_match(Parser* parser, TokenKind expected)
+ASTNode* Parser_match(Parser* parser, TokenKind expected)
 {
     return next_token_node(parser, expected, false);
 }
 
 // this returns the Parser_match node or null
-Node* Parser_trymatch(Parser* parser, TokenKind expected)
+ASTNode* Parser_trymatch(Parser* parser, TokenKind expected)
 {
     return next_token_node(parser, expected, true);
 }
@@ -99,7 +99,7 @@ char* Parser_parseIdent(Parser* parser)
     return p;
 }
 
-Node* Parser_parseExpr(Parser* parser)
+ASTNode* Parser_parseExpr(Parser* parser)
 {
     Token* token = &parser->token;
 
@@ -110,9 +110,9 @@ Node* Parser_parseExpr(Parser* parser)
     // (ops, func calls, array index, ...)
 
     // we could make this static and set len to 0 upon func exit
-    NodeStack rpn = { NULL, 0, 0 }, ops = { NULL, 0, 0 };
+    ASTNodeStack rpn = { NULL, 0, 0 }, ops = { NULL, 0, 0 };
     int prec_top = 0;
-    Node* p=NULL;
+    ASTNode* p = NULL;
 
     // ******* STEP 1 CONVERT TOKENS INTO RPN
 
@@ -129,13 +129,13 @@ Node* Parser_parseExpr(Parser* parser)
         //                printf("%s ", Token_repr(rpn.items[i]->subkind));
         //        puts("");
 
-        Node* node = nodeFromCurrentToken(parser);
-        int prec = node->prec;
-        bool_t rassoc = node->rassoc;
+        ASTNode* node = nodeFromCurrentToken(parser);
+        int prec = node->expr.op.prec;
+        bool_t rassoc = node->expr.op.rassoc;
 
         if (node->subkind == TKIdentifier && token->kind == TKParenOpen) {
             node->subkind = TKFunctionCall;
-            node->prec = 100;
+            node->expr.op.prec = 100;
             NodeStack_push(&ops, node);
         } else if (node->subkind == TKIdentifier
             && token->kind == TKArrayOpen) {
@@ -177,7 +177,7 @@ Node* Parser_parseExpr(Parser* parser)
 
             while (!NodeStack_empty(&ops)) //
             {
-                prec_top = NodeStack_top(&ops)->prec;
+                prec_top = NodeStack_top(&ops)->expr.op.prec;
                 if (!prec_top) break;
                 if (prec > prec_top) break;
                 if (prec == prec_top && rassoc) break;
@@ -196,37 +196,40 @@ Node* Parser_parseExpr(Parser* parser)
     }
 
     int i;
-    puts("\nop-stack:");
-    for (i = 0; i < ops.count; i++) printf("%s ", Token_repr(ops.items[i]->subkind));
-    puts("\nres-stack:");
-    for (i = 0; i < rpn.count; i++) printf("%s ", Token_repr(rpn.items[i]->subkind));
-    puts("");
+    printf("\nops: ");
+    for (i = 0; i < ops.count; i++)
+        printf("%s ", Token_repr(ops.items[i]->subkind));
+    printf("\nrpn: ");
+    for (i = 0; i < rpn.count; i++)
+        printf("%s ", Token_repr(rpn.items[i]->subkind));
+    puts("\n");
 
     assert(ops.count == 0);
 
     // *** STEP 2 CONVERT RPN INTO EXPR TREE
 
-    NodeStack result = { NULL, 0, 0 };
+    ASTNodeStack result = { NULL, 0, 0 };
 
     for (i = 0; i < rpn.count; i++) {
         p = rpn.items[i];
         switch (p->subkind) {
         case TKFunctionCall:
-             break;
+            break;
         case TKNumber:
-                          break;
+            break;
         case TKIdentifier:
-                            break;
+            break;
         case TKParenOpen:
             break;
         default:
             // careful now, assuming everything except those above is a
-                 // nonterminal and needs left/right
-            if (!p->prec) continue;
+            // nonterminal and needs left/right
+            if (!p->expr.op.prec) continue;
             // operator must have some precedence, right?
             p->kind = NKExpr;
-            if (!p->unary) p->right = NodeStack_pop(&result);
-            p->left = NodeStack_pop(&result);
+            if (!p->expr.op.unary)
+                p->expr.right = NodeStack_pop(&result);
+            p->expr.left = NodeStack_pop(&result);
         }
         NodeStack_push(&result, p);
     }
@@ -384,36 +387,36 @@ NodeStack_push the add node directly this happens on each op pop! (in this
 }
 */
 
-Node* Parser_parseTypeSpec(Parser* parser)
+ASTNode* Parser_parseTypeSpec(Parser* parser)
 { // must have ident(U), then may have "[:,:]" i.e. '[\]\[\:, ]+' , then may
   // have units. note: after ident may have params <T, S>
     parser->token.flags.mergearraydims = true;
 
-    Node* node = nodeFromCurrentToken(parser);
+    ASTNode* node = nodeFromCurrentToken(parser);
     node->kind = NKTypeSpec;
     // this is an ident, but we will turn it into a typespec.
     // name is in this token already
-    node->dims = Parser_trymatch(parser, TKArrayDims);
-    node->units = Parser_trymatch(parser, TKUnits);
+    node->typeSpec.dims = Parser_trymatch(parser, TKArrayDims);
+    node->typeSpec.units = Parser_trymatch(parser, TKUnits);
     // fixme: node->type = lookupType;
 
     parser->token.flags.mergearraydims = false;
     return node;
 }
 
-Node* Parser_parseArgs(Parser* parser)
+ASTNode* Parser_parseArgs(Parser* parser)
 {
     Parser_match(parser, TKParenOpen);
-    Node* node = NULL;
-    Node* arg = NULL;
+    ASTNode* node = NULL;
+    ASTNode* arg = NULL;
     do {
         if (Parser_matches(parser, TKIdentifier)) {
             arg = nodeFromCurrentToken(parser);
             arg->kind = NKVar;
             if (Parser_ignore(parser, TKOpColon))
-                arg->typespec = Parser_parseTypeSpec(parser);
+                arg->var.typeSpec = Parser_parseTypeSpec(parser);
             if (Parser_ignore(parser, TKOpAssign))
-                arg->init = Parser_parseExpr(parser);
+                arg->var.init = Parser_parseExpr(parser);
             list_append(&node, arg);
             node->nArgs++;
         }
@@ -424,9 +427,9 @@ Node* Parser_parseArgs(Parser* parser)
     return node;
 }
 
-Node* Parser_parseVar(Parser* parser)
+ASTNode* Parser_parseVar(Parser* parser)
 {
-    Node* node = nodeFromCurrentToken(parser);
+    ASTNode* node = nodeFromCurrentToken(parser);
     if (node->subkind == TKKeyword_var) {
         // var / let, read the next one. in func args you won't find this
         Parser_ignore(parser, TKOneSpace);
@@ -438,7 +441,7 @@ Node* Parser_parseVar(Parser* parser)
 #ifdef Parser_parse_STRICT
         Parser_discard(parser, TKOneSpace);
 #endif
-        node->typespec = Parser_parseTypeSpec(parser);
+        node->var.typeSpec = Parser_parseTypeSpec(parser);
     }
 #ifdef Parser_parse_STRICT
     Parser_discard(parser, TKOnespc);
@@ -447,17 +450,17 @@ Node* Parser_parseVar(Parser* parser)
 #ifdef Parser_parse_STRICT
         Parser_discard(parser, TKOneSpace);
 #endif
-        node->init = Parser_parseExpr(parser);
+        node->var.init = Parser_parseExpr(parser);
     }
     return node;
 }
 
-Node* Parser_parseScope(Parser* parser, Node* parent)
+ASTNode* Parser_parseScope(Parser* parser, ASTNode* parent)
 {
     TokenKind kind = parser->token.kind;
-    Node* scope = alloc_Node();
+    ASTNode* scope = alloc_ASTNode();
     scope->kind = NKScope;
-    Node* node = NULL;
+    ASTNode* node = NULL;
     // don't conflate this with the while in parse(): it checks against file
     // end, this checks against the keyword 'end'.
     while ((kind = parser->token.kind) != TKKeyword_end) {
@@ -467,12 +470,12 @@ Node* Parser_parseScope(Parser* parser, Node* parent)
             goto exitloop;
         case TKKeyword_var:
             if ((node = Parser_parseVar(parser)))
-                list_append(&scope->stmts, node);
+                list_append(&scope->scope.stmts, node);
             break;
         case TKKeyword_base:
             Parser_discard(parser, TKKeyword_base);
             if (parent && parent->kind == NKType)
-                parent->super = Parser_parseIdent(parser);
+                parent->type.super = Parser_parseIdent(parser);
         case TKIdentifier: // check, return
             Parser_advance(parser); // fixme
             break;
@@ -494,20 +497,20 @@ exitloop:
     return scope;
 }
 
-Node* Parser_parseParams(Parser* parser)
+ASTNode* Parser_parseParams(Parser* parser)
 {
     Parser_match(parser, TKOpLT);
-    Node* node = NULL;
-    Node* param = NULL;
+    ASTNode* node = NULL;
+    ASTNode* param = NULL;
     do {
         if (Parser_matches(parser, TKIdentifier)) {
             param = nodeFromCurrentToken(parser);
             param->kind = NKVar;
             // name is already in param->name
             if (Parser_ignore(parser, TKOpColon))
-                param->typespec = Parser_parseTypeSpec(parser);
+                param->var.typeSpec = Parser_parseTypeSpec(parser);
             if (Parser_ignore(parser, TKOpAssign))
-                param->init = Parser_parseExpr(parser);
+                param->var.init = Parser_parseExpr(parser);
             list_append(&node, param);
         }
     } while (Parser_ignore(parser, TKComma));
@@ -516,41 +519,41 @@ Node* Parser_parseParams(Parser* parser)
     return node;
 }
 
-Node* Parser_parseFunc(Parser* parser)
+ASTNode* Parser_parseFunc(Parser* parser)
 {
     // shouldn't this be new_node_from...? or change Parser_parse_type &
     // others for consistency
-    Node* node = Parser_match(parser, TKKeyword_function);
+    ASTNode* node = Parser_match(parser, TKKeyword_function);
 
     if (node) {
         node->kind = NKFunc;
         node->name = Parser_parseIdent(parser);
-        node->args = Parser_parseArgs(parser);
+        node->func.args = Parser_parseArgs(parser);
         if (Parser_ignore(parser, TKOpColon)) {
-            node->typespec = Parser_parseTypeSpec(parser);
+            node->func.returnType = Parser_parseTypeSpec(parser);
         }
         // if (!Parser_matches(parser, TKKw_end)) {
-        node->body = Parser_parseScope(parser, node); //}
+        node->func.body = Parser_parseScope(parser, node); //}
     }
     Parser_discard(parser, TKKeyword_end);
     Parser_discard(parser, TKKeyword_function);
     return node;
 }
 
-Node* Parser_parseTest(Parser* parser) { return NULL; }
+ASTNode* Parser_parseTest(Parser* parser) { return NULL; }
 
-Node* Parser_parseType(Parser* parser)
+ASTNode* Parser_parseType(Parser* parser)
 {
-    Node* node = nodeFromCurrentToken(parser);
+    ASTNode* node = nodeFromCurrentToken(parser);
     node->kind = NKType;
     Parser_ignore(parser, TKOneSpace);
     node->name = Parser_parseIdent(parser);
     if (Parser_matches(parser, TKOpLT))
-        node->params = Parser_parseParams(parser);
+        node->type.params = Parser_parseParams(parser);
 
-    Node* body
-        = Parser_parseScope(parser, node); // will set super for this type
-    node->members = body->stmts;
+    ASTNode* body = Parser_parseScope(parser, node);
+    // will set super for this type
+    node->type.members = body->scope.stmts;
     // Node* item = NULL;
     //    for (item = body->stmts; //
     //         item != NULL; //
@@ -588,12 +591,12 @@ Node* Parser_parseType(Parser* parser)
     return node;
 }
 
-Node* Parser_parseImport(Parser* parser)
+ASTNode* Parser_parseImport(Parser* parser)
 {
-    Node* node = nodeFromCurrentToken(parser);
+    ASTNode* node = nodeFromCurrentToken(parser);
     node->kind = NKImport;
-    node->name = "";
-    node->impfile = Parser_parseIdent(parser);
+    node->name = (char*) "";
+    node->import.importFile = Parser_parseIdent(parser);
     Parser_ignore(parser, TKOneSpace);
     if (Parser_ignore(parser, TKKeyword_as)) {
         Parser_ignore(parser, TKOneSpace);
@@ -605,14 +608,14 @@ Node* Parser_parseImport(Parser* parser)
 bool_t skipws = true;
 
 //#define PRINTTOKENS
-// parse functions all have signature: Node* Parser_parse_xxxxx(Parser_t*
+// parse functions all have signature: ASTNode* Parser_parse_xxxxx(Parser_t*
 // parser)
-Node* Parser_parse(Parser* parser)
+ASTNode* Parser_parse(Parser* parser)
 {
-    Node* root = alloc_Node();
+    ASTNode* root = alloc_ASTNode();
     root->kind = NKModule;
     root->name = parser->moduleName;
-    Node* node;
+    ASTNode* node;
     TokenKind kind;
     Parser_advance(parser);
     while ((kind = parser->token.kind) != TKNullChar) {
@@ -626,34 +629,40 @@ Node* Parser_parse(Parser* parser)
 #endif
         switch (kind) {
         case TKKeyword_function:
-            if ((node = Parser_parseFunc(parser))) list_append(&(root->funcs), node);
+            if ((node = Parser_parseFunc(parser)))
+                list_append(&(root->module.funcs), node);
             break;
         case TKKeyword_type:
-            if ((node = Parser_parseType(parser))) list_append(&(root->types), node);
+            if ((node = Parser_parseType(parser)))
+                list_append(&(root->module.types), node);
             break;
         case TKKeyword_import:
             if ((node = Parser_parseImport(parser))) {
-                list_append(&(root->imports), node);
-                Parser* iparser = Parser_new(node->impfile, skipws);
-                Node* imod = Parser_parse(iparser);
+                list_append(&(root->module.imports), node);
+                Parser* iparser
+                    = Parser_new(node->import.importFile, skipws);
+                ASTNode* imod = Parser_parse(iparser);
                 list_append(&(parser->modules), imod);
             }
             break;
         case TKKeyword_test:
-            if ((node = Parser_parseTest(parser))) list_append(&(root->tests), node);
+            if ((node = Parser_parseTest(parser)))
+                list_append(&(root->module.tests), node);
             break;
         case TKKeyword_var:
         case TKKeyword_let:
-            if ((node = Parser_parseVar(parser))) list_append(&(root->globals), node);
+            if ((node = Parser_parseVar(parser)))
+                list_append(&(root->module.globals), node);
             break;
         case TKNewline:
         case TKLineComment:
             break;
-#ifndef PRINTTOKENS
+//#ifndef PRINTTOKENS
         default:
-#endif
+//#endif
             printf("other token: %s at %d:%d len %d\n", Token_repr(kind),
-                parser->token.line, parser->token.col, parser->token.matchlen);
+                parser->token.line, parser->token.col,
+                parser->token.matchlen);
             Parser_advance(parser);
         }
         // Parser_advance(parser);// this shouldnt be here, the specific
@@ -665,56 +674,97 @@ Node* Parser_parse(Parser* parser)
     return parser->modules;
 }
 
+//
+//bool_t dimsvalid(char* dimsstr) {
+//    bool_t valid = true;
+//    char* str=dimsstr;
+//    valid = valid && (*str++ == '[');
+//    while (*str != ']' && *str != 0) {
+//        valid = valid && (*str++ == ':');
+//        if (*str==',') {
+//            valid = valid && (*str++ == ',');
+//            valid = valid && (*str++ == ' ');
+//        }
+//    }
+//    return valid;
+//}
+int32_t dimsCount(char* dimsstr) {
+    int32_t count=0;
+    char* str=dimsstr;
+    while (*str) if (*str++ == ':' || *str == '[' ) count++;
+    return count;
+}
+
+char* dimsGenStr(int32_t dims) {
+    int32_t i;
+    int32_t sz = 2 + dims + (dims ? (dims-1) : 0) + 1;
+    char* str = (char*) malloc(sz * sizeof(char));
+    str[sz*0] = '[';
+    str[sz-2] = ']';
+    str[sz-1] = 0;
+    for (i=0; i<sz; i++) {
+        str[i*2+1]=':';
+        str[i*2+2]=',';
+    }
+    return str;
+}
+
 #pragma mark Print AST
 const char* spaces = "                              "
                      "                                  ";
 
-void ChWriter_gen(const Node* const node, int level);
+void ChWriter_gen(const ASTNode* const node, int level);
 
- void ChWriter_genModule(int level, const Node *node) {
+void ChWriter_genModule(int level, const ASTNode* node)
+{
     printf("! module %s\n", node->name);
-    Node* type = node->types;
+    ASTNode* type = node->module.types;
     while (type) {
         ChWriter_gen(type, level);
         type = type->next;
     }
-    Node* func = node->funcs;
+    ASTNode* func = node->module.funcs;
     while (func) {
         ChWriter_gen(func, level);
         func = func->next;
     }
 }
 
- void ChWriter_genVar(int level, const Node *node) {
+void ChWriter_genVar(int level, const ASTNode* node)
+{
     printf("%.*s%s %s", level * 4, spaces,
-           node->flags.var.isLet ? "let" : "var", node->name);
-    if (node->typespec)
-        ChWriter_gen(node->typespec, level + 1);
+        node->flags.var.isLet ? "let" : "var", node->name);
+    if (node->var.typeSpec)
+        ChWriter_gen(node->var.typeSpec, level + 1);
     else
         printf(": Unknown");
-    if (node->init) {
+    if (node->var.init) {
         printf(" = ");
-        ChWriter_gen(node->init, level + 1);
+        ChWriter_gen(node->var.init, level + 1);
     }
     puts("");
 }
 
- void ChWriter_genFunc(int level, const Node *node) {
+void ChWriter_genFunc(int level, const ASTNode* node)
+{
     printf("function %s(", node->name);
-    Node* arg = node->args;
+    ASTNode* arg = node->func.args;
     while (arg) {
-        printf("%s: %s", arg->name, arg->typespec->name);
-        if ((arg = arg->next)) printf(", ");
+        printf("%s", arg->name); //, arg->var.typeSpec->name);
+        ChWriter_gen(arg->var.typeSpec, level);
+        if ((arg = arg->next)) printf(", "); else printf(")");
     }
-    if (node->typespec) printf("): %s\n", node->typespec->name);
-    ChWriter_gen(node->body, level);
+    ChWriter_gen(node->func.returnType, level); //printf("): %s\n", node->func.returnType->name);
+    puts("");
+    ChWriter_gen(node->func.body, level);
     puts("end function\n");
 }
 
- void ChWriter_genType(int level, const Node *node) {
+void ChWriter_genType(int level, const ASTNode* node)
+{
     printf("type %s\n", node->name);
-    if (node->super) printf("    base %s\n", node->super);
-    Node* member = node->members;
+    if (node->type.super) printf("    base %s\n", node->type.super);
+    ASTNode* member = node->type.members;
     while (member) {
         ChWriter_gen(member, level + 1);
         member = member->next;
@@ -722,67 +772,90 @@ void ChWriter_gen(const Node* const node, int level);
     puts("end type\n");
 }
 
- void ChWriter_genScope(int level, const Node *node) {
-    printf("!begin scope\n");
-    Node* stmt = node->stmts;
+void ChWriter_genScope(int level, const ASTNode* node)
+{
+    //printf("!begin scope\n");
+    ASTNode* stmt = node->scope.stmts;
     while (stmt) {
         ChWriter_gen(stmt, level + 1);
         stmt = stmt->next;
     }
 }
 
- void ChWriter_genExpr(int level, const Node *node) {
+void ChWriter_genExpr(int level, const ASTNode* node)
+{
     switch (node->subkind) {
     case TKIdentifier:
     case TKNumber:
     case TKString:
-        printf("%.*s", node->len, node->value.string);
+        printf("%.*s", node->len, node->expr.value.string);
         break;
     case TKFunctionCall:
     case TKSubscript:
         // NYI
         break;
     default:
-        if (!node->prec) break; // not an operator
-        if (node->left) {
-            if (node->left->kind == NKExpr && node->left->prec < node->prec)
+        if (!node->expr.op.prec) break; // not an operator
+        if (node->expr.left) {
+            if (node->expr.left->kind == NKExpr
+                && node->expr.left->expr.op.prec && node->expr.left->expr.op.prec < node->expr.op.prec)
                 putc('(', stdout);
-            ChWriter_gen(node->left, level + 1);
-            if (node->left->kind == NKExpr && node->left->prec < node->prec)
+            ChWriter_gen(node->expr.left, level + 1);
+            if (node->expr.left->kind == NKExpr
+                && node->expr.left->expr.op.prec  && node->expr.left->expr.op.prec < node->expr.op.prec)
                 putc(')', stdout);
         }
         printf(" %s ", Token_repr(node->subkind));
-        if (node->right) {
-            if (node->right->kind == NKExpr && node->right->prec < node->prec)
+        if (node->expr.right) {
+            if (node->expr.right->kind == NKExpr
+                && node->expr.right->expr.op.prec && node->expr.right->expr.op.prec < node->expr.op.prec)
                 putc('(', stdout);
-            ChWriter_gen(node->right, level + 1);
-            if (node->right->kind == NKExpr && node->right->prec < node->prec)
+            ChWriter_gen(node->expr.right, level + 1);
+            if (node->expr.right->kind == NKExpr
+                && node->expr.right->expr.op.prec && node->expr.right->expr.op.prec < node->expr.op.prec)
                 putc(')', stdout);
         }
     }
 }
 
- void ChWriter_genUnits(const Node *node) {
-     printf("|%s", node->name);
-}
+void ChWriter_genUnits(const ASTNode* node) { printf("|%s", node->name); }
 
- void ChWriter_genTypeSpec(const Node *node) {
+void ChWriter_genTypeSpec(const ASTNode* node)
+{
     printf(": %s", node->name);
-    if (node->dims) printf("%s", node->dims->name);
+//    if (node->typeSpec.dims) printf("%s", gendims(node->typeSpec.dims));
+    if (node->typeSpec.dims) printf("%s", node->typeSpec.dims->name);
+    if (node->typeSpec.units) printf("%s", node->typeSpec.units->name);
 }
 
-void ChWriter_gen(const Node* const node, int level)
+void ChWriter_gen(const ASTNode* const node, int level)
 {
     if (!node) return;
     switch (node->kind) {
-    case NKModule: ChWriter_genModule(level, node); break;
-    case NKVar: ChWriter_genVar(level, node); break;
-    case NKFunc: ChWriter_genFunc(level, node); break;
-    case NKType: ChWriter_genType(level, node); break;
-    case NKScope: ChWriter_genScope(level, node); break;
-    case NKExpr: ChWriter_genExpr(level, node); break;
-    case NKUnits: ChWriter_genUnits(node); break;
-    case NKTypeSpec: ChWriter_genTypeSpec(node); break;
+    case NKModule:
+        ChWriter_genModule(level, node);
+        break;
+    case NKVar:
+        ChWriter_genVar(level, node);
+        break;
+    case NKFunc:
+        ChWriter_genFunc(level, node);
+        break;
+    case NKType:
+        ChWriter_genType(level, node);
+        break;
+    case NKScope:
+        ChWriter_genScope(level, node);
+        break;
+    case NKExpr:
+        ChWriter_genExpr(level, node);
+        break;
+    case NKUnits:
+        ChWriter_genUnits(node);
+        break;
+    case NKTypeSpec:
+        ChWriter_genTypeSpec(node);
+        break;
     default:
         printf("!!! can't print %s", NodeKind_repr(node->kind));
         break;

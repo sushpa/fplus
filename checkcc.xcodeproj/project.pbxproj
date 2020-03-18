@@ -39,14 +39,14 @@
 
 /* Begin PBXFileReference section */
 		859CB3CE241BB2D400C32B9E /* checkcc */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = checkcc; sourceTree = BUILT_PRODUCTS_DIR; };
-		859CB3D8241BB49800C32B9E /* check.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = check.c; sourceTree = "<group>"; };
-		859CB3D9241BB49800C32B9E /* parser.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = parser.h; sourceTree = "<group>"; };
-		859CB3DA241BB49800C32B9E /* alloc.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = alloc.h; sourceTree = "<group>"; };
-		859CB3DB241BB49800C32B9E /* token.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = token.h; sourceTree = "<group>"; };
-		859CB3DC241BB49800C32B9E /* errors.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = errors.h; sourceTree = "<group>"; };
-		859CB3DD241BB49800C32B9E /* node.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = node.h; sourceTree = "<group>"; };
-		859CB3DE241BB49800C32B9E /* context.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = context.h; sourceTree = "<group>"; };
-		859CB3DF241BB49800C32B9E /* str.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = str.h; sourceTree = "<group>"; };
+		859CB3D8241BB49800C32B9E /* check.c */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; path = check.c; sourceTree = "<group>"; };
+		859CB3D9241BB49800C32B9E /* parser.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; path = parser.h; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.c; };
+		859CB3DA241BB49800C32B9E /* alloc.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; path = alloc.h; sourceTree = "<group>"; };
+		859CB3DB241BB49800C32B9E /* token.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; path = token.h; sourceTree = "<group>"; };
+		859CB3DC241BB49800C32B9E /* errors.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; path = errors.h; sourceTree = "<group>"; };
+		859CB3DD241BB49800C32B9E /* node.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; path = node.h; sourceTree = "<group>"; };
+		859CB3DE241BB49800C32B9E /* context.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; path = context.h; sourceTree = "<group>"; };
+		859CB3DF241BB49800C32B9E /* str.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; path = str.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */

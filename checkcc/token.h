@@ -111,13 +111,12 @@ typedef struct Token {
     TokenKind kind : 8;
 } Token;
 
-
 // Return the repr of a token kind (for debug)
 const char* Token_repr(const TokenKind kind)
 {
     switch (kind) {
-//    case TK_source:
-//        return "(src)";
+        //    case TK_source:
+        //        return "(src)";
     case TKNullChar:
         return "EOF";
     case TKKeyword_cheater:
@@ -170,8 +169,8 @@ const char* Token_repr(const TokenKind kind)
         return "a[]";
     case TKNumber:
         return "#";
-//    case TKWs:
-//        return "(ws)";
+        //    case TKWs:
+        //        return "(ws)";
     case TKSpaces:
         return "(spc)";
     case TKTab:
@@ -192,8 +191,8 @@ const char* Token_repr(const TokenKind kind)
         return "a";
     case TKArrayClose:
         return "]";
-//    case TKArrayEmpty:
-//        return "[]";
+        //    case TKArrayEmpty:
+        //        return "[]";
     case TKArrayOpen:
         return "[";
     case TKArrayDims:
@@ -202,8 +201,8 @@ const char* Token_repr(const TokenKind kind)
         return "@";
     case TKBraceClose:
         return "}";
-//    case TKBrace_empty:
-//        return "{}";
+        //    case TKBrace_empty:
+        //        return "{}";
     case TKBraceOpen:
         return "{";
     case TKHash:
@@ -224,22 +223,22 @@ const char* Token_repr(const TokenKind kind)
         return ">";
     case TKOpLE:
         return "<";
-//    case TKOp_lsh:
-//        return "<<";
+        //    case TKOp_lsh:
+        //        return "<<";
     case TKOpLT:
         return "<";
     case TKOpMod:
         return "%";
-//    case TKOpRightShift:
-//        return ">>";
+        //    case TKOpRightShift:
+        //        return ">>";
     case TKOpResults:
         return "=>";
     case TKOpNotResults:
         return "=/>";
     case TKParenClose:
         return ")";
-//    case TKParen_empty:
-//        return "()";
+        //    case TKParen_empty:
+        //        return "()";
     case TKParenOpen:
         return "(";
     case TKPeriod:
@@ -250,20 +249,20 @@ const char* Token_repr(const TokenKind kind)
         return ":";
     case TKStringBoundary:
         return "\"";
-//    case TKStringEmpty:
-//        return "\"\"";
+        //    case TKStringEmpty:
+        //        return "\"\"";
     case TKString:
         return "\"..\"";
     case TKRegexBoundary:
         return "'";
-//    case TKRegexEmpty:
-//        return "''";
+        //    case TKRegexEmpty:
+        //        return "''";
     case TKRegex:
         return "(rgx)";
     case TKInlineBoundary:
         return "`";
-//    case TKInlineEmpty:
-//        return "``";
+        //    case TKInlineEmpty:
+        //        return "``";
     case TKInline:
         return "`..`";
     case TKUnderscore:
@@ -358,15 +357,15 @@ uint8_t Token_getPrecedence(TokenKind kind)
         return 10;
     case TKKeyword_do:
         return 5;
-//    case TKParenOpen:
-//    case TKParenClose:
-//        return 0;
-//    case TKBraceOpen:
-//    case TKBraceClose:
-//        return 0;
-//    case TKArrayOpen:
-//    case TKArrayClose:
-//        return 0;
+        //    case TKParenOpen:
+        //    case TKParenClose:
+        //        return 0;
+        //    case TKBraceOpen:
+        //    case TKBraceClose:
+        //        return 0;
+        //    case TKArrayOpen:
+        //    case TKArrayClose:
+        //        return 0;
     default:
         return 0;
     }
@@ -450,7 +449,7 @@ TokenKind Token_tryKeywordMatch(const Token* token)
     Token_compareKeyword(let);
     Token_compareKeyword(import);
     Token_compareKeyword(as);
-//    Token_compareKeyword(only);
+    //    Token_compareKeyword(only);
     Token_compareKeyword(print);
     return TKIdentifier;
 }

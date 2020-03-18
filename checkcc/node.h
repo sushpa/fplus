@@ -19,7 +19,7 @@
 // typedef struct node_units_t node_units_t;
 // typedef struct node_test_t node_test_t;
 // typedef struct node_import_t node_import_t;
-typedef struct Node Node;
+typedef struct Nodeold Nodeold;
 
 /*
 typedef enum {
@@ -237,6 +237,7 @@ const char* NodeKind_repr(NodeKind kind)
         return "NKModule";
     }
 }
+typedef struct ASTNode ASTNode;
 
 typedef struct {
     char* importFile;
@@ -248,75 +249,81 @@ typedef struct {
 } ASTUnits;
 
 typedef struct {
-    struct ASTExpr *left, *right, *next;
-    union {
+    ASTNode *left, *right, *next;
+//    union { // when you write the version with specific types, DO NOT put prec/rassoc/etc in a union with literals.
+    // you can put the literal in a union with either left/right. put prec/rassoc&co in basics along with line/col now that
+    // 8B of kind will be free (subkind becomes kind).
         struct {
             bool_t rassoc, unary;
-            int prec;
-        }; // for nonterminals
+            int8_t prec;
+        } op; // for nonterminals
         union {
             char* string;
             double real;
             int64_t integer;
             uint64_t uinteger;
         } value; // for terminals
-    };
+//    };
 } ASTExpr; // how about if, for, etc. all impl using ASTExpr?
+typedef struct ASTTypeSpec ASTTypeSpec;
 
 typedef struct {
-    struct ASTTypeSpec* typeSpec;
-    ASTExpr* init;
+    ASTNode* typeSpec;
+    ASTNode* init;
 } ASTVar;
 
 typedef struct {
-    ASTVar* vars; // vars contained in this type
+    ASTNode* members; // vars contained in this type
     char* super; // should be TypeNode
-    ASTExpr* checks; // make sure each Expr has null next. If not, split the
+    //ASTNode* checks; // make sure each Expr has null next. If not, split the
                      // Expr into two and add one after the other. If you
                      // will add automatic checks based on expressions
                      // elsewhere, clone them and set null next, because we
                      // need next to build this list here.
-    ASTVar* params; // params of this type (if generic type / template)
+    ASTNode* params; // params of this type (if generic type / template)
 } ASTType;
 
-typedef struct {
-    union {
-        ASTExpr* expr;
-        ASTVar* var;
-    };
-    struct ASTStmt* next; // Expr has its own next... so clean this up
-} ASTStmt;
+//typedef struct {
+//    union {
+//        ASTExpr* expr;
+//        ASTVar* var;
+//    };
+//    struct ASTStmt* next; // Expr has its own next... so clean this up
+//} ASTStmt;
 
 typedef struct {
-    ASTStmt* stmts;
-    ASTVar* locals;
-    void* parent; // fixme
+    ASTNode* stmts;
+    ASTNode* locals;
+    ASTNode* parent; // fixme
 } ASTScope;
 
-typedef struct {
+ struct ASTTypeSpec {
     // char* typename; // use name
-    ASTType* type;
-    ASTUnits* units;
-    uint32_t ndims;
-} ASTTypeSpec;
+    ASTNode* type;
+    ASTNode* units;
+    ASTNode* dims;
+} ;
 
 typedef struct {
-    ASTScope* body;
+    ASTNode* body;
+    ASTNode* args;
+    ASTNode* returnType;
     // char* name;
     char* mangledName;
     char* owner; // if method of a type
 } ASTFunc;
 
 typedef struct {
-    ASTFunc* funcs;
-    ASTType* types;
-    ASTVar* globals;
-    ASTImport* import;
-    ASTFunc* tests;
+    ASTNode* funcs;
+    ASTNode* types;
+    ASTNode* globals;
+    ASTNode* imports;
+    ASTNode* tests;
 } ASTModule;
 
-typedef struct {
-    union {
+struct ASTNode {
+    struct {
+        union {
         uint16_t len, nArgs;
     };
     uint16_t line;
@@ -367,24 +374,25 @@ typedef struct {
                 hasType : 1;
         } farg;
     } flags;
+    };
     /* --- 8B */
     char* name;
     /* --- 16B */
-    struct ASTNode* next;
+    ASTNode* next;
     /* --- 24B */
     union {
         ASTImport import;
-        ASTUnits units;
+       // ASTUnits units;
         ASTExpr expr;
         ASTVar var;
         ASTType type;
-        ASTStmt stmt;
+//        ASTStmt stmt;
         ASTScope scope;
         ASTTypeSpec typeSpec;
         ASTFunc func;
         ASTModule module;
     };
-} ASTNode;
+};
 
 #define MAKE_STRUCT_DEFS                                                   \
     struct {                                                               \
@@ -492,8 +500,8 @@ typedef struct {
 //=============================================================================
 // NODE
 //=============================================================================
-
-struct Node {
+/*
+struct Nodeold {
     union {
         uint16_t len, nArgs;
     };
@@ -538,7 +546,7 @@ struct Node {
         struct {
             bool_t //
                 unused : 1, //
-                isTarget : 1 /* x = f(x,y) */, //
+                isTarget : 1 / * x = f(x,y) * /, //
                 isArray : 1, //
                 hasUnit : 1, //
                 hasInit : 1, //
@@ -548,34 +556,44 @@ struct Node {
     union {
         MAKE_STRUCT_DEFS
     };
-    /*node_ident_t*/ char* name;
+    / *node_ident_t* / char* name;
     Node* next;
-};
+}; */
 
 static void print_sizes()
 {
-    static int s = sizeof(Node);
-    printf("sizeof node     %d\n", s);
+//    static int s = sizeof(ASTNode);
+    printf("sizeof ASTNode %lu\n", sizeof(ASTNode));
+//    printf("ASTImport %lu\n", sizeof(ASTImport));
+//    printf("ASTUnits %lu\n", sizeof(ASTUnits));
+//    printf("ASTExpr %lu\n", sizeof(ASTExpr));
+//    printf("ASTVar %lu\n", sizeof(ASTVar));
+//    printf("ASTType %lu\n", sizeof(ASTType));
+// / /    printf("ASTStmt %lu\n", sizeof(ASTStmt));
+//    printf("ASTScope %lu\n", sizeof(ASTScope));
+//    printf("ASTTypeSpec %lu\n", sizeof(ASTTypeSpec));
+//    printf("ASTFunc %lu\n", sizeof(ASTFunc));
+//    printf("ASTModule %lu\n", sizeof(ASTModule));
 }
 
-typedef enum lit_kind_e {
-    lit_kind_string,
-    lit_kind_real,
-    lit_kind_int,
-    lit_kind_bool,
-    lit_kind_regex
-} lit_kind_e;
+// typedef enum lit_kind_e {
+//    lit_kind_string,
+//    lit_kind_real,
+//    lit_kind_int,
+//    lit_kind_bool,
+//    lit_kind_regex
+//} lit_kind_e;
 
 //=============================================================================
 // NODE STACK
 //=============================================================================
 
 typedef struct NodeStack {
-    Node** items;
+    ASTNode** items;
     uint32_t count, cap;
-} NodeStack;
+} ASTNodeStack;
 
-static void NodeStack_push(NodeStack* self, Node* node)
+static void NodeStack_push(ASTNodeStack* self, ASTNode* node)
 {
     assert(self != NULL);
     assert(node != NULL); // really?
@@ -583,8 +601,8 @@ static void NodeStack_push(NodeStack* self, Node* node)
         self->items[self->count++] = node;
     } else {
         self->cap = self->cap ? 2 * self->cap : 8;
-        self->items = realloc(self->items,
-            sizeof(Node*) * self->cap); // !! realloc can NULL the ptr!
+        self->items = (ASTNode**)realloc(self->items,
+            sizeof(ASTNode*) * self->cap); // !! realloc can NULL the ptr!
         self->items[self->count++] = node;
         int i;
         for (i = self->count; i < self->cap; i++)
@@ -592,9 +610,9 @@ static void NodeStack_push(NodeStack* self, Node* node)
     }
 }
 
-Node* NodeStack_pop(NodeStack* self)
+ASTNode* NodeStack_pop(ASTNodeStack* self)
 {
-    Node* ret = NULL;
+    ASTNode* ret = NULL;
     if (self->count) {
         ret = self->items[self->count - 1];
         self->items[self->count - 1] = NULL;
@@ -605,23 +623,23 @@ Node* NodeStack_pop(NodeStack* self)
     return ret; // stack->count ? stack->items[--stack->count] : NULL;
 }
 
-Node* NodeStack_top(const NodeStack* const self)
+ASTNode* NodeStack_top(const ASTNodeStack* const self)
 {
     return self->count ? self->items[self->count - 1] : NULL;
 }
 
-bool_t NodeStack_empty(const NodeStack* const self)
+bool_t NodeStack_empty(const ASTNodeStack* const self)
 {
     return self->count == 0;
 }
 
 // send the *pointer* by reference. if list is NULL, then 'append'ing
 // something puts it at index 0
-void list_append(Node** list, Node* item)
+void list_append(ASTNode** list, ASTNode* item)
 {
     assert(list != NULL);
     if (*list) {
-        Node* l = *list;
+        ASTNode* l = *list;
         while (l->next && l != l->next)
             l = l->next;
         l->next = item;
@@ -631,7 +649,7 @@ void list_append(Node** list, Node* item)
 }
 
 // send the *pointer* by reference
-void list_prepend(Node** list, Node* item)
+void list_prepend(ASTNode** list, ASTNode* item)
 {
     assert(item != NULL);
     item->next = *list;

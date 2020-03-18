@@ -25,7 +25,7 @@ int main(int argc, char* argv[])
     print_sizes();
     Parser* parser = Parser_new(argv[1], skipws);
     Parser_parse(parser);
-    if (!parser->errCount) print_tree(parser->modules, 0);
+    if (!parser->errCount) ChWriter_gen(parser->modules, 0);
     alloc_stat();
     return 0;
 }

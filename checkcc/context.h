@@ -12,8 +12,8 @@ typedef struct Parser {
     char* dirname; // mod/submod/xyz
     char *data, *end;
     Token token; // current
-    Node* modules; // module node of the AST
-    NodeStack scopes; // a stack that keeps track of scope nesting
+    ASTNode* modules; // module node of the AST
+    ASTNodeStack scopes; // a stack that keeps track of scope nesting
     // parse_state_e state; just read scopes[0] and see if its type or func
     uint8_t errCount;
 } Parser;
@@ -28,10 +28,10 @@ Parser* Parser_new(char* filename, bool_t skipws)
     const size_t size = ftell(file) + 1;
     Parser* parser = NULL;
     if (size < FILE_SIZE_MAX) { // 16MB max
-        char* data = malloc(size);
+        char* data = (char*) malloc(size);
         fseek(file, 0, SEEK_SET);
         fread(data, size, 1, file);
-        parser = malloc(sizeof(Parser));
+        parser = (Parser*) malloc(sizeof(Parser));
         *parser = (Parser){ //
             .filename = filename,
             .moduleName = str_tr(noext, '/', '.'),
