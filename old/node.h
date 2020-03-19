@@ -237,7 +237,7 @@ const char* NodeKind_repr(NodeKind kind)
         return "NKModule";
     }
 }
-typedef struct ASTNode ASTNode;
+//typedef struct ASTNode ASTNode;
 
 typedef struct {
     char* importFile;
@@ -248,40 +248,88 @@ typedef struct {
     double factor, factors[7];
 } ASTUnits;
 
-typedef struct {
-    ASTNode *left, *right, *next;
+
+//typedef struct ASTExpro ASTExpro;
+//struct ASTExpro {
+//    ASTNode *left, *next, *right;
+//    //    union { // when you write the version with specific types, DO NOT put prec/rassoc/etc in a union with literals.
+//    // you can put the literal in a union with either left/right. put prec/rassoc&co in basics along with line/col now that
+//    // 8B of kind will be free (subkind becomes kind).
+//    struct {
+//        bool_t rassoc, unary;
+//        int8_t prec;
+//    } op; // for nonterminals
+//    union {
+//        char* string;
+//        double real;
+//        int64_t integer;
+//        uint64_t uinteger;
+//    } value; // for terminals    //    };
+//}; // how about if, for, etc. all impl using ASTExpr?
+typedef struct ASTFunc ASTFunc;
+typedef struct ASTTypeSpec ASTTypeSpec;
+typedef struct ASTVar ASTVar;
+
+typedef struct ASTExpr ASTExpr;
+  struct ASTExpr {
+      struct {
+          uint16_t lineNo;
+          union { struct {bool_t opIsUnary, opIsRightAssociative;}; uint16_t strLength; };// for literals, the string length
+          uint8_t opPrecedence;
+          uint8_t columnNo;
+          TokenKind kind: 8; // TokenKind must be updated to add TKFuncCallResolved TKSubscriptResolved etc. to indicate a resolved identifier. while you are at it add TKNumberAsString etc. then instead of name you will use the corr. object.
+      };
+
+      // Expr : left right next
+      // Literals: value next
+      // FuncCall : value args next
+
+      union {ASTExpr *left, *args, *indexes;}; // for Expr, FuncCall and Subscript respectively
+      ASTExpr *next;
 //    union { // when you write the version with specific types, DO NOT put prec/rassoc/etc in a union with literals.
     // you can put the literal in a union with either left/right. put prec/rassoc&co in basics along with line/col now that
     // 8B of kind will be free (subkind becomes kind).
-        struct {
-            bool_t rassoc, unary;
-            int8_t prec;
-        } op; // for nonterminals
+    union {
         union {
             char* string;
             double real;
             int64_t integer;
             uint64_t uinteger;
         } value; // for terminals
+        char* name; // for unresolved functioncall or subscript, or identifiers
+        ASTFunc* func; // for functioncall
+        ASTVar* var; // for array subscript, or to refer to a variable
+        ASTExpr* right;
+    };
 //    };
-} ASTExpr; // how about if, for, etc. all impl using ASTExpr?
-typedef struct ASTTypeSpec ASTTypeSpec;
+}; // how about if, for, etc. all impl using ASTExpr?
+ struct ASTVar{
+    ASTTypeSpec* typeSpec;
+    ASTExpr* init;
+     struct {
+         bool_t unused : 1, //
+         unset : 1, //
+         isLet : 1, //
+         isVar : 1, //
+         //isArray : 1,
+         //hasUnit : 1, //
+         //hasInit : 1, //
+         //hasType : 1,//
+         isTarget : 1; /* x = f(x,y) */ //
+     } flags;
+} ;
 
-typedef struct {
-    ASTNode* typeSpec;
-    ASTNode* init;
-} ASTVar;
-
-typedef struct {
-    ASTNode* members; // vars contained in this type
-    char* super; // should be TypeNode
-    //ASTNode* checks; // make sure each Expr has null next. If not, split the
+typedef struct ASTType ASTType; struct ASTType {
+    ASTVar* vars; // vars contained in this type
+    ASTTypeSpec* super;
+    ASTExpr* checks; // invariants
+                     // make sure each Expr has null next. If not, split the
                      // Expr into two and add one after the other. If you
                      // will add automatic checks based on expressions
                      // elsewhere, clone them and set null next, because we
                      // need next to build this list here.
-    ASTNode* params; // params of this type (if generic type / template)
-} ASTType;
+    ASTVar* params; // params of this type (if generic type / template)
+} ;
 
 //typedef struct {
 //    union {
@@ -291,36 +339,52 @@ typedef struct {
 //    struct ASTStmt* next; // Expr has its own next... so clean this up
 //} ASTStmt;
 
-typedef struct {
-    ASTNode* stmts;
-    ASTNode* locals;
-    ASTNode* parent; // fixme
-} ASTScope;
+typedef struct ASTScope ASTScope; struct ASTScope {
+    ASTExpr* stmts;
+    ASTVar* locals;
+    //ASTScope* parent; // fixme: can be type, func, or scope
+} ;
 
  struct ASTTypeSpec {
     // char* typename; // use name
-    ASTNode* type;
-    ASTNode* units;
-    ASTNode* dims;
+    ASTType* type;
+    ASTUnits* units;
+    uint32_t dims;
 } ;
 
-typedef struct {
-    ASTNode* body;
-    ASTNode* args;
-    ASTNode* returnType;
-    // char* name;
+struct ASTFunc {
+    ASTScope* body;
+    ASTVar* args;
+    ASTTypeSpec* returnType;
     char* mangledName;
     char* owner; // if method of a type
-} ASTFunc;
+    char* name;
+    ASTFunc* next;
+    struct {
+        uint16_t line;
+        struct {uint16_t  prints : 1, //
+            throws : 1, //
+            recurs : 1, //
+            net : 1, //
+            gui : 1, //
+            file : 1, //
+            refl : 1, //
+            nodispatch : 1;} flags;
+        uint8_t col;
 
-typedef struct {
-    ASTNode* funcs;
-    ASTNode* types;
-    ASTNode* globals;
-    ASTNode* imports;
-    ASTNode* tests;
-} ASTModule;
+    };
+} ;
 
+typedef struct ASTModule ASTModule; struct ASTModule {
+    ASTFunc* funcs;
+    ASTType* types;
+    ASTVar* globals;
+    ASTImport* imports;
+    ASTFunc* tests;
+    ASTModule* next;
+} ;
+
+/*
 struct ASTNode {
     struct {
         union {
@@ -343,47 +407,23 @@ struct ASTNode {
                 isRealStr : 1, //
                 isHugeInt : 1; // base: 0:10,1:16,2:2,3:8
         } literal;
+
+
         struct {
             bool_t //
-                prints : 1, //
-                throws : 1, //
-                recurs : 1, //
-                net : 1, //
-                gui : 1, //
-                file : 1, //
-                refl : 1, //
-                nodispatch : 1;
-        } function;
-        struct {
-            bool_t unused : 1, //
-                unset : 1, //
-                isLet : 1, //
-                isVar : 1, //
-                isArray : 1,
-                hasUnit : 1, //
-                hasInit : 1, //
-                hasType : 1;
-        } var;
-        struct {
-            bool_t //
-                unused : 1, //
-                isTarget : 1 /* x = f(x,y) */, //
-                isArray : 1, //
-                hasUnit : 1, //
-                hasInit : 1, //
-                hasType : 1;
+
         } farg;
     } flags;
     };
-    /* --- 8B */
+    / * --- 8B * /
     char* name;
-    /* --- 16B */
+    / * --- 16B * /
     ASTNode* next;
-    /* --- 24B */
+    / * --- 24B * /
     union {
         ASTImport import;
        // ASTUnits units;
-        ASTExpr expr;
+        ASTExpro expr;
         ASTVar var;
         ASTType type;
 //        ASTStmt stmt;
@@ -393,6 +433,7 @@ struct ASTNode {
         ASTModule module;
     };
 };
+*/
 
 #define MAKE_STRUCT_DEFS                                                   \
     struct {                                                               \
@@ -566,7 +607,7 @@ static void print_sizes()
     printf("sizeof ASTNode %lu\n", sizeof(ASTNode));
 //    printf("ASTImport %lu\n", sizeof(ASTImport));
 //    printf("ASTUnits %lu\n", sizeof(ASTUnits));
-//    printf("ASTExpr %lu\n", sizeof(ASTExpr));
+    printf("ASTExpr %lu\n", sizeof(ASTExpr));
 //    printf("ASTVar %lu\n", sizeof(ASTVar));
 //    printf("ASTType %lu\n", sizeof(ASTType));
 // / /    printf("ASTStmt %lu\n", sizeof(ASTStmt));
