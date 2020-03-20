@@ -1266,7 +1266,7 @@ struct ASTExpr {
     union {
         ASTExpr *left = NULL, *args, *indexes;
     }; // for Expr, FuncCall and Subscript respectively
-    ASTExpr* next = NULL;
+//    ASTExpr* next = NULL;
     //    union { // when you write the version with specific types, DO NOT
     //    put prec/rassoc/etc in a union with literals.
     // you can put the literal in a union with either left/right. put
@@ -1336,18 +1336,12 @@ struct ASTExpr {
             break;
         case TKFunctionCall:
             printf("%.*s(", strLength, name);
-            for (ASTExpr* n = next; n; n = n->next) {
-                n->gen(level);
-                if (n->next) printf(", ");
-            }
+                if (args) args->gen(level);
             printf(")");
             break;
         case TKSubscript:
             printf("%.*s[", strLength, name);
-            for (ASTExpr* n = next; n; n = n->next) {
-                n->gen(level);
-                if (n->next) printf(", ");
-            }
+                if (args) args->gen(level);
             printf("]");
             break;
         default:
@@ -2139,7 +2133,7 @@ class Parser {
                 //                valid
                 arg = result.pop();
                 //                    arg->next=p->next;
-                p->next = arg;
+                p->args = arg; // this is a TKComma with left/right
 
                 //                }
                 break;
