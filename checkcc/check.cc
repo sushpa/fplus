@@ -1208,7 +1208,7 @@ const char* const equaltos =
 
 struct ASTImport {
     char* importFile;
-    char* alias;
+    uint32_t aliasOffset;
     bool isPackage = false, hasAlias = false;
     static Pool<ASTImport> pool;
     void* operator new(size_t size) { return pool.alloc(); }
@@ -1216,7 +1216,7 @@ struct ASTImport {
     void gen(int level)
     {
         printf("import %s%s%s%s\n", isPackage ? "@" : "", importFile,
-            hasAlias ? " as " : "", hasAlias ? alias : "");
+            hasAlias ? " as " : "", hasAlias ? importFile+aliasOffset : "");
     }
 };
 
@@ -1374,11 +1374,20 @@ struct ASTTypeSpec {
     static const char* _typeName() { return "ASTTypeSpec"; }
 
     // char* typename; // use name
-    ASTType* type = NULL;
-    ASTUnits* units = NULL;
-    char* name = NULL;
+union    {
+        ASTType* type;
+        char* name = NULL;
+    ASTUnits* units ; // you know that if this is set, then type can only be Number anyway
+};
 
     uint32_t dims = 0;
+    enum TypeSpecStatus {
+        TSUnresolved, // name ptr is set
+        TSResolved, // type ptr is set and points to the type
+        TSDimensionedNumber // type can only be Number, units ptr is set
+        // if more (predefined) number types can use units, add them here
+    };
+    TypeSpecStatus status = TSUnresolved; // if false, name is set, else type is set
 
     void gen(int level = 0)
     {
@@ -1508,13 +1517,6 @@ class ASTNodeRef {
     ASTVar* var() { return (ASTVar*)getptr(); }
     ASTExpr* expr() { return (ASTExpr*)getptr(); }
 };
-
-void tes()
-{
-    ASTNodeRef member;
-    if (member.kind() == ASTNodeRef::NKVar) {
-    }
-}
 
 struct ASTType {
     static Pool<ASTType> pool;
@@ -1680,12 +1682,15 @@ struct ASTModule {
     static const char* _typeName() { return "ASTModule"; }
 
     List<ASTFunc*> funcs;
+    List<ASTExpr*> exprs;
     List<ASTType*> types;
     List<ASTVar*> globals;
     List<ASTImport*> imports;
     List<ASTFunc*> tests;
     char* name;
-
+    char* moduleName = NULL; // mod.submod.xyz.mycode
+    char* mangledName = NULL; // mod_submod_xyz_mycode
+    char* capsMangledName = NULL; // MOD_SUBMOD_XYZ_MYCODE
     void gen(int level = 0)
     {
         printf("! module %s\n", name);
@@ -2447,6 +2452,7 @@ class Parser {
     ASTImport* parseImport()
     {
         auto import = new ASTImport;
+        char* tmp;
         discard(TKKeyword_import);
         discard(TKOneSpace);
         token.flags.noKeywordDetect = true;
@@ -2458,10 +2464,11 @@ class Parser {
             token.flags.noKeywordDetect = true;
             ignore(TKOneSpace);
             import->hasAlias = true;
-            import->alias = parseIdent();
+            tmp = parseIdent();
+            if (tmp) import->aliasOffset=tmp-import->importFile;
             token.flags.noKeywordDetect = false;
         } else {
-            import->alias = str_base(import->importFile, '.');
+            import->aliasOffset = str_base(import->importFile, '.')-import->importFile;
         }
         return import;
     }
