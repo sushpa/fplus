@@ -73,10 +73,10 @@ char* str_tr(char* str, const char oldc, const char newc)
 }
 
 template <class T> class Dual {
-    T x,dx;
+    T x, dx;
 };
 template <class T> class Complex {
-    T re,im;
+    T re, im;
 };
 template <class T> class Reciprocal {
     // this can be 4B/8B, all others r pairs will be 8B/16B
@@ -86,13 +86,13 @@ template <class T> class Rational {
     T n, d;
 };
 template <class T> class Interval {
-    T hi,lo;
+    T hi, lo;
 };
 template <class T> class Point {
-    T x,y;
+    T x, y;
 };
 template <class T> class Size {
-    T w,h;
+    T w, h;
 };
 union Number {
     float f;
@@ -102,7 +102,7 @@ union Number {
     Reciprocal<uint32_t> ru;
     Reciprocal<int32_t> rd;
 };
-static_assert(sizeof(Number)==4, "");
+static_assert(sizeof(Number) == 4, "");
 
 union NumberL {
     double F;
@@ -112,9 +112,7 @@ union NumberL {
     Reciprocal<uint64_t> rU;
     Reciprocal<int64_t> rD;
 };
-static_assert(sizeof(NumberL)==8, "");
-
-
+static_assert(sizeof(NumberL) == 8, "");
 
 template <class T> class Stack {
     T* items = NULL;
@@ -131,7 +129,7 @@ template <class T> class Stack {
     void push(T node)
     {
         //        assert(self != NULL);
-//        assert(node != NULL); // really?
+        //        assert(node != NULL); // really?
         if (count < cap) {
             items[count++] = node;
         } else {
@@ -358,7 +356,8 @@ enum TokenKind {
     TKPlus,
     TKMinus,
     TKUnaryMinus,
-   // TKUnaryPlus, don't have this because it will promote stuff like +-++-+5
+    // TKUnaryPlus, don't have this because it will promote stuff like
+    // +-++-+5
     TKTimes,
     TKPower,
     TKDollar,
@@ -571,7 +570,8 @@ const char* TokenKind_repr(const TokenKind kind)
 
 bool TokenKind_isUnary(TokenKind kind)
 {
-    return kind == TKKeyword_not or kind==TKUnaryMinus; // unary - is handled separately
+    return kind == TKKeyword_not
+        or kind == TKUnaryMinus; // unary - is handled separately
 }
 
 bool TokenKind_isRightAssociative(TokenKind kind)
@@ -706,7 +706,7 @@ class Token {
     }
 
     // Peek at the char after the current (complete) token
-    char peekCharAfter() { return *(pos + matchlen ); }
+    char peekCharAfter() { char* s = pos+matchlen; if (flags.skipWhiteSpace) while (*s == ' ') s++; return *s; }
 
 #define Token_compareKeyword(tok)                                          \
     if (sizeof(#tok) - 1 == l and not strncmp(#tok, s, l)) {               \
@@ -887,8 +887,10 @@ class Token {
     {
         TokenKind tt = gettype();
         TokenKind tt_ret = TKUnknown; // = tt;
-        static TokenKind tt_last = TKUnknown; // the previous token that was found
-        static TokenKind tt_lastNonSpace = TKUnknown; // the last non-space token found
+        static TokenKind tt_last
+            = TKUnknown; // the previous token that was found
+        static TokenKind tt_lastNonSpace
+            = TKUnknown; // the last non-space token found
         TokenKind tmp;
         char* start = pos;
         bool found_e = false, found_dot = false, found_cmt = false;
@@ -1060,11 +1062,12 @@ class Token {
                     found_dot = true;
                     continue;
                 }
-                            if (found_dot and tt == TKPeriod) {
-                                tt_ret = TKMultiDotNumber;
-//                                fprintf(stderr, "raise error: multiple
-//                                dots in number\n"); break;
-                            }
+                if (found_dot and tt == TKPeriod) {
+                    tt_ret = TKMultiDotNumber;
+                    //                                fprintf(stderr, "raise
+                    //                                error: multiple dots
+                    //                                in number\n"); break;
+                }
                 // lets allow that for IP addresses etc., or just bytes
                 if (tt != TKDigit and tt != TKPeriod) break;
             }
@@ -1075,11 +1078,11 @@ class Token {
                  token.col=1;
                  break; */
         case TKMinus:
-//        case TKPlus:
+            //        case TKPlus:
 
             switch (tt_lastNonSpace) {
             case TKParenClose:
-                case TKIdentifier: // keywords too?
+            case TKIdentifier: // keywords too?
             case TKNumber:
             case TKArrayClose:
             case TKArrayDims:
@@ -1087,7 +1090,8 @@ class Token {
                 tt_ret = tt;
                 break;
             default:
-                tt_ret=TKUnaryMinus; //(tt==TKMinus) ? TKUnaryMinus ? TKUnaryPlus;
+                tt_ret = TKUnaryMinus; //(tt==TKMinus) ? TKUnaryMinus ?
+                                       //TKUnaryPlus;
                 break;
             }
             advance1();
@@ -1125,7 +1129,8 @@ class Token {
         if (kind == TKSpaces and matchlen == 1) kind = TKOneSpace;
 
         tt_last = kind;
-        if (tt_last!=TKOneSpace and tt_last !=TKSpaces) tt_lastNonSpace = tt_last;
+        if (tt_last != TKOneSpace and tt_last != TKSpaces)
+            tt_lastNonSpace = tt_last;
     }
 
     // Advances the parser to the next token and skips whitespace if the
@@ -1137,7 +1142,7 @@ class Token {
         case TKString:
         case TKNumber:
         case TKMultiDotNumber:
-//        case TKNewline:
+            //        case TKNewline:
         case TKFunctionCall:
         case TKSubscript:
         case TKDigit:
@@ -1190,24 +1195,28 @@ class Token {
     }
 };
 
-const char* const spaces =
-   "                                                                 ";
+const char* const spaces
+    = "                                                                 ";
 const char* const dashes =
-//"\n------------------------------------------------------------------------";
-  "\n________________________________________________________________________\n";
+    //"\n------------------------------------------------------------------------";
+    "\n____________________________________________________________________"
+    "____\n";
 const char* const equaltos =
-//"\n------------------------------------------------------------------------";
-"\n========================================================================\n";
+    //"\n------------------------------------------------------------------------";
+    "\n===================================================================="
+    "====\n";
 
 struct ASTImport {
     char* importFile;
     char* alias;
-    bool isPackage=false, hasAlias=false;
+    bool isPackage = false, hasAlias = false;
     static Pool<ASTImport> pool;
     void* operator new(size_t size) { return pool.alloc(); }
     static const char* _typeName() { return "ASTImport"; }
-    void gen(int level) {
-        printf("import %s%s%s%s\n", isPackage?"@":"", importFile,hasAlias?" as ":"", hasAlias? alias : "");
+    void gen(int level)
+    {
+        printf("import %s%s%s%s\n", isPackage ? "@" : "", importFile,
+            hasAlias ? " as " : "", hasAlias ? alias : "");
     }
 };
 
@@ -1327,17 +1336,17 @@ struct ASTExpr {
             break;
         case TKFunctionCall:
             printf("%.*s(", strLength, name);
-            for (ASTExpr* n = next; n; n=n->next) {
+            for (ASTExpr* n = next; n; n = n->next) {
                 n->gen(level);
-                if(n->next)printf(", ");
+                if (n->next) printf(", ");
             }
             printf(")");
             break;
         case TKSubscript:
             printf("%.*s[", strLength, name);
-            for (ASTExpr* n = next; n; n=n->next) {
+            for (ASTExpr* n = next; n; n = n->next) {
                 n->gen(level);
-                if(n->next)printf(", ");
+                if (n->next) printf(", ");
             }
             printf("]");
             break;
@@ -1345,21 +1354,22 @@ struct ASTExpr {
             if (not opPrecedence)
                 break; // not an operator, but this should be error if you
                        // reach here
-            bool leftBr
-                = left and left->opPrecedence and left->opPrecedence < opPrecedence;
+            bool leftBr = left and left->opPrecedence
+                and left->opPrecedence < opPrecedence;
             bool rightBr = right and right->opPrecedence
                 and right->opPrecedence < opPrecedence;
-//             {
-                if (leftBr) putc('(', stdout);
-                if (left) left->gen(level + 1);
-                if (leftBr) putc(')', stdout);
-//            }
+            //             {
+            if (leftBr) putc('(', stdout);
+            if (left) left->gen(level + 1);
+            if (leftBr) putc(')', stdout);
+            //            }
+            // TODO: need a way to have compact and full repr for the same token e.g. (a + b) but x[a+b:-1]
             printf("%s", TokenKind_repr(kind));
-//             {
-                if (rightBr) putc('(', stdout);
-                if (right)right->gen(level + 1);
-                if (rightBr) putc(')', stdout);
-//            }
+            //             {
+            if (rightBr) putc('(', stdout);
+            if (right) right->gen(level + 1);
+            if (rightBr) putc(')', stdout);
+            //            }
         }
     }
 }; // how about if, for, etc. all impl using ASTExpr?
@@ -1681,34 +1691,36 @@ struct ASTModule {
     List<ASTImport*> imports;
     List<ASTFunc*> tests;
     char* name;
+
     void gen(int level = 0)
     {
         printf("! module %s\n", name);
 
-        foreach(import, imports, this->imports) {
+        foreach (import, imports, this->imports) {
             import->gen(level);
-        }puts("");
+        }
+        puts("");
 
         // nope you will mess up the order
         //        List<ASTType*> types = this->types;
         //        ASTType* type;
         //        do
-//        if (this->types.item) {
-            foreach (type, types, this->types) {
-//                if (!type) continue;
-                type->gen(level);
-            }//puts("");
-//        } // while((types = types.next));
+        //        if (this->types.item) {
+        foreach (type, types, this->types) {
+            //                if (!type) continue;
+            type->gen(level);
+        } // puts("");
+        //        } // while((types = types.next));
 
         //        List<ASTFunc*> funcs = this->funcs;
         //        ASTFunc* func;
         //        do
-//        if (this->funcs.item) {
-            foreach (func, funcs, this->funcs) {
-//                if (!func) continue;
-                func->gen(level);
-            }
-//        } // while (    (funcs =funcs.next));
+        //        if (this->funcs.item) {
+        foreach (func, funcs, this->funcs) {
+            //                if (!func) continue;
+            func->gen(level);
+        }
+        //        } // while (    (funcs =funcs.next));
     }
 };
 
@@ -1783,7 +1795,7 @@ class Parser {
         //        free(basename);
         free(dirname); // actually this might free noext
     }
-    uint32_t errCount = 0, warnCount=0;
+    uint32_t errCount = 0, warnCount = 0;
     Parser(char* filename, bool skipws = true)
     {
         static const char* _funcSig
@@ -1847,35 +1859,45 @@ class Parser {
     void errorExpectedToken_(TokenKind expected, const char* funcName)
     {
         fputs(dashes, stderr);
-        fprintf(stderr, "(%d) error: %s at %s:%d:%d\n      expected '%s' found '%s'\n",
-            errCount+1, funcName, filename, token.line, token.col,
-            TokenKind_repr(expected), token.repr() /*matchlen, token.pos */);
+        fprintf(stderr,
+            "(%d) error: %s at %s:%d:%d\n      expected '%s' found '%s'\n",
+            errCount + 1, funcName, filename, token.line, token.col,
+            TokenKind_repr(expected),
+            token.repr() /*matchlen, token.pos */);
         errorIncrement();
     }
 
 #define errorParsingExpr() errorParsingExpr_(__func__)
-    void errorParsingExpr_(const char* funcName) {
+    void errorParsingExpr_(const char* funcName)
+    {
         fputs(dashes, stderr);
-        fprintf(stderr, "(%d) error: %s at %s:%d\n      failed to parse expr", errCount+1, funcName, filename, token.line-1); // parseExpr will move to next line
+        fprintf(stderr,
+            "(%d) error: %s at %s:%d\n      failed to parse expr",
+            errCount + 1, funcName, filename,
+            token.line - 1); // parseExpr will move to next line
         errorIncrement();
     }
 
 #define errorUnexpectedToken() errorUnexpectedToken_(__func__)
-    void errorUnexpectedToken_(const char* funcName) {
+    void errorUnexpectedToken_(const char* funcName)
+    {
         fputs(dashes, stderr);
-        fprintf(stderr, "(%d) error: %s at %s:%d:%d\n      unexpected token '%.*s'\n", errCount+1, funcName, filename, token.line, token.col, token.matchlen, token.pos);
+        fprintf(stderr,
+            "(%d) error: %s at %s:%d:%d\n      unexpected token '%.*s'\n",
+            errCount + 1, funcName, filename, token.line, token.col,
+            token.matchlen, token.pos);
         errorIncrement();
     }
 
 #define errorUnexpectedExpr(e) errorUnexpectedExpr_(e, __func__)
-    void errorUnexpectedExpr_(const ASTExpr* expr, const char* funcName) {
+    void errorUnexpectedExpr_(const ASTExpr* expr, const char* funcName)
+    {
         fputs(dashes, stderr);
-        fprintf(stderr, "(%d) error: %s at %s:%d:%d\n      unexpected expr '%.*s'",
-                errCount+1, funcName, filename, expr->line, expr->col,
-                expr->opPrecedence ? 100 : expr->strLength,
-                expr->opPrecedence
-                    ? TokenKind_repr(expr->kind)
-                    : expr->name);
+        fprintf(stderr,
+            "(%d) error: %s at %s:%d:%d\n      unexpected expr '%.*s'",
+            errCount + 1, funcName, filename, expr->line, expr->col,
+            expr->opPrecedence ? 100 : expr->strLength,
+            expr->opPrecedence ? TokenKind_repr(expr->kind) : expr->name);
         errorIncrement();
     }
 
@@ -1949,9 +1971,9 @@ class Parser {
         Stack<ASTExpr*> rpn, ops, result;
         int prec_top = 0;
         ASTExpr* p = NULL;
-//        bool errExpr = false;
+        //        bool errExpr = false;
 
-        token.flags.noKeywordDetect=true;
+        token.flags.noKeywordDetect = true;
         // ******* STEP 1 CONVERT TOKENS INTO RPN
 
         while (token.kind != TKNullChar and token.kind != TKNewline
@@ -1961,37 +1983,40 @@ class Parser {
             // so don't just skip the one spaces like you do now.
             if (token.kind == TKOneSpace) token.advance();
 
-//            TokenKind exprKind = token.kind;
+            //            TokenKind exprKind = token.kind;
 
-            ASTExpr* expr = new ASTExpr(&token); //exprFromCurrentToken();
+            ASTExpr* expr = new ASTExpr(&token); // exprFromCurrentToken();
             int prec = expr->opPrecedence;
             bool rassoc = expr->opIsRightAssociative;
             char lookAheadChar = token.peekCharAfter();
             switch (expr->kind) {
             case TKIdentifier:
-                if (lookAheadChar== '(') {
+                if (lookAheadChar == '(') {
                     expr->kind = TKFunctionCall;
                     expr->opPrecedence = 100;
                     ops.push(expr);
-//                    rpn.push(NULL); // marker for end of args
+                    //                    rpn.push(NULL); // marker for end
+                    //                    of args
                 } else if (lookAheadChar == '[') {
                     expr->kind = TKSubscript;
                     expr->opPrecedence = 100;
                     ops.push(expr);
-//                    rpn.push(NULL); // marker for end of args
+                    //                    rpn.push(NULL); // marker for end
+                    //                    of args
                 } else {
                     rpn.push(expr);
                 }
                 break;
-//            case TKOpColon: {
-//            } break;
-//            case TKComma:
-//                {
-//                // e.g. in func args list etc.
-//                // don't need comma because identf/identa exprs will save
-//                // nargs.
-//            }
-//                break;
+                //            case TKOpColon: {
+                //            } break;
+                //            case TKComma:
+                //                {
+                //                // e.g. in func args list etc.
+                //                // don't need comma because identf/identa
+                //                exprs will save
+                //                // nargs.
+                //            }
+                //                break;
             case TKParenOpen: {
                 ops.push(expr);
                 if (not ops.empty() and ops.top()->kind == TKFunctionCall)
@@ -2031,22 +2056,28 @@ class Parser {
                         if (prec == prec_top and rassoc) break;
                         p = ops.pop();
 
-                        if (p->kind!=TKComma  and p->kind !=TKFunctionCall and p->kind!=TKSubscript and rpn.top()->kind == TKComma )
-                        {
+                        if (p->kind != TKComma and p->kind != TKFunctionCall
+                            and p->kind != TKSubscript
+                            and rpn.top()->kind == TKComma) {
                             errorUnexpectedToken();
                             goto error;
                         }
 
-                        if (!p->opIsUnary and (p->kind!=TKFunctionCall and p->kind!=TKSubscript) and rpn.count<2){
-                            // this one should happen while unwrapping, not now
+                        if (!p->opIsUnary
+                            and (p->kind != TKFunctionCall
+                                and p->kind != TKSubscript)
+                            and rpn.count < 2) {
+                            // this one should happen while unwrapping, not
+                            // now
                             errorUnexpectedToken();
                             goto error;
-                            // TODO: even if you have more than two, neither of the top two should be a comma
+                            // TODO: even if you have more than two, neither
+                            // of the top two should be a comma
                         }
 
                         rpn.push(p);
                     }
-//                    assert(!rpn.empty());
+                    //                    assert(!rpn.empty());
                     // when the first error is found in an expression, seek
                     // to the next newline and return NULL.
                     if (rpn.empty()) {
@@ -2054,7 +2085,8 @@ class Parser {
                         goto error;
                     }
 
-                    assert(rpn.top()); // NULL is used as a marker to end func args?
+                    assert(rpn.top()); // NULL is used as a marker to end
+                                       // func args?
                     ops.push(expr);
                 } else {
                     rpn.push(expr);
@@ -2069,43 +2101,47 @@ class Parser {
         {
             p = ops.pop();
 
-            if (p->kind != TKComma and p->kind !=TKFunctionCall and p->kind!=TKSubscript and rpn.top()->kind == TKComma )
-            {
-                 errorUnexpectedExpr(rpn.top());//errorUnexpectedToken();
-                 goto error;
+            if (p->kind != TKComma and p->kind != TKFunctionCall
+                and p->kind != TKSubscript and rpn.top()->kind == TKComma) {
+                errorUnexpectedExpr(rpn.top()); // errorUnexpectedToken();
+                goto error;
             }
 
-            if (!p->opIsUnary and (p->kind!=TKFunctionCall and p->kind!=TKSubscript) and rpn.count<2 )
-            {
+            if (!p->opIsUnary
+                and (p->kind != TKFunctionCall and p->kind != TKSubscript)
+                and rpn.count < 2) {
                 // this one should happen while unwrapping, not now
-                errorParsingExpr();//  errorUnexpectedToken();
+                errorParsingExpr(); //  errorUnexpectedToken();
                 goto error;
-                // TODO: even if you have more than two, neither of the top two should be a comma
+                // TODO: even if you have more than two, neither of the top
+                // two should be a comma
             }
 
             rpn.push(p);
         }
 
-//        int i;
-
+        //        int i;
 
         // *** STEP 2 CONVERT RPN INTO EXPR TREE
 
         // Stack<ASTExpr*> result = { NULL, 0, 0 };
         ASTExpr* arg;
         for (int i = 0; i < rpn.count; i++) {
-            if(!(p = rpn[i])) goto justpush;
+            if (!(p = rpn[i])) goto justpush;
             switch (p->kind) {
             case TKFunctionCall:
             case TKSubscript:
-//                while (!result.empty()) {
-                assert(result.count>0);
-//                if (result.top()->kind!=TKComma) {errorUnexpectedExpr(result.top()); goto error;}; // for 1 arg this is perfectly valid
-                    arg = result.pop();
-//                    arg->next=p->next;
-                    p->next=arg;
+                //                while (!result.empty()) {
+                assert(result.count > 0);
+                //                if (result.top()->kind!=TKComma)
+                //                {errorUnexpectedExpr(result.top()); goto
+                //                error;}; // for 1 arg this is perfectly
+                //                valid
+                arg = result.pop();
+                //                    arg->next=p->next;
+                p->next = arg;
 
-//                }
+                //                }
                 break;
             case TKNumber:
                 break;
@@ -2122,50 +2158,63 @@ class Parser {
                 // operator must have some precedence, right?
                 // p->kind = NKExpr;
 
-                if (result.empty()) {errorParsingExpr(); goto error;}
+                if (result.empty()) {
+                    errorParsingExpr();
+                    goto error;
+                }
                 p->right = result.pop();
 
                 if (not p->opIsUnary) {
-                    if (result.empty()) { errorParsingExpr(); goto error;}
-                    p->left = result.pop();}
+                    if (result.empty()) {
+                        errorParsingExpr();
+                        goto error;
+                    }
+                    p->left = result.pop();
+                }
 
-
-//                if (!p->left)
-//                {printf("%d:%d:%s operand of '%s' is erroneous or missing\n" , p->line, p->col, p->opIsUnary?"":" left", TokenKind_repr(p->kind)); errExpr=true;}
-//                if (!p->opIsUnary and !p->right) {printf("%d:%d: right operand of '%s' is erroneous or missing\n" , p->line, p->col, TokenKind_repr(p->kind));errExpr=true;}
+                //                if (!p->left)
+                //                {printf("%d:%d:%s operand of '%s' is
+                //                erroneous or missing\n" , p->line, p->col,
+                //                p->opIsUnary?"":" left",
+                //                TokenKind_repr(p->kind)); errExpr=true;}
+                //                if (!p->opIsUnary and !p->right)
+                //                {printf("%d:%d: right operand of '%s' is
+                //                erroneous or missing\n" , p->line, p->col,
+                //                TokenKind_repr(p->kind));errExpr=true;}
             }
-            justpush:
+        justpush:
             result.push(p);
         }
-        if (result.count!=1) errorParsingExpr();
-//        assert(result.count == 1);
-        token.flags.noKeywordDetect=false;
+        if (result.count != 1) errorParsingExpr();
+        //        assert(result.count == 1);
+        token.flags.noKeywordDetect = false;
         return result[0];
 
     error:
-        token.flags.noKeywordDetect=false;
+        token.flags.noKeywordDetect = false;
 
-        while (token.kind!=TKNewline and token.pos < this->end) token.advance();
+        while (token.kind != TKNewline and token.pos < this->end)
+            token.advance();
 
         if (ops.count) printf("\n      ops: ");
         for (int i = 0; i < ops.count; i++)
             printf("%s ", TokenKind_repr(ops[i]->kind));
         if (rpn.count) printf("\n      rpn: ");
-        for (int i = 0; i < rpn.count; i++) if (!rpn[i]) printf("NUL "); else
-            printf("%.*s ",
-                   rpn[i]->opPrecedence ? 100 : rpn[i]->strLength,
-                   rpn[i]->opPrecedence
-                       ? TokenKind_repr(rpn[i]->kind)
-                       : rpn[i]->name);
-        if (p) printf("\n      p: %.*s ",
-                      p->opPrecedence ? 100 : p->strLength,
-                      p->opPrecedence
-                      ? TokenKind_repr(p->kind)
-                      : p->name);
+        for (int i = 0; i < rpn.count; i++)
+            if (!rpn[i])
+                printf("NUL ");
+            else
+                printf("%.*s ",
+                    rpn[i]->opPrecedence ? 100 : rpn[i]->strLength,
+                    rpn[i]->opPrecedence ? TokenKind_repr(rpn[i]->kind)
+                                         : rpn[i]->name);
+        if (p)
+            printf("\n      p: %.*s ", p->opPrecedence ? 100 : p->strLength,
+                p->opPrecedence ? TokenKind_repr(p->kind) : p->name);
 
         if (rpn.count or ops.count) puts("");
 
-//        assert(ops.count == 0);
+        //        assert(ops.count == 0);
         return NULL;
     }
 
@@ -2192,8 +2241,8 @@ class Parser {
         ignore(TKUnits);
         // fixme: node->type = lookupType;
 
-        assert(token.kind!=TKUnits);
-        assert(token.kind!=TKArrayDims);
+        assert(token.kind != TKUnits);
+        assert(token.kind != TKArrayDims);
 
         token.flags.mergeArrayDims = false;
         return typeSpec;
@@ -2275,8 +2324,8 @@ class Parser {
             case TKKeyword_for:
             case TKKeyword_while:
                 // not quite
-//                subScope = parseScope();
-//                subScope->parent = scope;
+                //                subScope = parseScope();
+                //                subScope->parent = scope;
                 break;
             case TKNewline:
             case TKLineComment:
@@ -2414,11 +2463,11 @@ class Parser {
         if (ignore(TKKeyword_as)) {
             token.flags.noKeywordDetect = true;
             ignore(TKOneSpace);
-            import->hasAlias=true;
+            import->hasAlias = true;
             import->alias = parseIdent();
             token.flags.noKeywordDetect = false;
         } else {
-            import->alias = str_base(import->importFile, '.' );
+            import->alias = str_base(import->importFile, '.');
         }
         return import;
     }
@@ -2493,17 +2542,21 @@ Pool<Parser> Parser::pool;
 
 //#pragma mark Print AST
 
-double sq(double x ) {printf("sd\n"); return sqrt(x);}
+double sq(double x)
+{
+    printf("sd\n");
+    return sqrt(x);
+}
 
 int main(int argc, char* argv[])
 {
     if (argc == 1) return 1;
-//    double d = sqrt(2.0); //22.0/7.0; //strtod("3.141593426736423",0);
-//    double rd = 1.0 / sq(2.0) ; //7.0/11.0/2.0; //1.0/d;
-//    printf("%.17f\n", d);
-//    printf("%.17f\n", rd);
-//    printf("%.17f\n", d*rd);
-//    return 0;
+    //    double d = sqrt(2.0); //22.0/7.0; //strtod("3.141593426736423",0);
+    //    double rd = 1.0 / sq(2.0) ; //7.0/11.0/2.0; //1.0/d;
+    //    printf("%.17f\n", d);
+    //    printf("%.17f\n", rd);
+    //    printf("%.17f\n", d*rd);
+    //    return 0;
 
     auto parser = new Parser(argv[1]);
 
@@ -2511,11 +2564,14 @@ int main(int argc, char* argv[])
 
     //    ASTModule* module;
     if (parser->errCount or parser->warnCount) {
-        fputs(equaltos,stderr);
-    if (parser->errCount) fprintf(stderr, "*** %d errors\n" , parser->errCount );
-    if (parser->warnCount) fprintf(stderr, "*** %d warnings\n" , parser->warnCount );
-        fprintf(stderr, "*** Your code will not run. Have you considered reading it?");
-        fputs(equaltos,stderr);
+        fputs(equaltos, stderr);
+        if (parser->errCount)
+            fprintf(stderr, "*** %d errors\n", parser->errCount);
+        if (parser->warnCount)
+            fprintf(stderr, "*** %d warnings\n", parser->warnCount);
+        fprintf(stderr,
+            "*** Your code will not run. Have you considered reading it?");
+        fputs(equaltos, stderr);
         return 1;
     };
 
