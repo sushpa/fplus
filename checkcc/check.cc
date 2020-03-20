@@ -54,12 +54,13 @@ char* str_upper(char* str)
     return s;
 }
 
-void str_tr_ip(char* str, const char oldc, const char newc, const size_t length=0)
+void str_tr_ip(
+    char* str, const char oldc, const char newc, const size_t length = 0)
 {
 
     char* sc = str - 1;
     char* end = length ? str + length : (char*)0xFFFFFFFFFFFFFFFF;
-    while (*++sc && sc<end)
+    while (*++sc && sc < end)
         if (*sc == oldc) *sc = newc;
 }
 
@@ -70,22 +71,22 @@ char* str_tr(char* str, const char oldc, const char newc)
     return s;
 }
 
-
 template <class T> class Stack {
     T* items = NULL;
     uint32_t cap = 0;
 
-public:
+    public:
     uint32_t count = 0;
     //    uint32_t count() { return count; }
     T operator[](int index) { return items[index]; }
-    ~Stack<T>() {
-        if (cap)free(items);
+    ~Stack<T>()
+    {
+        if (cap) free(items);
     }
     void push(T node)
     {
         //        assert(self != NULL);
-        assert(node != NULL); // really?
+//        assert(node != NULL); // really?
         if (count < cap) {
             items[count++] = node;
         } else {
@@ -116,7 +117,6 @@ public:
     bool empty() { return count == 0; }
 };
 
-
 static size_t globalMemAllocBytes = 0;
 
 // LIST STACK etc.
@@ -136,20 +136,21 @@ template <class T> class Pool {
             count = 0;
         }
         total++;
-        globalMemAllocBytes+=sizeof(T);
+        globalMemAllocBytes += sizeof(T);
         return &ref[count++];
     }
- ~Pool<T>() {
-     free(ref);
-     for (int j=0;j<count;j++) {
-//         if(++k >= total) break;
-         T* obj = &(ref[j]);
-         obj->~T();
-     }
-     int k=0;
-        for(int i=0;i<ptrs.count; i++) {
-            for (int j=0;j<elementsPerBlock;j++) {
-                if(++k >= total) break;
+    ~Pool<T>()
+    {
+        free(ref);
+        for (int j = 0; j < count; j++) {
+            //         if(++k >= total) break;
+            T* obj = &(ref[j]);
+            obj->~T();
+        }
+        int k = 0;
+        for (int i = 0; i < ptrs.count; i++) {
+            for (int j = 0; j < elementsPerBlock; j++) {
+                if (++k >= total) break;
                 T* obj = &(ptrs[i][j]);
                 obj->~T();
             }
@@ -165,8 +166,8 @@ template <class T> class Pool {
     }
     void stat()
     {
-        fprintf(stderr, "*** %-16s %ld B x %3d = %ld B\n",
-            T::_typeName(), sizeof(T), total, total * sizeof(T));
+        fprintf(stderr, "*** %-16s %ld B x %3d = %ld B\n", T::_typeName(),
+            sizeof(T), total, total * sizeof(T));
     }
 };
 
@@ -175,7 +176,7 @@ template <class T> class List {
     static Pool<List<T>> pool;
     void* operator new(size_t size) { return pool.alloc(); }
 
-    T item=NULL;
+    T item = NULL;
 
     List<T>* next = NULL;
     //    operator T() { return item; } // not a good idea for readability
@@ -1054,11 +1055,11 @@ class Token {
     // parser's flag `skipws` is set.
     void advance()
     {
-        switch(kind) {
+        switch (kind) {
         case TKIdentifier:
         case TKString:
         case TKNumber:
-        case TKNewline:
+//        case TKNewline:
         case TKFunctionCall:
         case TKSubscript:
         case TKDigit:
@@ -1092,7 +1093,8 @@ class Token {
         case TKUnknown: // bcz start of the file is this
             break;
         default:
-            *pos=0; // trample it so that idents etc. can be assigned in-situ
+            *pos = 0; // trample it so that idents etc. can be assigned
+                      // in-situ
         }
 
         pos += matchlen;
@@ -1204,22 +1206,22 @@ struct ASTExpr {
         switch (kind) {
         case TKIdentifier:
             strLength = (uint16_t)token->matchlen;
-            name = token->pos; //dup();
+            name = token->pos; // dup();
             break;
         case TKString:
         case TKRegex:
         case TKNumber:
             strLength = (uint16_t)token->matchlen;
-            value.string = token->pos; //dup();
+            value.string = token->pos; // dup();
             break;
         default:;
             // what else? errror
         }
         if (kind == TKNumber) {
             // turn all 1.0234[DdE]+01 into 1.0234e+01.
-            // right now this is not null terminated. actually this should be
-            // done in a later phase anyway. but if you want to do it now,
-            // str_tr_ip should take the max length.
+            // right now this is not null terminated. actually this should
+            // be done in a later phase anyway. but if you want to do it
+            // now, str_tr_ip should take the max length.
             str_tr_ip(value.string, 'd', 'e', strLength);
             str_tr_ip(value.string, 'D', 'e', strLength);
             str_tr_ip(value.string, 'E', 'e', strLength);
@@ -1235,8 +1237,20 @@ struct ASTExpr {
             printf("%.*s", strLength, value.string);
             break;
         case TKFunctionCall:
+            printf("%.*s(", strLength, name);
+            for (ASTExpr* n = next; n; n=n->next) {
+                n->gen(level);
+                if(n->next)printf(", ");
+            }
+            printf(")");
+            break;
         case TKSubscript:
-            // NYI
+            printf("%.*s[", strLength, name);
+            for (ASTExpr* n = next; n; n=n->next) {
+                n->gen(level);
+                if(n->next)printf(", ");
+            }
+            printf("]");
             break;
         default:
             if (not opPrecedence)
@@ -1293,37 +1307,44 @@ struct ASTTypeSpec {
     //    }
     //    return valid;
     //}
-//    int32_t dimsCount(char* dimsstr)
-//    {
-//        int32_t count = 0;
-//        char* str = dimsstr;
-//        while (*str)
-//            if (*str++ == ':' or *str == '[') count++;
-//        return count;
-//    }
+    //    int32_t dimsCount(char* dimsstr)
+    //    {
+    //        int32_t count = 0;
+    //        char* str = dimsstr;
+    //        while (*str)
+    //            if (*str++ == ':' or *str == '[') count++;
+    //        return count;
+    //    }
 
     const char* dimsGenStr(int32_t dims)
     {
-        switch(dims){
-        case 0: return "";
-        case 1: return "[]";
-        case 2: return "[:,:]";
-        case 3: return "[:,:,:]";
-        case 4: return "[:,:,:,:]";
-        case 5: return "[:,:,:,:,:]";
-        case 6: return "[:,:,:,:,:,:]";
+        switch (dims) {
+        case 0:
+            return "";
+        case 1:
+            return "[]";
+        case 2:
+            return "[:,:]";
+        case 3:
+            return "[:,:,:]";
+        case 4:
+            return "[:,:,:,:]";
+        case 5:
+            return "[:,:,:,:,:]";
+        case 6:
+            return "[:,:,:,:,:,:]";
         default:
             int32_t i;
-        int32_t sz = 2 + dims + (dims ? (dims - 1) : 0) + 1;
-        char* str = (char*)malloc(sz * sizeof(char));
-        str[sz * 0] = '[';
-        str[sz - 1] = 0;
-        for (i = 0; i < dims; i++) {
-            str[i * 2 + 1] = ':';
-            str[i * 2 + 2] = ',';
-        }
-        str[sz - 2] = ']';
-        return str;
+            int32_t sz = 2 + dims + (dims ? (dims - 1) : 0) + 1;
+            char* str = (char*)malloc(sz * sizeof(char));
+            str[sz * 0] = '[';
+            str[sz - 1] = 0;
+            for (i = 0; i < dims; i++) {
+                str[i * 2 + 1] = ':';
+                str[i * 2 + 2] = ',';
+            }
+            str[sz - 2] = ']';
+            return str;
         }
     }
 };
@@ -1348,22 +1369,18 @@ struct ASTVar {
 
     void gen(int level = 0)
     {
-        printf("%.*s%s%s",
-               level * 4,
-               spaces,
-               flags.isVar ? "var " : flags.isLet ? "let " : "",
-            name);
-        if (typeSpec)
-        {printf(": ");
-                typeSpec->gen(level + 1);
-            }
-        else
+        printf("%.*s%s%s", level * 4, spaces,
+            flags.isVar ? "var " : flags.isLet ? "let " : "", name);
+        if (typeSpec) {
+            printf(": ");
+            typeSpec->gen(level + 1);
+        } else
             printf(": Unknown");
         if (init) {
             printf(" = ");
             init->gen(level + 1);
         }
-//        puts("");
+        //        puts("");
     }
 };
 
@@ -1451,15 +1468,15 @@ struct ASTType {
 
         foreach (var, vars, this->vars) {
             if (!var) continue;
-            var->gen(level + 1);            puts("");
-
+            var->gen(level + 1);
+            puts("");
         }
         //        }
         //        if (this->checks.item) {
         foreach (check, checks, this->checks) {
             if (!check) continue;
-            check->gen(level + 1);            puts("");
-
+            check->gen(level + 1);
+            puts("");
         }
         //        }
         puts("end type\n");
@@ -1488,13 +1505,14 @@ struct ASTScope {
         // List<ASTExpr*> stmts = this->stmts;
         // ASTExpr* stmt;
         foreach (local, locals, this->locals) {
-//            if (!stmt) continue;
-            local->gen(level );
+            //            if (!stmt) continue;
+            local->gen(level);
             puts("");
         }
         foreach (stmt, stmts, this->stmts) {
-//            if (!stmt) continue;
-            stmt->gen(level );            puts("");
+            //            if (!stmt) continue;
+            stmt->gen(level);
+            puts("");
 
         } // while((stmts = *(stmts.next)));
     }
@@ -1548,12 +1566,15 @@ struct ASTFunc {
         //        } while (args.next);
 
         foreach (arg, args, this->args) {
-//            if (!arg) continue;
+            //            if (!arg) continue;
             arg->gen(level);
             printf(args->next ? ", " : ")");
         }
 
-        if (returnType) {printf(": "); returnType->gen(level);}
+        if (returnType) {
+            printf(": ");
+            returnType->gen(level);
+        }
         puts("");
         body->gen(level + 1);
         puts("end function\n");
@@ -1628,7 +1649,7 @@ void alloc_stat()
     ASTTypeSpec::pool.stat();
     ASTFunc::pool.stat();
     ASTModule::pool.stat();
-//    List<ASTExpr*>::pool.stat();
+    //    List<ASTExpr*>::pool.stat();
     fprintf(stderr, "Total %lu B\n", globalMemAllocBytes);
 }
 
@@ -1646,7 +1667,7 @@ class Parser {
     char* basename = NULL; // mycode
     char* dirname = NULL; // mod/submod/xyz
     char *data = NULL, *end = NULL;
-    char* noext=NULL;
+    char* noext = NULL;
     Token token; // current
     List<ASTModule*> modules; // module node of the AST
     Stack<ASTScope*> scopes; // a stack that keeps track of scope nesting
@@ -1659,13 +1680,14 @@ class Parser {
 #define STR(x) STR_(x)
 #define STR_(x) #x
 
-    ~Parser() {
+    ~Parser()
+    {
         free(data);
         free(noext);
         free(moduleName);
         free(mangledName);
         free(capsMangledName);
-//        free(basename);
+        //        free(basename);
         free(dirname); // actually this might free noext
     }
     uint32_t errCount = 0;
@@ -1740,37 +1762,9 @@ class Parser {
     ASTExpr* exprFromCurrentToken()
     {
         auto expr = new ASTExpr(&token);
-
-        // for some kinds, there is associated data to be saved
-        // switch (token.kind) {
-        // case TKString:
-        // case TKRegex:
-        // case TKIdentifier:
-        // case TKNumber: // not converting for now
-        // case TKLineComment:
-        //     node->value.string = token.dup();
-        //     break;
-        // //    node->value.real = strtod(token.pos, NULL);
-        // //   break;
-        // default:
-        //     // errorExpectedToken(parser, token.kind);
-        //     node->opPrecedence = TokenKind_getPrecedence(token.kind);
-        //     node->opIsRightAssociative
-        //         = TokenKind_isRightAssociative(token.kind);
-        //     node->opIsUnary = TokenKind_isUnary(token.kind);
-        //     break;
-        // }
-        // if (token.kind == TKNumber) {
-        //     // turn all 1.0234[DdE]+01 into 1.0234e+01
-        //     str_tr_ip(node->value.string, 'd', 'e');
-        //     str_tr_ip(node->value.string, 'D', 'e');
-        //     str_tr_ip(node->value.string, 'E', 'e');
-        // }
         token.advance();
         return expr;
     }
-
-    //#pragma mark Parsing Primitives
 
     ASTExpr* next_token_node(TokenKind expected, const bool ignore_error)
     {
@@ -1817,7 +1811,7 @@ class Parser {
     char* parseIdent()
     {
         if (token.kind != TKIdentifier) errorExpectedToken(TKIdentifier);
-        char* p = token.pos; //dup();
+        char* p = token.pos; // dup();
         token.advance();
         return p;
     }
@@ -1855,10 +1849,12 @@ class Parser {
                     expr->kind = TKFunctionCall;
                     expr->opPrecedence = 100;
                     ops.push(expr);
+                    rpn.push(NULL); // marker for end of args
                 } else if (token.kind == TKArrayOpen) {
                     expr->kind = TKSubscript;
                     expr->opPrecedence = 100;
                     ops.push(expr);
+                    rpn.push(NULL); // marker for end of args
                 } else {
                     rpn.push(expr);
                 }
@@ -1931,7 +1927,7 @@ class Parser {
         for (i = 0; i < ops.count; i++)
             printf("%s ", TokenKind_repr(ops[i]->kind));
         printf("\nrpn: ");
-        for (i = 0; i < rpn.count; i++)
+        for (i = 0; i < rpn.count; i++) if (!rpn[i]) printf("NUL "); else
             printf("%s ", TokenKind_repr(rpn[i]->kind));
         puts("\n");
 
@@ -1942,9 +1938,16 @@ class Parser {
         // Stack<ASTExpr*> result = { NULL, 0, 0 };
 
         for (i = 0; i < rpn.count; i++) {
-            p = rpn[i];
+            if(!(p = rpn[i])) goto justpush;
             switch (p->kind) {
             case TKFunctionCall:
+            case TKSubscript:
+                while (!result.empty()) {
+                    ASTExpr* arg = result.pop();
+                    if (!arg) break;
+                    arg->next=p->next;
+                    p->next=arg;
+                }
                 break;
             case TKNumber:
                 break;
@@ -1961,6 +1964,7 @@ class Parser {
                 if (not p->opIsUnary) p->right = result.pop();
                 p->left = result.pop();
             }
+            justpush:
             result.push(p);
         }
 
@@ -1975,12 +1979,7 @@ class Parser {
         token.flags.mergeArrayDims = true;
 
         auto typeSpec = new ASTTypeSpec;
-        // exprFromCurrentToken();
-        // node->kind = NKTypeSpec;
-        // this is an ident, but we will turn it into a typespec.
-        // name is in this token already
-        //  discard(TKOpColon);
-        //        discard(TKOneSpace);
+
         typeSpec->name = parseIdent();
         //        typeSpec->params = parseParams();
         if (matches(TKArrayDims)) {
@@ -1989,9 +1988,7 @@ class Parser {
             if (!typeSpec->dims) typeSpec->dims = 1; // [] is 1 dim
             token.advance();
         }
-        //        typeSpec->dims = trymatch(TKArrayDims);
-        // these funcs should return a Token or TokenRef (char*,len,kind) ,
-        // not Expr
+
         typeSpec->units = parseUnits();
         ignore(TKUnits);
         // fixme: node->type = lookupType;
@@ -2008,17 +2005,7 @@ class Parser {
         List<ASTVar*> args;
         ASTVar* arg;
         do {
-            arg = parseVar (); //new ASTVar;
-//            arg->name = parseIdent();
-//            if (ignore(TKOpColon)) {
-//                discard(TKOneSpace);
-//                arg->typeSpec = parseTypeSpec();
-//            }
-//            if (ignore(TKOneSpace)) {
-//                discard(TKOpAssign);
-//                discard(TKOneSpace);
-//                arg->init = parseExpr();
-//            }
+            arg = parseVar();
             args.append(arg);
         } while (ignore(TKComma));
 
@@ -2035,24 +2022,21 @@ class Parser {
         var->flags.isLet = (token.kind == TKKeyword_let);
 
         if (var->flags.isVar) discard(TKKeyword_var);
-        if( var->flags.isLet) discard(TKKeyword_var);
+        if (var->flags.isLet) discard(TKKeyword_var);
         if (var->flags.isVar or var->flags.isLet) discard(TKOneSpace);
 
         token.flags.noKeywordDetect = true;
         var->name = parseIdent();
 
         if (ignore(TKOpColon)) {
-            //            if (token.flags.strictSpacing)
             discard(TKOneSpace);
             var->typeSpec = parseTypeSpec();
         }
         token.flags.noKeywordDetect = false;
 
-        //        if (token.flags.strictSpacing)
-
-        if (ignore(TKOneSpace) ) {
-            //            if (token.flags.strictSpacing)
-            discard(TKOpAssign); discard(TKOneSpace);
+        if (ignore(TKOneSpace)) {
+            discard(TKOpAssign);
+            discard(TKOneSpace);
             var->init = parseExpr();
         }
         return var;
@@ -2062,8 +2046,7 @@ class Parser {
     {
         // TokenKind kind = token.kind;
         auto scope = new ASTScope;
-        // scope->parent
-        // scope->kind = NKScope;
+
         union {
             ASTScope* subScope;
             ASTVar* var = NULL;
@@ -2080,14 +2063,7 @@ class Parser {
                 var = parseVar();
                 if (!var) continue;
                 scope->locals.append(var);
-
                 break;
-            // case TKKeyword_base:
-            //     discard(TKKeyword_base);
-            //     if (parent and parent->kind == NKType)
-            //         parent->type.super = parseIdent();
-            // case TKIdentifier: // check, return
-            // break;
             case TKKeyword_check:
             case TKKeyword_print:
             case TKKeyword_return:
@@ -2153,9 +2129,9 @@ class Parser {
             func->returnType = parseTypeSpec();
         }
         token.flags.noKeywordDetect = false;
-        // if (!matches( TKKw_end)) {
+
         func->body = parseScope(); //}
-        // }
+
         discard(TKKeyword_end);
         discard(TKOneSpace);
         discard(TKKeyword_function);
@@ -2215,43 +2191,8 @@ class Parser {
         }
     exitloop:
 
-        //        ASTScope* body = parseScope();
-        // will set super for this type
-        //        type->members = scope->stmts;
-        // Node* item = NULL;
-        //    for (item = body->stmts; //
-        //         item != NULL; //
-        //         item = item->next) {
-        // can't have locals and stmts separately since next ptr is
-        // embedded. so the same element cant be part of more than one list.
-        // for types, we cap wipe the next as we go and append checks and
-        // vars to different lists. for scopes however there cant be a
-        // locals -- you have to walk the stmts and extract vars in order to
-        // process locals. YOU HAVE TO DO THE SAME HERE FOR TYPES! how will
-        // you get item->next to advance this loop if you go on wiping it
-        // inside the loop
-        //        switch (item->kind) {
-        //            case NKCheck:
-        //                item->next=NULL;
-        //                append(&node->checks, item);
-        //                break;
-        //            case NKVar:
-        //                item->next=NULL;
-        //                append(&node->vars, item);
-        //                break;
-        //            default:
-        //                //error
-        //                break;
-        //        }
-        //        if (item->kind == NKCheck) {
-        //            append(&(node->checks), item);
-        //        } else {
-        //            // error
-        //        }
-        //    }
         discard(TKKeyword_end);
         discard(TKOneSpace);
-        /* !strict ? ignore : */
         discard(TKKeyword_type);
         return type;
     }
@@ -2334,7 +2275,7 @@ class Parser {
                 break;
             case TKNewline:
             case TKLineComment:
-                            case TKOneSpace:
+            case TKOneSpace:
                 token.advance();
                 break;
                 //#ifndef PRINTTOKENS
@@ -2346,8 +2287,8 @@ class Parser {
             }
             // token.advance();// this shouldnt be here, the specific
             // funcs do it
-//            ignore(TKNewline);
-//            ignore(TKLineComment);
+            //            ignore(TKNewline);
+            //            ignore(TKLineComment);
         }
         modules.append(root);
         return modules;
@@ -2373,16 +2314,16 @@ int main(int argc, char* argv[])
 
     List<ASTModule*> modules = parser->parse(); // parser.modules;
     //    ASTModule* module;
-    if (!parser->errCount) {
-        if (modules.item) {
-            foreach (mod, mods, modules) {
-                if (!mod) continue;
-                mod->gen();
-            }
+    if (parser->errCount) return -1;
+
+    if (modules.item) {
+        foreach (mod, mods, modules) {
+            // if (!mod) continue;
+            mod->gen();
         }
-    } // while ((modules = modules.next)); // (modules, 0);
+    }
+    // while ((modules = modules.next)); // (modules, 0);
     alloc_stat();
-//    free(parser);
     return 0;
 }
 
