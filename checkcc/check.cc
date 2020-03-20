@@ -357,6 +357,8 @@ enum TokenKind {
     TKBackslash,
     TKPlus,
     TKMinus,
+    TKUnaryMinus,
+   // TKUnaryPlus, don't have this because it will promote stuff like +-++-+5
     TKTimes,
     TKPower,
     TKDollar,
@@ -560,6 +562,8 @@ const char* TokenKind_repr(const TokenKind kind)
         return "(sp1)";
     case TKQuestion:
         return "?";
+    case TKUnaryMinus:
+        return "-";
     }
     printf("unknown kind: %d\n", kind);
     return "(!unk)";
@@ -567,7 +571,7 @@ const char* TokenKind_repr(const TokenKind kind)
 
 bool TokenKind_isUnary(TokenKind kind)
 {
-    return kind == TKKeyword_not; // unary - is handled separately
+    return kind == TKKeyword_not or kind==TKUnaryMinus; // unary - is handled separately
 }
 
 bool TokenKind_isRightAssociative(TokenKind kind)
@@ -578,6 +582,8 @@ bool TokenKind_isRightAssociative(TokenKind kind)
 uint8_t TokenKind_getPrecedence(TokenKind kind)
 { // if templateStr then precedence of < and > should be 0
     switch (kind) {
+    case TKUnaryMinus:
+        return 95;
     case TKPeriod:
         return 90;
     case TKPipe:
@@ -881,7 +887,8 @@ class Token {
     {
         TokenKind tt = gettype();
         TokenKind tt_ret = TKUnknown; // = tt;
-        static TokenKind tt_last = TKUnknown;
+        static TokenKind tt_last = TKUnknown; // the previous token that was found
+        static TokenKind tt_lastNonSpace = TKUnknown; // the last non-space token found
         TokenKind tmp;
         char* start = pos;
         bool found_e = false, found_dot = false, found_cmt = false;
@@ -1067,15 +1074,34 @@ class Token {
                  token.line++;
                  token.col=1;
                  break; */
+        case TKMinus:
+//        case TKPlus:
 
+            switch (tt_lastNonSpace) {
+            case TKParenClose:
+                case TKIdentifier: // keywords too?
+            case TKNumber:
+            case TKArrayClose:
+            case TKArrayDims:
+            case TKMultiDotNumber:
+                tt_ret = tt;
+                break;
+            default:
+                tt_ret=TKUnaryMinus; //(tt==TKMinus) ? TKUnaryMinus ? TKUnaryPlus;
+                break;
+            }
+            advance1();
+            break;
+
+        case TKOpNotResults: // 3-char tokens
+            advance1();
         case TKOpEQ:
         case TKOpGE:
         case TKOpLE:
         case TKOpNE:
         case TKOpResults:
-        case TKOpNotResults: // this is 3-char, is it not?
-        // case TKBraceEmpty:
         case TKBackslash:
+            // case TKBraceEmpty:
             // case TKParenEmpty:
             // two-char tokens
             advance1();
@@ -1099,6 +1125,7 @@ class Token {
         if (kind == TKSpaces and matchlen == 1) kind = TKOneSpace;
 
         tt_last = kind;
+        if (tt_last!=TKOneSpace and tt_last !=TKSpaces) tt_lastNonSpace = tt_last;
     }
 
     // Advances the parser to the next token and skips whitespace if the
@@ -1924,6 +1951,7 @@ class Parser {
         ASTExpr* p = NULL;
 //        bool errExpr = false;
 
+        token.flags.noKeywordDetect=true;
         // ******* STEP 1 CONVERT TOKENS INTO RPN
 
         while (token.kind != TKNullChar and token.kind != TKNewline
@@ -1955,8 +1983,8 @@ class Parser {
                     rpn.push(expr);
                 }
                 break;
-            case TKOpColon: {
-            } break;
+//            case TKOpColon: {
+//            } break;
 //            case TKComma:
 //                {
 //                // e.g. in func args list etc.
@@ -1969,7 +1997,7 @@ class Parser {
                 if (not ops.empty() and ops.top()->kind == TKFunctionCall)
                     rpn.push(expr);
                 // instead of marking with (, could consider pushing a NULL.
-                // (for both func calls & array indexes)
+                // (not for func calls & array indexes -- for grouping)
 
             } break;
             case TKArrayOpen: {
@@ -2093,17 +2121,14 @@ class Parser {
                 if (not p->opPrecedence) continue;
                 // operator must have some precedence, right?
                 // p->kind = NKExpr;
+
+                if (result.empty()) {errorParsingExpr(); goto error;}
+                p->right = result.pop();
+
                 if (not p->opIsUnary) {
+                    if (result.empty()) { errorParsingExpr(); goto error;}
+                    p->left = result.pop();}
 
-                    if (result.empty()) { errorParsingExpr();
-                        /*printf("%d:%d: failed to get right operand for '%s'\n" , p->line, p->col,   TokenKind_repr(p->kind));*/ goto error;}
-                    p->right = result.pop();}
-
-                if (result.empty()) {errorParsingExpr();
-//                    printf("%d:%d: failed to get left operand for '%s'\n" , p->line, p->col,  TokenKind_repr(p->kind));
-                    goto error;}
-
-                p->left = result.pop();
 
 //                if (!p->left)
 //                {printf("%d:%d:%s operand of '%s' is erroneous or missing\n" , p->line, p->col, p->opIsUnary?"":" left", TokenKind_repr(p->kind)); errExpr=true;}
@@ -2114,10 +2139,12 @@ class Parser {
         }
         if (result.count!=1) errorParsingExpr();
 //        assert(result.count == 1);
-
+        token.flags.noKeywordDetect=false;
         return result[0];
 
     error:
+        token.flags.noKeywordDetect=false;
+
         while (token.kind!=TKNewline and token.pos < this->end) token.advance();
 
         if (ops.count) printf("\n      ops: ");
