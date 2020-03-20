@@ -80,7 +80,7 @@ public:
     //    uint32_t count() { return count; }
     T operator[](int index) { return items[index]; }
     ~Stack<T>() {
-        free(items);
+        if (cap)free(items);
     }
     void push(T node)
     {
@@ -121,7 +121,7 @@ static size_t globalMemAllocBytes = 0;
 
 // LIST STACK etc.
 template <class T> class Pool {
-    T* ref;
+    T* ref = NULL;
     uint32_t cap = 0, elementsPerBlock = 512, total = 0;
     Stack<T*> ptrs;
 
@@ -131,17 +131,25 @@ template <class T> class Pool {
     T* alloc()
     {
         if (count >= elementsPerBlock) {
+            if (ref) ptrs.push(ref);
             ref = (T*)calloc(elementsPerBlock, sizeof(T));
-            ptrs.push(ref);
             count = 0;
         }
         total++;
         globalMemAllocBytes+=sizeof(T);
         return &ref[count++];
     }
- ~Pool() {
+ ~Pool<T>() {
+     free(ref);
+     for (int j=0;j<count;j++) {
+//         if(++k >= total) break;
+         T* obj = &(ref[j]);
+         obj->~T();
+     }
+     int k=0;
         for(int i=0;i<ptrs.count; i++) {
             for (int j=0;j<elementsPerBlock;j++) {
+                if(++k >= total) break;
                 T* obj = &(ptrs[i][j]);
                 obj->~T();
             }
@@ -1638,6 +1646,7 @@ class Parser {
     char* basename = NULL; // mycode
     char* dirname = NULL; // mod/submod/xyz
     char *data = NULL, *end = NULL;
+    char* noext=NULL;
     Token token; // current
     List<ASTModule*> modules; // module node of the AST
     Stack<ASTScope*> scopes; // a stack that keeps track of scope nesting
@@ -1652,8 +1661,9 @@ class Parser {
 
     ~Parser() {
         free(data);
-//        free(filename);
+        free(noext);
         free(moduleName);
+        free(mangledName);
         free(capsMangledName);
 //        free(basename);
         free(dirname); // actually this might free noext
@@ -1673,7 +1683,8 @@ class Parser {
         static const auto FILE_SIZE_MAX = 1 << 24;
         FILE* file = fopen(filename, "r");
         fprintf(stdout, "compiling %s\n", filename);
-        char* noext = str_noext(filename); // will leak
+        this->filename = filename;
+        noext = str_noext(filename); // will leak
         fseek(file, 0, SEEK_END);
         const size_t size
             = ftell(file) + 2; // 2 null chars, so we can always lookahead
@@ -1683,7 +1694,6 @@ class Parser {
             fread(data, size, 1, file);
             data[size - 1] = 0;
             data[size - 2] = 0;
-            this->filename = filename;
             moduleName = str_tr(noext, '/', '.');
             mangledName = str_tr(noext, '/', '_');
             capsMangledName = str_upper(mangledName);
