@@ -171,6 +171,8 @@ const char* Token_repr(const TokenKind kind)
         return "#";
         //    case TKWs:
         //        return "(ws)";
+        case TKMultiDotNumber:
+        return "#.";
     case TKSpaces:
         return "(spc)";
     case TKTab:

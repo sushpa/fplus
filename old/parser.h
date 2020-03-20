@@ -21,6 +21,7 @@ ASTNode* nodeFromCurrentToken(Parser* parser)
     case TKRegex:
     case TKIdentifier:
     case TKNumber: // not converting for now
+    case TKMultiDotNumber:
     case TKLineComment:
         node->expr.value.string = Token_strdup(token);
         break;
@@ -216,6 +217,7 @@ ASTNode* Parser_parseExpr(Parser* parser)
         case TKFunctionCall:
             break;
         case TKNumber:
+        case TKMultiDotNumber:
             break;
         case TKIdentifier:
             break;
@@ -787,6 +789,7 @@ void ChWriter_genExpr(int level, const ASTNode* node)
     switch (node->subkind) {
     case TKIdentifier:
     case TKNumber:
+    case TKMultiDotNumber:
     case TKString:
         printf("%.*s", node->len, node->expr.value.string);
         break;
