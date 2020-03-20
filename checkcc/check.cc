@@ -1,10 +1,11 @@
 
-#include <assert.h>
-#include <ctype.h>
-#include <limits.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cassert>
+#include <cctype>
+#include <climits>
+#include <cstdio>
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
 
 //=============================================================================
 // STRING
@@ -53,10 +54,12 @@ char* str_upper(char* str)
     return s;
 }
 
-void str_tr_ip(char* str, const char oldc, const char newc)
+void str_tr_ip(char* str, const char oldc, const char newc, const size_t length=0)
 {
+
     char* sc = str - 1;
-    while (*++sc)
+    char* end = length ? str + length : (char*)0xFFFFFFFFFFFFFFFF;
+    while (*++sc && sc<end)
         if (*sc == oldc) *sc = newc;
 }
 
@@ -67,45 +70,18 @@ char* str_tr(char* str, const char oldc, const char newc)
     return s;
 }
 
-// LIST STACK etc.
-template <class T> class Pool {
-    T* ref;
-    uint32_t cap = 0, elementsPerBlock = 512, total = 0;
-
-    public:
-    uint32_t count = elementsPerBlock;
-
-    T* alloc()
-    {
-        if (count >= elementsPerBlock) {
-            ref = (T*)calloc(elementsPerBlock, sizeof(T));
-            count = 0;
-        }
-        total++;
-        return &ref[count++];
-    }
-    static const char* _typeName()
-    {
-        const char* a = "Pool<";
-        char* ret = strcat(a, T::_typeName());
-        ret = strcat(ret, ">");
-        return ret;
-    }
-    void stat()
-    {
-        fprintf(stderr, "*** %u (%s) allocated (%ld B)\n", total,
-            T::_typeName(), total * sizeof(T));
-    }
-};
 
 template <class T> class Stack {
     T* items = NULL;
     uint32_t cap = 0;
 
-    public:
+public:
     uint32_t count = 0;
     //    uint32_t count() { return count; }
     T operator[](int index) { return items[index]; }
+    ~Stack<T>() {
+        free(items);
+    }
     void push(T node)
     {
         //        assert(self != NULL);
@@ -124,7 +100,7 @@ template <class T> class Stack {
 
     T pop()
     {
-        T ret; //= NULL;
+        T ret = NULL;
         if (count) {
             ret = items[count - 1];
             items[count - 1] = NULL;
@@ -138,6 +114,52 @@ template <class T> class Stack {
     T top() { return count ? items[count - 1] : NULL; }
 
     bool empty() { return count == 0; }
+};
+
+
+static size_t globalMemAllocBytes = 0;
+
+// LIST STACK etc.
+template <class T> class Pool {
+    T* ref;
+    uint32_t cap = 0, elementsPerBlock = 512, total = 0;
+    Stack<T*> ptrs;
+
+    public:
+    uint32_t count = elementsPerBlock;
+
+    T* alloc()
+    {
+        if (count >= elementsPerBlock) {
+            ref = (T*)calloc(elementsPerBlock, sizeof(T));
+            ptrs.push(ref);
+            count = 0;
+        }
+        total++;
+        globalMemAllocBytes+=sizeof(T);
+        return &ref[count++];
+    }
+ ~Pool() {
+        for(int i=0;i<ptrs.count; i++) {
+            for (int j=0;j<elementsPerBlock;j++) {
+                T* obj = &(ptrs[i][j]);
+                obj->~T();
+            }
+            free(ptrs[i]);
+        }
+    }
+    static const char* _typeName()
+    {
+        const char* a = "Pool<";
+        char* ret = strcat(a, T::_typeName());
+        ret = strcat(ret, ">");
+        return ret;
+    }
+    void stat()
+    {
+        fprintf(stderr, "*** %-16s %ld B x %3d = %ld B\n",
+            T::_typeName(), sizeof(T), total, total * sizeof(T));
+    }
 };
 
 template <class T> class List {
@@ -1024,6 +1046,47 @@ class Token {
     // parser's flag `skipws` is set.
     void advance()
     {
+        switch(kind) {
+        case TKIdentifier:
+        case TKString:
+        case TKNumber:
+        case TKNewline:
+        case TKFunctionCall:
+        case TKSubscript:
+        case TKDigit:
+        case TKAlphabet:
+        case TKRegex:
+        case TKInline:
+        case TKUnits:
+        case TKKeyword_cheater:
+        case TKKeyword_for:
+        case TKKeyword_while:
+        case TKKeyword_if:
+        case TKKeyword_end:
+        case TKKeyword_function:
+        case TKKeyword_test:
+        case TKKeyword_not:
+        case TKKeyword_and:
+        case TKKeyword_or:
+        case TKKeyword_in:
+        case TKKeyword_do:
+        case TKKeyword_then:
+        case TKKeyword_as:
+        case TKKeyword_else:
+        case TKKeyword_type:
+        case TKKeyword_print:
+        case TKKeyword_return:
+        case TKKeyword_base:
+        case TKKeyword_var:
+        case TKKeyword_let:
+        case TKKeyword_import:
+        case TKKeyword_check:
+        case TKUnknown: // bcz start of the file is this
+            break;
+        default:
+            *pos=0; // trample it so that idents etc. can be assigned in-situ
+        }
+
         pos += matchlen;
         col += matchlen;
         matchlen = 0;
@@ -1133,22 +1196,25 @@ struct ASTExpr {
         switch (kind) {
         case TKIdentifier:
             strLength = (uint16_t)token->matchlen;
-            name = token->dup();
+            name = token->pos; //dup();
             break;
         case TKString:
         case TKRegex:
         case TKNumber:
             strLength = (uint16_t)token->matchlen;
-            value.string = token->dup();
+            value.string = token->pos; //dup();
             break;
         default:;
             // what else? errror
         }
         if (kind == TKNumber) {
-            // turn all 1.0234[DdE]+01 into 1.0234e+01
-            str_tr_ip(value.string, 'd', 'e');
-            str_tr_ip(value.string, 'D', 'e');
-            str_tr_ip(value.string, 'E', 'e');
+            // turn all 1.0234[DdE]+01 into 1.0234e+01.
+            // right now this is not null terminated. actually this should be
+            // done in a later phase anyway. but if you want to do it now,
+            // str_tr_ip should take the max length.
+            str_tr_ip(value.string, 'd', 'e', strLength);
+            str_tr_ip(value.string, 'D', 'e', strLength);
+            str_tr_ip(value.string, 'E', 'e', strLength);
         }
     }
 
@@ -1195,7 +1261,7 @@ struct ASTTypeSpec {
     // char* typename; // use name
     ASTType* type = NULL;
     ASTUnits* units = NULL;
-    char* name = "";
+    char* name = NULL;
 
     uint32_t dims = 0;
 
@@ -1219,20 +1285,27 @@ struct ASTTypeSpec {
     //    }
     //    return valid;
     //}
-    int32_t dimsCount(char* dimsstr)
-    {
-        int32_t count = 0;
-        char* str = dimsstr;
-        while (*str)
-            if (*str++ == ':' or *str == '[') count++;
-        return count;
-    }
+//    int32_t dimsCount(char* dimsstr)
+//    {
+//        int32_t count = 0;
+//        char* str = dimsstr;
+//        while (*str)
+//            if (*str++ == ':' or *str == '[') count++;
+//        return count;
+//    }
 
     const char* dimsGenStr(int32_t dims)
     {
-        if (dims==0) return "";
-        if (dims==1) return "[]";
-        int32_t i;
+        switch(dims){
+        case 0: return "";
+        case 1: return "[]";
+        case 2: return "[:,:]";
+        case 3: return "[:,:,:]";
+        case 4: return "[:,:,:,:]";
+        case 5: return "[:,:,:,:,:]";
+        case 6: return "[:,:,:,:,:,:]";
+        default:
+            int32_t i;
         int32_t sz = 2 + dims + (dims ? (dims - 1) : 0) + 1;
         char* str = (char*)malloc(sz * sizeof(char));
         str[sz * 0] = '[';
@@ -1243,6 +1316,7 @@ struct ASTTypeSpec {
         }
         str[sz - 2] = ']';
         return str;
+        }
     }
 };
 
@@ -1253,7 +1327,7 @@ struct ASTVar {
 
     ASTTypeSpec* typeSpec = NULL;
     ASTExpr* init = NULL;
-    char* name = "";
+    char* name = NULL;
 
     struct {
         bool unused : 1, //
@@ -1266,10 +1340,10 @@ struct ASTVar {
 
     void gen(int level = 0)
     {
-        printf("%.*s%s %s",
+        printf("%.*s%s%s",
                level * 4,
                spaces,
-               flags.isLet ? "let" : "var",
+               flags.isVar ? "var " : flags.isLet ? "let " : "",
             name);
         if (typeSpec)
         {printf(": ");
@@ -1546,6 +1620,8 @@ void alloc_stat()
     ASTTypeSpec::pool.stat();
     ASTFunc::pool.stat();
     ASTModule::pool.stat();
+//    List<ASTExpr*>::pool.stat();
+    fprintf(stderr, "Total %lu B\n", globalMemAllocBytes);
 }
 
 //=============================================================================
@@ -1574,6 +1650,14 @@ class Parser {
 #define STR(x) STR_(x)
 #define STR_(x) #x
 
+    ~Parser() {
+        free(data);
+//        free(filename);
+        free(moduleName);
+        free(capsMangledName);
+//        free(basename);
+        free(dirname); // actually this might free noext
+    }
     uint32_t errCount = 0;
     Parser(char* filename, bool skipws = true)
     {
@@ -1589,7 +1673,7 @@ class Parser {
         static const auto FILE_SIZE_MAX = 1 << 24;
         FILE* file = fopen(filename, "r");
         fprintf(stdout, "compiling %s\n", filename);
-        char* noext = str_noext(filename);
+        char* noext = str_noext(filename); // will leak
         fseek(file, 0, SEEK_END);
         const size_t size
             = ftell(file) + 2; // 2 null chars, so we can always lookahead
@@ -1602,7 +1686,7 @@ class Parser {
             this->filename = filename;
             moduleName = str_tr(noext, '/', '.');
             mangledName = str_tr(noext, '/', '_');
-            capsMangledName = str_upper(str_tr(noext, '/', '_'));
+            capsMangledName = str_upper(mangledName);
             basename = str_base(noext);
             dirname = str_dir(noext);
             end = data + size;
@@ -1723,7 +1807,7 @@ class Parser {
     char* parseIdent()
     {
         if (token.kind != TKIdentifier) errorExpectedToken(TKIdentifier);
-        char* p = token.dup();
+        char* p = token.pos; //dup();
         token.advance();
         return p;
     }
@@ -2240,7 +2324,8 @@ class Parser {
                 break;
             case TKNewline:
             case TKLineComment:
-                //            case TKOneSpace:
+                            case TKOneSpace:
+                token.advance();
                 break;
                 //#ifndef PRINTTOKENS
             default:
@@ -2251,8 +2336,8 @@ class Parser {
             }
             // token.advance();// this shouldnt be here, the specific
             // funcs do it
-            ignore(TKNewline);
-            ignore(TKLineComment);
+//            ignore(TKNewline);
+//            ignore(TKLineComment);
         }
         modules.append(root);
         return modules;
@@ -2274,7 +2359,6 @@ Pool<Parser> Parser::pool;
 int main(int argc, char* argv[])
 {
     if (argc == 1) return 1;
-    //    print_sizes();
     auto parser = new Parser(argv[1]);
 
     List<ASTModule*> modules = parser->parse(); // parser.modules;
@@ -2288,6 +2372,7 @@ int main(int argc, char* argv[])
         }
     } // while ((modules = modules.next)); // (modules, 0);
     alloc_stat();
+//    free(parser);
     return 0;
 }
 
