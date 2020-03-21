@@ -10,6 +10,7 @@
 // - change |kg/s[:,:] or [:,:]|kg/s into Number[:,:]|kg/s
 // - sort imports
 // - remove extra parentheses in exprs
+// - fix array ranges :: -> :, 1:-1:1 -> :, ::::7::::9:: -> error
 // - move types and their member functions together
 // since files are expected to be small this ast-based linter should be OK?
 // keep modules limited to 2000 lines, or even 1000
@@ -1075,6 +1076,7 @@ class Token {
             break;
 
         case TKAlphabet:
+        case TKPeriod:
             while (tt != TKNullChar) {
                 tt = peek_nextchar();
                 advance1();
@@ -1506,7 +1508,8 @@ struct ASTExpr {
             char lpo = leftBr and left->kind == TKOpColon ? '[' : '(';
             char lpc = leftBr and left->kind == TKOpColon ? ']' : ')';
             if (leftBr) putc(lpo, stdout);
-            if (left) left->gen(0, spacing and !leftBr);
+            if (left)
+                left->gen(0, spacing and !leftBr and kind != TKOpColon);
             if (leftBr) putc(lpc, stdout);
             //            }
             // TODO: need a way to have compact and full repr for the same
@@ -1516,7 +1519,8 @@ struct ASTExpr {
             char rpo = rightBr and right->kind == TKOpColon ? '[' : '(';
             char rpc = rightBr and right->kind == TKOpColon ? ']' : ')';
             if (rightBr) putc(rpo, stdout);
-            if (right) right->gen(0, spacing and !rightBr);
+            if (right)
+                right->gen(0, spacing and !rightBr and kind != TKOpColon);
             if (rightBr) putc(rpc, stdout);
 
             if (kind == TKPower and not spacing) putc(')', stdout);
@@ -2230,6 +2234,22 @@ class Parser {
                 break;
             default:
                 if (prec) { // general operators
+
+                    if (expr->kind == TKOpColon) {
+                        if (rpn.empty()
+                            or (!rpn.top() and !ops.empty()
+                                and ops.top()->kind != TKOpColon)
+                            or (rpn.top() and rpn.top()->kind == TKOpColon
+                                and !ops.empty()
+                                and (ops.top()->kind == TKComma
+                                    or ops.top()->kind
+                                        == TKArrayOpen)) // <<-----
+                                                         // yesssssssssss
+                        )
+
+                            rpn.push(NULL); // indicates empty operand
+                        ;
+                    }
                     while (not ops.empty()) //
                     {
                         prec_top = ops.top()->opPrecedence;
@@ -2239,18 +2259,18 @@ class Parser {
                         p = ops.pop();
 
                         if (p->kind != TKComma and p->kind != TKFunctionCall
-                            and p->kind != TKSubscript
+                            and p->kind != TKSubscript and rpn.top()
                             and rpn.top()->kind == TKComma) {
                             errorUnexpectedToken();
                             goto error;
                         }
 
-                        if (!p->opIsUnary
-                            and (p->kind != TKFunctionCall
-                                and p->kind != TKSubscript)
-                            and rpn.count < 2) {
-                            // this one should happen while unwrapping, not
-                            // now
+                        if (!p->opIsUnary and p->kind != TKFunctionCall
+                            and p->kind
+                                != TKOpColon // in case of ::, second colon
+                                             // will add a null later
+                            and p->kind != TKSubscript and rpn.count < 2) {
+
                             errorUnexpectedToken();
                             goto error;
                             // TODO: even if you have more than two, neither
@@ -2266,9 +2286,15 @@ class Parser {
                         errorUnexpectedToken();
                         goto error;
                     }
+                    if (expr->kind == TKOpColon
+                        and (lookAheadChar == ',' or lookAheadChar == ':'
+                            or lookAheadChar == ']'
+                            or lookAheadChar == ')'))
+                        rpn.push(NULL);
 
-                    assert(rpn.top()); // NULL is used as a marker to end
-                                       // func args?
+                    //                    assert(rpn.top()); // NULL is used
+                    //                    as a marker to end
+                    // func args?
                     ops.push(expr);
                 } else {
                     rpn.push(expr);
