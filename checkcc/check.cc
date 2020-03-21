@@ -1,4 +1,21 @@
 
+
+// LINTER should work only on TOKENS! No need to build a tree for that.
+// Right now however the linter generates the AST and dumps it back. This is
+// more to understand and debug the AST generation -- the production linter
+// should not do AST gen.
+// NOTE that you need to generate AST for linting to do things like:
+// - auto annotate var types when not obvious and remove when obvious
+// - auto add function argument names at call sites / remove the first
+// - change |kg/s[:,:] or [:,:]|kg/s into Number[:,:]|kg/s
+// - sort imports
+// - remove extra parentheses in exprs
+// - move types and their member functions together
+// since files are expected to be small this ast-based linter should be OK?
+// keep modules limited to 2000 lines, or even 1000
+// BUT if errors are found, no formatting can be done. in this case, after
+// errors are reported, run the token-based linter (formatter).
+
 #include <cassert>
 #include <cctype>
 #include <climits>
@@ -8,9 +25,52 @@
 #include <cstring>
 #include <cmath>
 
-//=============================================================================
-// STRING
-//=============================================================================
+#pragma mark - Heap Allocation Extras
+
+// Generally this is not to be done at runtime. But for now we can use it as
+// a lightweight and builtin alternative to valgrind. Later focus on getting
+// codegen right so that no leaks are possible.
+
+// Use the ch- functions, if you use plain malloc nothing will be tracked.
+/*
+#ifdef CHMALLOC
+#define chfree(ptr) f_chfree(ptr, __FILE__, __LINE__, __func__)
+#define chmalloc(size) f_chmalloc(size, __FILE__, __LINE__, __func__)
+#define chcalloc(size, count) f_chcalloc(size,count, __FILE__, __LINE__,
+__func__) #define chrealloc(ptr, size) f_chrealloc(ptr, size, __FILE__,
+__LINE__, __func__) #else #define chfree(ptr) free(ptr) #define
+chmalloc(size) malloc(size) #define chcalloc(size, count) calloc(size,count)
+#define chrealloc(ptr, size) realloc(ptr, size)
+#endif
+
+void f_chfree(void* ptr, const char* file, int line, const char* func)
+{
+    if (!ad_size.has(ptr)) {
+        fprintf(stderr,"freeing unknown ptr in '%s' at %s line %d\n", func,
+file, line); return;
+    }
+    aD_file.del(ptr);
+    ad_func.del(ptr);
+    ad_line.del(ptr);
+    ad_size.del(ptr);
+    free(ptr);
+}
+
+void* f_chmalloc(size_t size, const char* file, int line, const char* func )
+{
+    void* ret = malloc(size);
+    if (!ret) {
+        fprintf(stderr,"malloc failed in '%s' at %s line %d\n", func, file,
+line); return NULL;
+    }
+    aD_file[ptr] = fname;
+    ad_func[ptr] = func;
+    ad_line[ptr] = line;
+    ad_size[ptr] = size;
+}
+*/
+
+#pragma mark - String Functions
 
 // operator char*() { return str; }
 char* str_noext(char* str)
@@ -72,6 +132,8 @@ char* str_tr(char* str, const char oldc, const char newc)
     return s;
 }
 
+#pragma mark - Number Types
+
 template <class T> class Dual {
     T x, dx;
 };
@@ -113,6 +175,8 @@ union NumberL {
     Reciprocal<int64_t> rD;
 };
 static_assert(sizeof(NumberL) == 8, "");
+
+#pragma mark - Stack
 
 template <class T> class Stack {
     T* items = NULL;
@@ -159,6 +223,8 @@ template <class T> class Stack {
 
     bool empty() { return count == 0; }
 };
+
+#pragma mark - Pool
 
 static size_t globalMemAllocBytes = 0;
 
@@ -213,6 +279,8 @@ template <class T> class Pool {
             sizeof(T), total, total * sizeof(T));
     }
 };
+
+#pragma mark - List
 
 template <class T> class List {
     public:
@@ -270,7 +338,7 @@ template <class T> Pool<List<T> > List<T>::pool;
 //=============================================================================
 // TOKEN
 //=============================================================================
-
+#pragma mark - Token Kinds
 // Various kinds of tokens.
 enum TokenKind {
     //    TK_source,
@@ -372,7 +440,7 @@ enum TokenKind {
 };
 
 // Return the repr of a token kind (for debug)
-const char* TokenKind_repr(const TokenKind kind)
+const char* TokenKind_repr(const TokenKind kind, bool spacing = true)
 {
     switch (kind) {
         //    case TK_source:
@@ -394,17 +462,17 @@ const char* TokenKind_repr(const TokenKind kind)
     case TKKeyword_end:
         return "end";
     case TKKeyword_function:
-        return "func";
+        return "function";
     case TKKeyword_test:
         return "test";
     case TKKeyword_not:
-        return "not";
+        return "not ";
     case TKKeyword_and:
-        return "and";
+        return " and ";
     case TKKeyword_or:
-        return "or";
+        return " or ";
     case TKKeyword_in:
-        return "in";
+        return " in ";
     case TKKeyword_else:
         return "else";
     case TKKeyword_type:
@@ -422,7 +490,7 @@ const char* TokenKind_repr(const TokenKind kind)
     case TKKeyword_print:
         return "print";
     case TKKeyword_return:
-        return "return";
+        return "return ";
     case TKIdentifier:
         return "id";
     case TKFunctionCall:
@@ -460,7 +528,7 @@ const char* TokenKind_repr(const TokenKind kind)
     case TKArrayOpen:
         return "[";
     case TKArrayDims:
-        return "[:,:]";
+        return "[:]";
     case TKAt:
         return "@";
     case TKBraceClose:
@@ -474,25 +542,25 @@ const char* TokenKind_repr(const TokenKind kind)
     case TKExclamation:
         return "!";
     case TKPipe:
-        return "!";
+        return "|";
     case TKOpAssign:
         return " = ";
     case TKOpEQ:
-        return " == ";
+        return spacing ? " == " : "==";
     case TKOpNE:
-        return " =/ ";
+        return spacing ? " =/ " : "=/";
     case TKOpGE:
-        return " >= ";
+        return spacing ? " >= " : ">=";
     case TKOpGT:
-        return " > ";
+        return spacing ? " > " : ">";
     case TKOpLE:
-        return " < ";
+        return spacing ? " <= " : "<=";
         //    case TKOp_lsh:
         //        return "<<";
     case TKOpLT:
-        return " < ";
+        return spacing ? " < " : "<";
     case TKOpMod:
-        return " % ";
+        return spacing ? " % " : "%";
         //    case TKOpRightShift:
         //        return ">>";
     case TKOpResults:
@@ -532,15 +600,15 @@ const char* TokenKind_repr(const TokenKind kind)
     case TKUnderscore:
         return "_";
     case TKSlash:
-        return " / ";
+        return spacing ? " / " : "/";
     case TKBackslash:
         return "\\";
     case TKPlus:
-        return " + ";
+        return spacing ? " + " : "+";
     case TKMinus:
-        return " - ";
+        return spacing ? " - " : "-";
     case TKTimes:
-        return " * ";
+        return spacing ? " * " : "*";
     case TKDollar:
         return "$";
     case TKUnknown:
@@ -548,21 +616,21 @@ const char* TokenKind_repr(const TokenKind kind)
     case TKKeyword_do:
         return "do";
     case TKColEq:
-        return " := ";
+        return spacing ? " := " : ":=";
     case TKPlusEq:
-        return " += ";
+        return spacing ? " += " : "+=";
     case TKMinusEq:
-        return " -= ";
+        return spacing ? " -= " : "-=";
     case TKTimesEq:
-        return " *= ";
+        return spacing ? " *= " : "*=";
     case TKSlashEq:
-        return " /= ";
+        return spacing ? " /= " : "/=";
     case TKOneSpace:
         return "(sp1)";
     case TKQuestion:
         return "?";
     case TKUnaryMinus:
-        return "-";
+        return spacing ? " -" : "-";
     }
     printf("unknown kind: %d\n", kind);
     return "(!unk)";
@@ -570,8 +638,8 @@ const char* TokenKind_repr(const TokenKind kind)
 
 bool TokenKind_isUnary(TokenKind kind)
 {
-    return kind == TKKeyword_not
-        or kind == TKUnaryMinus; // unary - is handled separately
+    return kind == TKKeyword_not or kind == TKUnaryMinus
+        or kind == TKKeyword_return; // unary - is handled separately
 }
 
 bool TokenKind_isRightAssociative(TokenKind kind)
@@ -584,6 +652,8 @@ uint8_t TokenKind_getPrecedence(TokenKind kind)
     switch (kind) {
     case TKUnaryMinus:
         return 95;
+    case TKKeyword_return:
+        return 25;
     case TKPeriod:
         return 90;
     case TKPipe:
@@ -661,6 +731,8 @@ TokenKind TokenKind_reverseBracket(TokenKind kind)
     }
 }
 
+#pragma mark - Token
+
 // Holds information about a syntax token.
 class Token {
     public:
@@ -706,7 +778,14 @@ class Token {
     }
 
     // Peek at the char after the current (complete) token
-    char peekCharAfter() { char* s = pos+matchlen; if (flags.skipWhiteSpace) while (*s == ' ') s++; return *s; }
+    char peekCharAfter()
+    {
+        char* s = pos + matchlen;
+        if (flags.skipWhiteSpace)
+            while (*s == ' ')
+                s++;
+        return *s;
+    }
 
 #define Token_compareKeyword(tok)                                          \
     if (sizeof(#tok) - 1 == l and not strncmp(#tok, s, l)) {               \
@@ -1091,7 +1170,7 @@ class Token {
                 break;
             default:
                 tt_ret = TKUnaryMinus; //(tt==TKMinus) ? TKUnaryMinus ?
-                                       //TKUnaryPlus;
+                                       // TKUnaryPlus;
                 break;
             }
             advance1();
@@ -1206,9 +1285,16 @@ const char* const equaltos =
     "\n===================================================================="
     "====\n";
 
+#pragma mark - AST Import
+
 struct ASTImport {
     char* importFile;
     uint32_t aliasOffset;
+    // generally this is not changed (the alias), at least not by the
+    // linter. So we can only store the offset from importFile. In general
+    // it would be nice to allocate the file contents buffer with a little
+    // extra space and use that as a string pool. This way we can make new
+    // strings while still referring to them using a uint32.
     bool isPackage = false, hasAlias = false;
     static Pool<ASTImport> pool;
     void* operator new(size_t size) { return pool.alloc(); }
@@ -1216,9 +1302,12 @@ struct ASTImport {
     void gen(int level)
     {
         printf("import %s%s%s%s\n", isPackage ? "@" : "", importFile,
-            hasAlias ? " as " : "", hasAlias ? importFile+aliasOffset : "");
+            hasAlias ? " as " : "",
+            hasAlias ? importFile + aliasOffset : "");
     }
 };
+
+#pragma mark - AST Units
 
 struct ASTUnits {
     static Pool<ASTUnits> pool;
@@ -1236,6 +1325,8 @@ struct ASTType;
 struct ASTFunc;
 struct ASTVar;
 
+#pragma mark - AST Expr
+
 struct ASTExpr {
     static Pool<ASTExpr> pool;
     void* operator new(size_t size) { return pool.alloc(); }
@@ -1251,12 +1342,13 @@ struct ASTExpr {
         }; // for literals, the string length
         uint8_t opPrecedence;
         uint8_t col = 0;
-        TokenKind
-            kind : 8; // TokenKind must be updated to add
-                      // TKFuncCallResolved TKSubscriptResolved etc. to
-                      // indicate a resolved identifier. while you are at
-                      // it add TKNumberAsString etc. then instead of
-                      // name you will use the corr. object.
+        TokenKind kind : 8; // TokenKind must be updated to add
+                            // TKFuncCallResolved TKSubscriptResolved etc.
+                            // to indicate a resolved identifier. while you
+                            // are at it add TKNumberAsString etc. then
+                            // instead of name you will use the corr.
+                            // object. OR instead of extra enum values add a
+                            // bool bit resolved
     };
 
     // Expr : left right next
@@ -1266,7 +1358,7 @@ struct ASTExpr {
     union {
         ASTExpr *left = NULL, *args, *indexes;
     }; // for Expr, FuncCall and Subscript respectively
-//    ASTExpr* next = NULL;
+    //    ASTExpr* next = NULL;
     //    union { // when you write the version with specific types, DO NOT
     //    put prec/rassoc/etc in a union with literals.
     // you can put the literal in a union with either left/right. put
@@ -1325,8 +1417,12 @@ struct ASTExpr {
         }
     }
 
-    void gen(int level)
+    void gen(int level = 0, bool spacing = true)
     {
+        // generally an expr is not split over several lines (but maybe in
+        // rare cases). so level is not passed on to recursive calls.
+        printf("%.*s", level * 4, spaces);
+
         switch (kind) {
         case TKIdentifier:
         case TKNumber:
@@ -1334,39 +1430,103 @@ struct ASTExpr {
         case TKString:
             printf("%.*s", strLength, value.string);
             break;
+
         case TKFunctionCall:
             printf("%.*s(", strLength, name);
-                if (args) args->gen(level);
+            if (args) args->gen(0, false);
             printf(")");
             break;
+
         case TKSubscript:
             printf("%.*s[", strLength, name);
-                if (args) args->gen(level);
+            if (args) args->gen(0, false);
             printf("]");
             break;
+
         default:
-            if (not opPrecedence)
-                break; // not an operator, but this should be error if you
-                       // reach here
+            if (not opPrecedence) break;
+            // not an operator, but this should be error if you reach here
             bool leftBr = left and left->opPrecedence
-                and left->opPrecedence < opPrecedence;
+                and left->opPrecedence < this->opPrecedence;
             bool rightBr = right and right->opPrecedence
-                and right->opPrecedence < opPrecedence;
-            //             {
-            if (leftBr) putc('(', stdout);
-            if (left) left->gen(level + 1);
-            if (leftBr) putc(')', stdout);
+                and right->kind != TKKeyword_return // found in 'or return'
+                and right->opPrecedence < this->opPrecedence;
+
+            if (kind == TKOpColon) {
+                // expressions like arr[a:x-3:2] should become
+                // arr[a:(x-3):2]
+                if (left) switch (left->kind) {
+                    case TKNumber:
+                    case TKIdentifier:
+                    case TKString:
+                    case TKOpColon:
+                    case TKMultiDotNumber:
+                    case TKUnaryMinus:
+                        break;
+                    default:
+                        leftBr = true;
+                    }
+                if (right) switch (right->kind) {
+                    case TKNumber:
+                    case TKIdentifier:
+                    case TKString:
+                    case TKOpColon:
+                    case TKMultiDotNumber:
+                    case TKUnaryMinus:
+                        break;
+                    default:
+                        rightBr = true;
+                    }
+            }
+            // the above should also happen for TKPower with primitives on
+            // both sides && when spacing = false
+
+            //            else if (kind==TKPower) {
+            //                rightBr = right;
+            //                leftBr = left;
             //            }
-            // TODO: need a way to have compact and full repr for the same token e.g. (a + b) but x[a+b:-1]
-            printf("%s", TokenKind_repr(kind));
+            if (false and kind == TKKeyword_return and right) {
+                switch (right->kind) {
+                case TKString:
+                case TKNumber:
+                case TKIdentifier:
+                case TKFunctionCall:
+                case TKSubscript:
+                case TKRegex:
+                case TKMultiDotNumber:
+                    break;
+                default:
+                    rightBr = true;
+                    break;
+                }
+            } // right may be null if its empty return
             //             {
-            if (rightBr) putc('(', stdout);
-            if (right) right->gen(level + 1);
-            if (rightBr) putc(')', stdout);
+            if (kind == TKPower and not spacing) putc('(', stdout);
+
+            char lpo = leftBr and left->kind == TKOpColon ? '[' : '(';
+            char lpc = leftBr and left->kind == TKOpColon ? ']' : ')';
+            if (leftBr) putc(lpo, stdout);
+            if (left) left->gen(0, spacing and !leftBr);
+            if (leftBr) putc(lpc, stdout);
+            //            }
+            // TODO: need a way to have compact and full repr for the same
+            // token e.g. (a + b) but x[a+b:-1]
+            printf("%s", TokenKind_repr(kind, spacing));
+            //             {
+            char rpo = rightBr and right->kind == TKOpColon ? '[' : '(';
+            char rpc = rightBr and right->kind == TKOpColon ? ']' : ')';
+            if (rightBr) putc(rpo, stdout);
+            if (right) right->gen(0, spacing and !rightBr);
+            if (rightBr) putc(rpc, stdout);
+
+            if (kind == TKPower and not spacing) putc(')', stdout);
+
             //            }
         }
     }
 }; // how about if, for, etc. all impl using ASTExpr?
+
+#pragma mark - AST TypeSpec
 
 struct ASTTypeSpec {
     static Pool<ASTTypeSpec> pool;
@@ -1374,11 +1534,12 @@ struct ASTTypeSpec {
     static const char* _typeName() { return "ASTTypeSpec"; }
 
     // char* typename; // use name
-union    {
+    union {
         ASTType* type;
         char* name = NULL;
-    ASTUnits* units ; // you know that if this is set, then type can only be Number anyway
-};
+        ASTUnits* units;
+        // you know that if this is set, then type can only be Number anyway
+    };
 
     uint32_t dims = 0;
     enum TypeSpecStatus {
@@ -1387,13 +1548,15 @@ union    {
         TSDimensionedNumber // type can only be Number, units ptr is set
         // if more (predefined) number types can use units, add them here
     };
-    TypeSpecStatus status = TSUnresolved; // if false, name is set, else type is set
+    TypeSpecStatus status = TSUnresolved;
+    // if false, name is set, else type is set
 
     void gen(int level = 0)
     {
-        printf("%s", name);
+        if (status == TSUnresolved) printf("%s", name);
+        //        if (status==TSResolved) printf("%s", type->name);
         if (dims) printf("%s", dimsGenStr(dims));
-        if (units) units->gen(level);
+        if (status == TSDimensionedNumber) units->gen(level);
     }
     //
     // bool dimsvalid(char* dimsstr) {
@@ -1451,6 +1614,8 @@ union    {
     }
 };
 
+#pragma mark - AST Var
+
 struct ASTVar {
     static Pool<ASTVar> pool;
     void* operator new(size_t size) { return pool.alloc(); }
@@ -1480,11 +1645,13 @@ struct ASTVar {
             printf(": Unknown");
         if (init) {
             printf(" = ");
-            init->gen(level + 1);
+            init->gen(0);
         }
         //        puts("");
     }
 };
+
+#pragma mark - AST NodeRef
 
 class ASTNodeRef {
     union {
@@ -1517,6 +1684,8 @@ class ASTNodeRef {
     ASTVar* var() { return (ASTVar*)getptr(); }
     ASTExpr* expr() { return (ASTExpr*)getptr(); }
 };
+
+#pragma mark - AST Type
 
 struct ASTType {
     static Pool<ASTType> pool;
@@ -1586,6 +1755,8 @@ struct ASTType {
 //    struct ASTStmt* next; // Expr has its own next... so clean this up
 //} ASTStmt;
 
+#pragma mark - AST Scope
+
 struct ASTScope {
     static Pool<ASTScope> pool;
     void* operator new(size_t size) { return pool.alloc(); }
@@ -1612,6 +1783,8 @@ struct ASTScope {
         } // while((stmts = *(stmts.next)));
     }
 };
+
+#pragma mark - AST Func
 
 struct ASTFunc {
     static Pool<ASTFunc> pool;
@@ -1675,6 +1848,8 @@ struct ASTFunc {
         puts("end function\n");
     }
 };
+
+#pragma mark - AST Module
 
 struct ASTModule {
     static Pool<ASTModule> pool;
@@ -1762,6 +1937,7 @@ void alloc_stat()
 //=============================================================================
 
 // char nullchar=0;
+#pragma mark - Parser
 
 class Parser {
     char* filename = NULL; // mod/submod/xyz/mycode.ch
@@ -1972,7 +2148,7 @@ class Parser {
         ASTExpr* p = NULL;
         //        bool errExpr = false;
 
-        token.flags.noKeywordDetect = true;
+        //        token.flags.noKeywordDetect = true;
         // ******* STEP 1 CONVERT TOKENS INTO RPN
 
         while (token.kind != TKNullChar and token.kind != TKNewline
@@ -2045,6 +2221,13 @@ class Parser {
                 // as TKIdentf and set nargs. NOPE u need to know nargs
                 // before starting to parse args.
             } break;
+            case TKKeyword_return:
+                // to treat empty return, push a NULL if there is no expr
+                // coming.
+                ops.push(expr);
+                if (lookAheadChar == '!' or lookAheadChar == '\n')
+                    rpn.push(NULL);
+                break;
             default:
                 if (prec) { // general operators
                     while (not ops.empty()) //
@@ -2101,7 +2284,8 @@ class Parser {
             p = ops.pop();
 
             if (p->kind != TKComma and p->kind != TKFunctionCall
-                and p->kind != TKSubscript and rpn.top()->kind == TKComma) {
+                and p->kind != TKSubscript and p->kind != TKArrayOpen
+                and rpn.top() and rpn.top()->kind == TKComma) {
                 errorUnexpectedExpr(rpn.top()); // errorUnexpectedToken();
                 goto error;
             }
@@ -2144,6 +2328,10 @@ class Parser {
                 break;
             case TKNumber:
                 break;
+            case TKString:
+                break;
+            case TKRegex:
+                break;
             case TKMultiDotNumber:
                 break;
             case TKIdentifier:
@@ -2184,13 +2372,16 @@ class Parser {
         justpush:
             result.push(p);
         }
-        if (result.count != 1) errorParsingExpr();
+        if (result.count != 1) {
+            errorParsingExpr();
+            goto error;
+        }
         //        assert(result.count == 1);
-        token.flags.noKeywordDetect = false;
+        //        token.flags.noKeywordDetect = false;
         return result[0];
 
     error:
-        token.flags.noKeywordDetect = false;
+        //        token.flags.noKeywordDetect = false;
 
         while (token.kind != TKNewline and token.pos < this->end)
             token.advance();
@@ -2236,8 +2427,13 @@ class Parser {
             token.advance();
         }
 
-        typeSpec->units = parseUnits();
-        ignore(TKUnits);
+        //        typeSpec->units = parseUnits();
+        if (matches(TKUnits)) {
+            // assert that the type is Number, nothing else can have units.
+            // read the units and assign it to typeSpec->units. this will
+            // overwrite name -- you don't need it, its 'Number' when valid.
+            ignore(TKUnits);
+        }
         // fixme: node->type = lookupType;
 
         assert(token.kind != TKUnits);
@@ -2314,11 +2510,16 @@ class Parser {
                 if (!var) continue;
                 scope->locals.append(var);
                 break;
-            case TKKeyword_check:
-            case TKKeyword_print:
-            case TKKeyword_return:
+                //            case TKKeyword_check:
+                //            case TKKeyword_print:
+                //            case TKKeyword_return:
 
                 break;
+                //            case TKIdentifier:
+                //            case TKFunctionCall:
+                //            case TKSubscript:
+                //                expr = parseExpr();
+                //                break;
             case TKKeyword_if:
             case TKKeyword_for:
             case TKKeyword_while:
@@ -2333,7 +2534,10 @@ class Parser {
             default:
                 // this shouldn't be an error actually, just put it through
                 // parse_expr
-                errorExpectedToken(TKUnknown);
+                scope->stmts.append(parseExpr());
+
+                //                errorExpectedToken(TKUnknown);
+                //                token.skipToNextLine();
                 // token.advance();
                 break;
             }
@@ -2465,10 +2669,12 @@ class Parser {
             ignore(TKOneSpace);
             import->hasAlias = true;
             tmp = parseIdent();
-            if (tmp) import->aliasOffset=tmp-import->importFile;
+            if (tmp)
+                import->aliasOffset = (uint32_t)(tmp - import->importFile);
             token.flags.noKeywordDetect = false;
         } else {
-            import->aliasOffset = str_base(import->importFile, '.')-import->importFile;
+            import->aliasOffset = (uint32_t)(
+                str_base(import->importFile, '.') - import->importFile);
         }
         return import;
     }
@@ -2542,13 +2748,14 @@ Pool<ASTScope> ASTScope::pool;
 Pool<Parser> Parser::pool;
 
 //#pragma mark Print AST
+//
+// double sq(double x)
+//{
+//    printf("sd\n");
+//    return sqrt(x);
+//}
 
-double sq(double x)
-{
-    printf("sd\n");
-    return sqrt(x);
-}
-
+#pragma mark - main
 int main(int argc, char* argv[])
 {
     if (argc == 1) return 1;
@@ -2576,12 +2783,12 @@ int main(int argc, char* argv[])
         return 1;
     };
 
-    if (modules.item) {
-        foreach (mod, mods, modules) {
-            // if (!mod) continue;
-            mod->gen();
-        }
-    }
+    // if (modules.item) {
+    foreach (mod, mods, modules) //{
+        // if (!mod) continue;
+        mod->gen();
+    // }
+    // }
     // while ((modules = modules.next)); // (modules, 0);
     alloc_stat();
     return 0;
