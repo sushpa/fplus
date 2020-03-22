@@ -338,13 +338,13 @@ enum TokenKind {
     TKKeyword_as,
     TKKeyword_else,
     TKKeyword_type,
-    TKKeyword_print,
+//    TKKeyword_print,
     TKKeyword_return,
     TKKeyword_base,
     TKKeyword_var,
     TKKeyword_let,
     TKKeyword_import,
-    TKKeyword_check,
+//    TKKeyword_check,
     TKIdentifier,
     TKFunctionCall,
     TKSubscript,
@@ -457,8 +457,8 @@ const char* TokenKind_repr(const TokenKind kind, bool spacing = true)
         return "else";
     case TKKeyword_type:
         return "type";
-    case TKKeyword_check:
-        return "check";
+//    case TKKeyword_check:
+//        return "check";
     case TKKeyword_base:
         return "base";
     case TKKeyword_var:
@@ -467,8 +467,8 @@ const char* TokenKind_repr(const TokenKind kind, bool spacing = true)
         return "let";
     case TKKeyword_import:
         return "import";
-    case TKKeyword_print:
-        return "print";
+//    case TKKeyword_print:
+//        return "print";
     case TKKeyword_return:
         return "return ";
     case TKIdentifier:
@@ -805,14 +805,14 @@ class Token {
         Token_compareKeyword(in)
         Token_compareKeyword(else)
         Token_compareKeyword(type)
-        Token_compareKeyword(check)
+//        Token_compareKeyword(check)
         Token_compareKeyword(base)
         Token_compareKeyword(var)
         Token_compareKeyword(let)
         Token_compareKeyword(import)
         Token_compareKeyword(return)
         Token_compareKeyword(as)
-        Token_compareKeyword(print);
+//        Token_compareKeyword(print);
         // return TKIdentifier;
     }
 
@@ -1024,7 +1024,8 @@ class Token {
 
         case TKOpComma:
         case TKOpSemiColon:
-            tt_ret = tt; // TKOpComma;
+//        line continuation tokens
+            tt_ret = tt;
 
             while (tt != TKNullChar) {
                 tt = peek_nextchar();
@@ -1049,6 +1050,34 @@ class Token {
                 if (tt != TKSpaces and tt != TKNewline) break;
             }
             break;
+//        case TKOpAssign:
+//        case TKParenOpen:
+//        case TKArrayOpen:
+//        case TKBraceOpen:
+//            while (tt != TKNullChar) {
+//                tt = peek_nextchar();
+////                advance1();
+//                // line number should be incremented for line continuations
+//                if (tt == TKSpaces) {
+//                    found_spc++;
+//                }
+//                if (tt == TKExclamation) {
+//                    found_cmt = true;
+//                }
+//                if (tt == TKNewline) {
+//                    line++;
+//                    col = -found_spc - 1; // account for extra spaces
+//                                          // after , and for nl itself
+//                    found_spc = 0;
+//                }
+//                if (found_cmt and tt != TKNewline) {
+//                    found_spc++;
+//                    continue;
+//                }
+//                if (tt != TKSpaces and tt != TKNewline) break;
+//                advance1();
+//            }
+//            if (tt_ret!=TKArrayOpen) break;
 
         case TKArrayOpen:
             // mergearraydims should be set only when reading func args
@@ -1070,6 +1099,7 @@ class Token {
 
         case TKAlphabet:
         case TKPeriod:
+        case TKUnderscore:
             while (tt != TKNullChar) {
                 tt = peek_nextchar();
                 advance1();
@@ -1228,13 +1258,13 @@ class Token {
         case TKKeyword_as:
         case TKKeyword_else:
         case TKKeyword_type:
-        case TKKeyword_print:
+//        case TKKeyword_print:
         case TKKeyword_return:
         case TKKeyword_base:
         case TKKeyword_var:
         case TKKeyword_let:
         case TKKeyword_import:
-        case TKKeyword_check:
+//        case TKKeyword_check:
         case TKUnknown: // bcz start of the file is this
             break;
         default:
@@ -1258,14 +1288,12 @@ class Token {
     }
 };
 
-const char* const spaces
-    = "                                                                 ";
+const char* const spaces =
+    "                                                                     ";
 const char* const dashes =
-    "\n____________________________________________________________________"
-    "____\n";
+    "\n_________________________________________________________________\n";
 const char* const equaltos =
-    "\n===================================================================="
-    "====\n";
+    "\n=================================================================\n";
 
 #pragma mark - AST Import
 
@@ -1305,6 +1333,7 @@ struct ASTUnits {
 struct ASTTypeSpec;
 struct ASTType;
 struct ASTFunc;
+struct ASTScope;
 struct ASTVar;
 
 #pragma mark - AST Expr
@@ -1338,14 +1367,9 @@ struct ASTExpr {
     // FuncCall : value args next
 
     union {
-        ASTExpr *left = NULL, *args, *indexes;
+        ASTExpr *left = NULL;
     }; // for Expr, FuncCall and Subscript respectively
-    //    ASTExpr* next = NULL;
-    //    union { // when you write the version with specific types, DO NOT
-    //    put prec/rassoc/etc in a union with literals.
-    // you can put the literal in a union with either left/right. put
-    // prec/rassoc&co in basics along with line/col now that 8B of kind will
-    // be free (subkind becomes kind).
+
     union {
         union {
             char* string;
@@ -1357,6 +1381,7 @@ struct ASTExpr {
                     // identifiers
         ASTFunc* func = NULL; // for functioncall
         ASTVar* var; // for array subscript, or to refer to a variable
+        ASTScope* body; // for if/for/while
         ASTExpr* right;
     };
     //    };
@@ -1405,8 +1430,6 @@ struct ASTExpr {
         // rare cases). so level is not passed on to recursive calls.
         printf("%.*s", level * 4, spaces);
 
-        //        static ASTExpr* lpar = new ASTExpr;
-
         switch (kind) {
         case TKIdentifier:
         case TKNumber:
@@ -1417,13 +1440,13 @@ struct ASTExpr {
 
         case TKFunctionCall:
             printf("%.*s(", strLength, name);
-            if (args) args->gen(0, false);
+            if (left) left->gen(0, false);
             printf(")");
             break;
 
         case TKSubscript:
             printf("%.*s[", strLength, name);
-            if (args) args->gen(0, false);
+            if (left) left->gen(0, false);
             printf("]");
             break;
 
@@ -1633,10 +1656,10 @@ struct ASTVar {
         printf("%.*s%s%s", level * 4, spaces,
             flags.isVar ? "var " : flags.isLet ? "let " : "", name);
         if (typeSpec) {
-            printf(": ");
+            printf(" as ");
             typeSpec->gen(level + 1);
         } else
-            printf(": Unknown");
+            printf(" as Unknown");
         if (init) {
             printf(" = ");
             init->gen(0);
@@ -1834,7 +1857,7 @@ struct ASTFunc {
         }
 
         if (returnType) {
-            printf(": ");
+            printf(" as ");
             returnType->gen(level);
         }
         puts("");
@@ -1911,7 +1934,6 @@ static void print_sizes()
 
 void alloc_stat()
 {
-    //    ASTExpr::pool.stat();
     ASTImport::pool.stat();
     //    ASTUnits::pool.stat();
     ASTExpr::pool.stat();
@@ -1922,15 +1944,10 @@ void alloc_stat()
     ASTTypeSpec::pool.stat();
     ASTFunc::pool.stat();
     ASTModule::pool.stat();
-    //    List<ASTExpr*>::pool.stat();
+//        List<ASTExpr*>::pool.stat();
     fprintf(stderr, "Total %lu B\n", globalMemAllocBytes);
 }
 
-//=============================================================================
-// PARSER CONTEXT
-//=============================================================================
-
-// char nullchar=0;
 #pragma mark - Parser
 
 class Parser {
@@ -1961,8 +1978,7 @@ class Parser {
         free(moduleName);
         free(mangledName);
         free(capsMangledName);
-        //        free(basename);
-        free(dirname); // actually this might free noext
+        free(dirname);
     }
     uint32_t errCount = 0, warnCount = 0;
     Parser(char* filename, bool skipws = true)
@@ -1997,7 +2013,7 @@ class Parser {
             dirname = str_dir(noext);
             end = data + size;
             token.pos = data;
-            token.flags.skipWhiteSpace = skipws; //
+            token.flags.skipWhiteSpace = skipws;
         }
 
         fclose(file);
@@ -2007,9 +2023,7 @@ class Parser {
         fprintf(stderr, _funcSig, __LINE__, filename, skipws);
     }
 
-    //=============================================================================
-    // ERROR REPORTING
-    //=============================================================================
+#pragma mark - Error Reporting
 
     static const auto errLimit = 10;
 #define fatal(str, ...)                                                    \
@@ -2070,6 +2084,8 @@ class Parser {
         errorIncrement();
     }
 
+#pragma mark -
+
     ASTExpr* exprFromCurrentToken()
     {
         auto expr = new ASTExpr(&token);
@@ -2114,10 +2130,7 @@ class Parser {
     {
         if (not ignore(expected)) errorExpectedToken(expected);
     }
-    //=============================================================================
-    // PARSER RULE-MATCHING FUNCTIONS
-    //=============================================================================
-    //#pragma mark Parser Rules
+
 
     char* parseIdent()
     {
@@ -2127,6 +2140,7 @@ class Parser {
         return p;
     }
 
+#pragma mark -
     ASTExpr* parseExpr()
     {
 
@@ -2161,51 +2175,40 @@ class Parser {
             char lookAheadChar = token.peekCharAfter();
             switch (expr->kind) {
             case TKIdentifier:
-                if (lookAheadChar == '(') {
+                switch (lookAheadChar) {
+                case '(':
                     expr->kind = TKFunctionCall;
                     expr->opPrecedence = 100;
                     ops.push(expr);
-                    //                    rpn.push(NULL); // marker for end
-                    //                    of args
-                } else if (lookAheadChar == '[') {
+                    break;
+                case '[':
                     expr->kind = TKSubscript;
                     expr->opPrecedence = 100;
                     ops.push(expr);
-                    //                    rpn.push(NULL); // marker for end
-                    //                    of args
-                } else {
+                    break;
+                default:
                     rpn.push(expr);
                 }
                 break;
-                //            case TKOpColon: {
-                //            } break;
-                //            case TKComma:
-                //                {
-                //                // e.g. in func args list etc.
-                //                // don't need comma because identf/identa
-                //                exprs will save
-                //                // nargs.
-                //            }
-                //                break;
-            case TKParenOpen: //{
+            case TKParenOpen:
                 ops.push(expr);
-                if (not ops.empty() and ops.top()->kind == TKFunctionCall)
+                if (not ops.empty()
+                    and ops.top()->kind == TKFunctionCall)
                     rpn.push(expr);
                 // instead of marking with (, could consider pushing a NULL.
                 // (not for func calls & array indexes -- for grouping)
+                break;
 
-                //            }
-                break;
             case TKArrayOpen:
-                //                {
                 ops.push(expr);
-                if (not ops.empty() and ops.top()->kind == TKSubscript)
+                if (not ops.empty()
+                    and ops.top()->kind == TKSubscript)
                     rpn.push(expr);
-                //            }
                 break;
+
             case TKParenClose:
             case TKArrayClose:
-            case TKBraceClose: //{
+            case TKBraceClose:
 
                 revBrkt = TokenKind_reverseBracket(expr->kind);
                 while (not ops.empty()) {
@@ -2261,10 +2264,10 @@ class Parser {
                             rpn.push(NULL); // indicates empty operand
                         ;
                     }
-                    while (not ops.empty()) //
+                    while (not ops.empty())
                     {
                         prec_top = ops.top()->opPrecedence;
-                        if (not prec_top) break;
+                        if (not prec_top) break; // left parenthesis
                         if (prec > prec_top) break;
                         if (prec == prec_top and rassoc) break;
                         p = ops.pop();
@@ -2278,12 +2281,12 @@ class Parser {
                             goto error;
                         }
 
-                        if (!p->opIsUnary and p->kind != TKFunctionCall
-                            and p->kind
-                                != TKOpColon // in case of ::, second colon
-                                             // will add a null later
-                            and p->kind != TKSubscript and rpn.count < 2) {
-
+                        if (!p->opIsUnary
+                            and p->kind != TKFunctionCall
+                            and p->kind != TKOpColon
+                            // in case of ::, second colon will add null later
+                            and p->kind != TKSubscript
+                            and rpn.count < 2) {
                             errorUnexpectedToken();
                             goto error;
                             // TODO: even if you have more than two, neither
@@ -2300,14 +2303,12 @@ class Parser {
                         goto error;
                     }
                     if (expr->kind == TKOpColon
-                        and (lookAheadChar == ',' or lookAheadChar == ':'
-                            or lookAheadChar == ']'
-                            or lookAheadChar == ')'))
+                        and (lookAheadChar == ','
+                             or lookAheadChar == ':'
+                             or lookAheadChar == ']'
+                             or lookAheadChar == ')'))
                         rpn.push(NULL);
 
-                    //                    assert(rpn.top()); // NULL is used
-                    //                    as a marker to end
-                    // func args?
                     ops.push(expr);
                 } else {
                     rpn.push(expr);
@@ -2322,18 +2323,21 @@ class Parser {
         {
             p = ops.pop();
 
-            if (p->kind != TKOpComma and p->kind != TKFunctionCall
-                and p->kind != TKSubscript and p->kind != TKArrayOpen
-                and rpn.top() and rpn.top()->kind == TKOpComma) {
-                errorUnexpectedExpr(rpn.top()); // errorUnexpectedToken();
+            if (p->kind != TKOpComma
+                and p->kind != TKFunctionCall
+                and p->kind != TKSubscript
+                and p->kind != TKArrayOpen
+                and rpn.top()
+                and rpn.top()->kind == TKOpComma) {
+                errorUnexpectedExpr(rpn.top());
                 goto error;
             }
 
             if (!p->opIsUnary
-                and (p->kind != TKFunctionCall and p->kind != TKSubscript)
+                and (p->kind != TKFunctionCall
+                     and p->kind != TKSubscript)
                 and rpn.count < 2) {
-                // this one should happen while unwrapping, not now
-                errorParsingExpr(); //  errorUnexpectedToken();
+                errorParsingExpr();
                 goto error;
                 // TODO: even if you have more than two, neither of the top
                 // two should be a comma
@@ -2342,52 +2346,36 @@ class Parser {
             rpn.push(p);
         }
 
-        //        int i;
-
         // *** STEP 2 CONVERT RPN INTO EXPR TREE
 
-        // Stack<ASTExpr*> result = { NULL, 0, 0 };
         ASTExpr* arg;
         for (int i = 0; i < rpn.count; i++) {
             if (!(p = rpn[i])) goto justpush;
             switch (p->kind) {
             case TKFunctionCall:
             case TKSubscript:
-                //                while (!result.empty()) {
                 assert(result.count > 0);
-                //                if (result.top()->kind!=TKComma)
-                //                {errorUnexpectedExpr(result.top()); goto
-                //                error;}; // for 1 arg this is perfectly
-                //                valid
                 arg = result.pop();
-                //                    arg->next=p->next;
-                p->args = arg; // this is a TKComma with left/right
-
-                //                }
-                break;
+                p->left = arg;
             case TKNumber:
-                break;
             case TKString:
-                break;
             case TKRegex:
-                break;
             case TKMultiDotNumber:
-                break;
             case TKIdentifier:
-                break;
             case TKParenOpen:
+//            case TKArrayOpen:
                 break;
             default:
                 // careful now, assuming everything except those above is a
-                // nonterminal and needs left/right
-                if (not p->opPrecedence) continue;
+                // nonterminpal and needs left/right
+                assert(p->opPrecedence); //if (not p->opPrecedence) continue;
                 // operator must have some precedence, right?
-                // p->kind = NKExpr;
 
                 if (result.empty()) {
                     errorParsingExpr();
                     goto error;
                 }
+
                 p->right = result.pop();
 
                 if (not p->opIsUnary) {
@@ -2397,16 +2385,6 @@ class Parser {
                     }
                     p->left = result.pop();
                 }
-
-                //                if (!p->left)
-                //                {printf("%d:%d:%s operand of '%s' is
-                //                erroneous or missing\n" , p->line, p->col,
-                //                p->opIsUnary?"":" left",
-                //                TokenKind_repr(p->kind)); errExpr=true;}
-                //                if (!p->opIsUnary and !p->right)
-                //                {printf("%d:%d: right operand of '%s' is
-                //                erroneous or missing\n" , p->line, p->col,
-                //                TokenKind_repr(p->kind));errExpr=true;}
             }
         justpush:
             result.push(p);
@@ -2415,19 +2393,19 @@ class Parser {
             errorParsingExpr();
             goto error;
         }
-        //        assert(result.count == 1);
-        //        token.flags.noKeywordDetect = false;
+
         return result[0];
 
     error:
-        //        token.flags.noKeywordDetect = false;
 
-        while (token.kind != TKNewline and token.pos < this->end)
+        while (token.kind != TKNewline
+               and token.pos < this->end)
             token.advance();
 
         if (ops.count) printf("\n      ops: ");
         for (int i = 0; i < ops.count; i++)
             printf("%s ", TokenKind_repr(ops[i]->kind));
+
         if (rpn.count) printf("\n      rpn: ");
         for (int i = 0; i < rpn.count; i++)
             if (!rpn[i])
@@ -2443,10 +2421,10 @@ class Parser {
 
         if (rpn.count or ops.count) puts("");
 
-        //        assert(ops.count == 0);
         return NULL;
     }
 
+#pragma mark -
     ASTTypeSpec* parseTypeSpec()
     { // must have ident(U), then may have "[:,:]" i.e. '[\]\[\:, ]+' , then
       // may have units. note: after ident may have params <T, S>
@@ -2466,11 +2444,10 @@ class Parser {
             token.advance();
         }
 
-        //        typeSpec->units = parseUnits();
         if (matches(TKUnits)) {
             // assert that the type is Number, nothing else can have units.
             // read the units and assign it to typeSpec->units. this will
-            // overwrite name -- you don't need it, its 'Number' when valid.
+            // overwrite name -- you don't need it, it's 'Number' when valid.
             ignore(TKUnits);
         }
         // fixme: node->type = lookupType;
@@ -2500,9 +2477,10 @@ class Parser {
         return args;
     }
 
+#pragma mark -
     ASTVar* parseVar()
     {
-        auto var = new ASTVar; // exprFromCurrentToken();
+        auto var = new ASTVar;
         var->flags.isVar = (token.kind == TKKeyword_var);
         var->flags.isLet = (token.kind == TKKeyword_let);
 
@@ -2510,26 +2488,30 @@ class Parser {
         if (var->flags.isLet) discard(TKKeyword_var);
         if (var->flags.isVar or var->flags.isLet) discard(TKOneSpace);
 
-        token.flags.noKeywordDetect = true;
+//        token.flags.noKeywordDetect = true;
         var->name = parseIdent();
-
-        if (ignore(TKOpColon)) {
-            discard(TKOneSpace);
-            var->typeSpec = parseTypeSpec();
-        }
-        token.flags.noKeywordDetect = false;
+//        token.flags.noKeywordDetect = false;
 
         if (ignore(TKOneSpace)) {
-            discard(TKOpAssign);
+            if (ignore(TKKeyword_as)) {
             discard(TKOneSpace);
+            var->typeSpec = parseTypeSpec();
+
+            }
+        }
+//        token.flags.noKeywordDetect = false;
+        ignore(TKOneSpace);
+        if (ignore(TKOpAssign)) {
+//            discard(TKOpAssign);
+//            discard(TKOneSpace);
             var->init = parseExpr();
         }
         return var;
     }
 
+#pragma mark -
     ASTScope* parseScope()
     {
-        // TokenKind kind = token.kind;
         auto scope = new ASTScope;
 
         union {
@@ -2542,7 +2524,7 @@ class Parser {
         while (token.kind != TKKeyword_end) {
             switch (token.kind) {
             case TKNullChar:
-                errorExpectedToken(TKUnknown); // return NULL;
+                errorExpectedToken(TKUnknown);
                 goto exitloop;
             case TKKeyword_var:
                 var = parseVar();
@@ -2571,13 +2553,7 @@ class Parser {
             case TKOneSpace: // found at beginning of line
                 break;
             default:
-                // this shouldn't be an error actually, just put it through
-                // parse_expr
                 scope->stmts.append(parseExpr());
-
-                //                errorExpectedToken(TKUnknown);
-                //                token.skipToNextLine();
-                // token.advance();
                 break;
             }
             token.advance();
@@ -2603,40 +2579,42 @@ class Parser {
         return params;
     }
 
+#pragma mark -
     ASTFunc* parseFunc()
     {
-        // shouldn't this be new_node_from...? or change parse_type &
-        // others for consistency
         discard(TKKeyword_function);
         discard(TKOneSpace);
-        auto func = new ASTFunc; // match(TKKeyword_function);
+        auto func = new ASTFunc;
 
-        // if (func) {
-        // node->kind = NKFunc;
-        token.flags.noKeywordDetect = true;
+//        token.flags.noKeywordDetect = true;
 
         func->name = parseIdent();
         func->args = parseArgs();
-        if (ignore(TKOpColon)) {
+        if (ignore(TKOneSpace) and ignore(TKKeyword_as)) {
+
             discard(TKOneSpace);
             func->returnType = parseTypeSpec();
         }
-        token.flags.noKeywordDetect = false;
+//        token.flags.noKeywordDetect = false;
 
         discard(TKNewline);
 
-        func->body = parseScope(); //}
+        func->body = parseScope();
 
         discard(TKKeyword_end);
         discard(TKOneSpace);
         discard(TKKeyword_function);
+
         return func;
     }
 
+#pragma mark -
     ASTFunc* parseTest() { return NULL; }
 
+#pragma mark -
     ASTUnits* parseUnits() { return NULL; }
 
+#pragma mark -
     ASTType* parseType()
     {
         auto type = new ASTType; // exprFromCurrentToken();
@@ -2644,7 +2622,7 @@ class Parser {
             ASTExpr* expr;
             ASTVar* var;
         };
-        // node->kind = NKType;
+
         discard(TKKeyword_type);
         discard(TKOneSpace);
         type->name = parseIdent();
@@ -2667,19 +2645,14 @@ class Parser {
                 type->super = parseTypeSpec();
             case TKIdentifier:
                 break;
-            case TKKeyword_check:
-                break;
+//            case TKKeyword_check:
+//                break;
             case TKNewline:
             case TKLineComment:
-                break;
             case TKOneSpace:
-                // token.advance(); // indentation at begin of line etc.
                 break;
             default:
-                // this shouldn't be an error actually, just put it through
-                // parse_expr
-                errorExpectedToken(TKUnknown);
-                // token.advance();
+                errorUnexpectedToken();// errorExpectedToken(TKUnknown);
                 break;
             }
             token.advance();
@@ -2689,28 +2662,30 @@ class Parser {
         discard(TKKeyword_end);
         discard(TKOneSpace);
         discard(TKKeyword_type);
+
         return type;
     }
 
+#pragma mark -
     ASTImport* parseImport()
     {
         auto import = new ASTImport;
         char* tmp;
         discard(TKKeyword_import);
         discard(TKOneSpace);
-        token.flags.noKeywordDetect = true;
+//        token.flags.noKeywordDetect = true;
         import->isPackage = ignore(TKAt);
         import->importFile = parseIdent();
-        token.flags.noKeywordDetect = false;
+//        token.flags.noKeywordDetect = false;
         ignore(TKOneSpace);
         if (ignore(TKKeyword_as)) {
-            token.flags.noKeywordDetect = true;
+//            token.flags.noKeywordDetect = true;
             ignore(TKOneSpace);
             import->hasAlias = true;
             tmp = parseIdent();
             if (tmp)
                 import->aliasOffset = (uint32_t)(tmp - import->importFile);
-            token.flags.noKeywordDetect = false;
+//            token.flags.noKeywordDetect = false;
         } else {
             import->aliasOffset = (uint32_t)(
                 str_base(import->importFile, '.') - import->importFile);
@@ -2718,6 +2693,7 @@ class Parser {
         return import;
     }
 
+#pragma mark -
     List<ASTModule*> parse()
     {
         auto root = new ASTModule;
@@ -2786,30 +2762,15 @@ Pool<ASTExpr> ASTExpr::pool;
 Pool<ASTScope> ASTScope::pool;
 Pool<Parser> Parser::pool;
 
-//#pragma mark Print AST
-//
-// double sq(double x)
-//{
-//    printf("sd\n");
-//    return sqrt(x);
-//}
-
 #pragma mark - main
 int main(int argc, char* argv[])
 {
     if (argc == 1) return 1;
-    //    double d = sqrt(2.0); //22.0/7.0; //strtod("3.141593426736423",0);
-    //    double rd = 1.0 / sq(2.0) ; //7.0/11.0/2.0; //1.0/d;
-    //    printf("%.17f\n", d);
-    //    printf("%.17f\n", rd);
-    //    printf("%.17f\n", d*rd);
-    //    return 0;
 
     auto parser = new Parser(argv[1]);
 
-    List<ASTModule*> modules = parser->parse(); // parser.modules;
+    List<ASTModule*> modules = parser->parse();
 
-    //    ASTModule* module;
     if (parser->errCount or parser->warnCount) {
         fputs(equaltos, stderr);
         if (parser->errCount)
@@ -2821,19 +2782,8 @@ int main(int argc, char* argv[])
         return 1;
     };
 
-    // if (modules.item) {
-    foreach (mod, mods, modules) //{
-        // if (!mod) continue;
-        mod->gen();
-    // }
-    // }
-    // while ((modules = modules.next)); // (modules, 0);
-    alloc_stat();
+    foreach(mod, mods, modules) mod->gen();
+
+//    alloc_stat();
     return 0;
 }
-
-// linter needs to :
-// 1. format spacing line breaks etc.
-// 2. replace E in floats with e
-// 3. rearrange comments
-// 4. replace end with end if/for/etc.
