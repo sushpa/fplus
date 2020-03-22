@@ -1334,10 +1334,119 @@ struct ASTTypeSpec;
 struct ASTType;
 struct ASTFunc;
 struct ASTScope;
+struct ASTExpr;
 struct ASTVar;
 
-#pragma mark - AST Expr
+#pragma mark - AST TypeSpec
 
+struct ASTTypeSpec {
+    static Pool<ASTTypeSpec> pool;
+    void* operator new(size_t size) { return pool.alloc(); }
+    static const char* _typeName() { return "ASTTypeSpec"; }
+
+    // char* typename; // use name
+    union {
+        ASTType* type;
+        char* name = NULL;
+        ASTUnits* units;
+        // you know that if this is set, then type can only be Number anyway
+    };
+
+    uint32_t dims = 0;
+    enum TypeSpecStatus {
+        TSUnresolved, // name ptr is set
+        TSResolved, // type ptr is set and points to the type
+        TSDimensionedNumber // type can only be Number, units ptr is set
+                            // if more (predefined) number types can use units, add them here
+    };
+    TypeSpecStatus status = TSUnresolved;
+    // if false, name is set, else type is set
+
+    void gen(int level = 0)
+    {
+        if (status == TSUnresolved) printf("%s", name);
+        //        if (status==TSResolved) printf("%s", type->name);
+        if (dims) printf("%s", dimsGenStr(dims));
+        if (status == TSDimensionedNumber) units->gen(level);
+    }
+    //
+    // bool dimsvalid(char* dimsstr) {
+    //    bool valid = true;
+    //    char* str=dimsstr;
+    //    valid = valid and (*str++ == '[');
+    //    while (*str != ']' and *str != 0) {
+    //        valid = valid and (*str++ == ':');
+    //        if (*str==',') {
+    //            valid = valid and (*str++ == ',');
+    //            valid = valid and (*str++ == ' ');
+    //        }
+    //    }
+    //    return valid;
+    //}
+    //    int32_t dimsCount(char* dimsstr)
+    //    {
+    //        int32_t count = 0;
+    //        char* str = dimsstr;
+    //        while (*str)
+    //            if (*str++ == ':' or *str == '[') count++;
+    //        return count;
+    //    }
+
+    const char* dimsGenStr(int32_t dims)
+    {
+        switch (dims) {
+        case 0:
+            return "";
+        case 1:
+            return "[]";
+        case 2:
+            return "[:,:]";
+        case 3:
+            return "[:,:,:]";
+        case 4:
+            return "[:,:,:,:]";
+        case 5:
+            return "[:,:,:,:,:]";
+        case 6:
+            return "[:,:,:,:,:,:]";
+        default:
+            int32_t i;
+            int32_t sz = 2 + dims + (dims ? (dims - 1) : 0) + 1;
+            char* str = (char*)malloc(sz * sizeof(char));
+            str[sz * 0] = '[';
+            str[sz - 1] = 0;
+            for (i = 0; i < dims; i++) {
+                str[i * 2 + 1] = ':';
+                str[i * 2 + 2] = ',';
+            }
+            str[sz - 2] = ']';
+            return str;
+        }
+    }
+};
+
+#pragma mark - AST Var
+
+struct ASTVar {
+    static Pool<ASTVar> pool;
+    void* operator new(size_t size) { return pool.alloc(); }
+    static const char* _typeName() { return "ASTVar"; }
+
+    ASTTypeSpec* typeSpec = NULL;
+    ASTExpr* init = NULL;
+    char* name = NULL;
+
+    struct {
+        bool unused : 1, //
+        unset : 1, //
+        isLet : 1, //
+        isVar : 1, //
+        isTarget : 1;
+        /* x = f(x,y) */ //
+    } flags;
+
+    void gen(int level = 0);
+};
 struct ASTExpr {
     static Pool<ASTExpr> pool;
     void* operator new(size_t size) { return pool.alloc(); }
@@ -1424,249 +1533,177 @@ struct ASTExpr {
         }
     }
 
-    void gen(int level = 0, bool spacing = true)
-    {
-        // generally an expr is not split over several lines (but maybe in
-        // rare cases). so level is not passed on to recursive calls.
-        printf("%.*s", level * 4, spaces);
+    void gen(int level = 0, bool spacing = true);
 
-        switch (kind) {
-        case TKIdentifier:
-        case TKNumber:
-        case TKMultiDotNumber:
-        case TKString:
-            printf("%.*s", strLength, value.string);
-            break;
-
-        case TKFunctionCall:
-            printf("%.*s(", strLength, name);
-            if (left) left->gen(0, false);
-            printf(")");
-            break;
-
-        case TKSubscript:
-            printf("%.*s[", strLength, name);
-            if (left) left->gen(0, false);
-            printf("]");
-            break;
-
-        default:
-            if (not opPrecedence) break;
-            // not an operator, but this should be error if you reach here
-            bool leftBr = left and left->opPrecedence
-                and left->opPrecedence < this->opPrecedence;
-            bool rightBr = right and right->opPrecedence
-                and right->kind != TKKeyword_return // found in 'or return'
-                and right->opPrecedence < this->opPrecedence;
-
-            if (kind == TKOpColon) {
-                // expressions like arr[a:x-3:2] should become
-                // arr[a:(x-3):2]
-                // or list literals [8, 9, 6, 77, sin(c)]
-                if (left) switch (left->kind) {
-                    case TKNumber:
-                    case TKIdentifier:
-                    case TKString:
-                    case TKOpColon:
-                    case TKMultiDotNumber:
-                    case TKUnaryMinus:
-                        break;
-                    default:
-                        leftBr = true;
-                    }
-                if (right) switch (right->kind) {
-                    case TKNumber:
-                    case TKIdentifier:
-                    case TKString:
-                    case TKOpColon:
-                    case TKMultiDotNumber:
-                    case TKUnaryMinus:
-                        break;
-                    default:
-                        rightBr = true;
-                    }
-            }
-            // the above should also happen for TKPower with primitives on
-            // both sides && when spacing = false
-
-            //            else if (kind==TKPower) {
-            //                rightBr = right;
-            //                leftBr = left;
-            //            }
-            if (false and kind == TKKeyword_return and right) {
-                switch (right->kind) {
-                case TKString:
-                case TKNumber:
-                case TKIdentifier:
-                case TKFunctionCall:
-                case TKSubscript:
-                case TKRegex:
-                case TKMultiDotNumber:
-                    break;
-                default:
-                    rightBr = true;
-                    break;
-                }
-            } // right may be null if its empty return
-            //             {
-            if (kind == TKPower and not spacing) putc('(', stdout);
-            //            if (level and (kind == TKOpComma or
-            //            kind==TKOpSemiColon)) putc('[', stdout);
-
-            char lpo = leftBr and left->kind == TKOpColon ? '[' : '(';
-            char lpc = leftBr and left->kind == TKOpColon ? ']' : ')';
-            if (leftBr) putc(lpo, stdout);
-            if (left)
-                left->gen(0, spacing and !leftBr and kind != TKOpColon);
-            if (leftBr) putc(lpc, stdout);
-            //            }
-            // TODO: need a way to have compact and full repr for the same
-            // token e.g. (a + b) but x[a+b:-1]
-            printf("%s", TokenKind_repr(kind, spacing));
-            //             {
-            char rpo = rightBr and right->kind == TKOpColon ? '[' : '(';
-            char rpc = rightBr and right->kind == TKOpColon ? ']' : ')';
-            if (rightBr) putc(rpo, stdout);
-            if (right)
-                right->gen(0, spacing and !rightBr and kind != TKOpColon);
-            if (rightBr) putc(rpc, stdout);
-
-            if (kind == TKPower and not spacing) putc(')', stdout);
-            if (kind == TKArrayOpen)
-                putc(']', stdout); // close a list comprehension / literal
-                                   // [1, 2, 3] etc.
-            //            if (level and (kind == TKOpComma or
-            //            kind==TKOpSemiColon)) putc(']', stdout);
-
-            //            }
-        }
-    }
 }; // how about if, for, etc. all impl using ASTExpr?
 
-#pragma mark - AST TypeSpec
-
-struct ASTTypeSpec {
-    static Pool<ASTTypeSpec> pool;
-    void* operator new(size_t size) { return pool.alloc(); }
-    static const char* _typeName() { return "ASTTypeSpec"; }
-
-    // char* typename; // use name
-    union {
-        ASTType* type;
-        char* name = NULL;
-        ASTUnits* units;
-        // you know that if this is set, then type can only be Number anyway
-    };
-
-    uint32_t dims = 0;
-    enum TypeSpecStatus {
-        TSUnresolved, // name ptr is set
-        TSResolved, // type ptr is set and points to the type
-        TSDimensionedNumber // type can only be Number, units ptr is set
-        // if more (predefined) number types can use units, add them here
-    };
-    TypeSpecStatus status = TSUnresolved;
-    // if false, name is set, else type is set
-
-    void gen(int level = 0)
-    {
-        if (status == TSUnresolved) printf("%s", name);
-        //        if (status==TSResolved) printf("%s", type->name);
-        if (dims) printf("%s", dimsGenStr(dims));
-        if (status == TSDimensionedNumber) units->gen(level);
+void ASTVar::gen(int level)
+{
+    printf("%.*s%s%s", level * 4, spaces,
+           flags.isVar ? "var " : flags.isLet ? "let " : "", name);
+    if (typeSpec) {
+        printf(" as ");
+        typeSpec->gen(level + 1);
+    } else
+        printf(" as Unknown");
+    if (init) {
+        printf(" = ");
+        init->gen(0);
     }
-    //
-    // bool dimsvalid(char* dimsstr) {
-    //    bool valid = true;
-    //    char* str=dimsstr;
-    //    valid = valid and (*str++ == '[');
-    //    while (*str != ']' and *str != 0) {
-    //        valid = valid and (*str++ == ':');
-    //        if (*str==',') {
-    //            valid = valid and (*str++ == ',');
-    //            valid = valid and (*str++ == ' ');
-    //        }
-    //    }
-    //    return valid;
-    //}
-    //    int32_t dimsCount(char* dimsstr)
-    //    {
-    //        int32_t count = 0;
-    //        char* str = dimsstr;
-    //        while (*str)
-    //            if (*str++ == ':' or *str == '[') count++;
-    //        return count;
-    //    }
+    //        puts("");
+}
 
-    const char* dimsGenStr(int32_t dims)
-    {
-        switch (dims) {
-        case 0:
-            return "";
-        case 1:
-            return "[]";
-        case 2:
-            return "[:,:]";
-        case 3:
-            return "[:,:,:]";
-        case 4:
-            return "[:,:,:,:]";
-        case 5:
-            return "[:,:,:,:,:]";
-        case 6:
-            return "[:,:,:,:,:,:]";
-        default:
-            int32_t i;
-            int32_t sz = 2 + dims + (dims ? (dims - 1) : 0) + 1;
-            char* str = (char*)malloc(sz * sizeof(char));
-            str[sz * 0] = '[';
-            str[sz - 1] = 0;
-            for (i = 0; i < dims; i++) {
-                str[i * 2 + 1] = ':';
-                str[i * 2 + 2] = ',';
+#pragma mark - AST Scope
+
+struct ASTScope {
+    static Pool<ASTScope> pool;
+    void* operator new(size_t size) { return pool.alloc(); }
+    static const char* _typeName() { return "ASTScope"; }
+    List<ASTExpr*> stmts;
+    List<ASTVar*> locals;
+    ASTScope* parent = NULL; // fixme: can be type, func, or scope
+    void gen(int level);
+};
+void ASTScope::gen(int level)
+{
+    foreach (local, locals, this->locals) {
+        local->gen(level);
+        puts("");
+    }
+    foreach (stmt, stmts, this->stmts) {
+        stmt->gen(level);
+        puts("");
+    }
+}
+
+#pragma mark - AST Expr
+
+void ASTExpr::gen(int level , bool spacing )
+{
+    // generally an expr is not split over several lines (but maybe in
+    // rare cases). so level is not passed on to recursive calls.
+    printf("%.*s", level * 4, spaces);
+
+    switch (kind) {
+    case TKIdentifier:
+    case TKNumber:
+    case TKMultiDotNumber:
+    case TKString:
+        printf("%.*s", strLength, value.string);
+        break;
+
+    case TKFunctionCall:
+        printf("%.*s(", strLength, name);
+        if (left) left->gen(0, false);
+        printf(")");
+        break;
+
+    case TKSubscript:
+        printf("%.*s[", strLength, name);
+        if (left) left->gen(0, false);
+        printf("]");
+        break;
+
+    case TKKeyword_for:
+    case TKKeyword_if:
+    case TKKeyword_while:
+        printf("%s ", TokenKind_repr(kind));
+        if (left) left->gen(0); puts("");
+        if (body) body->gen(level+1);
+        printf("%.*send %s",level*4,spaces, TokenKind_repr(kind));
+        break;
+
+    default:
+        if (not opPrecedence) break;
+        // not an operator, but this should be error if you reach here
+        bool leftBr = left and left->opPrecedence
+        and left->opPrecedence < this->opPrecedence;
+        bool rightBr = right and right->opPrecedence
+        and right->kind != TKKeyword_return // found in 'or return'
+        and right->opPrecedence < this->opPrecedence;
+
+        if (kind == TKOpColon) {
+            // expressions like arr[a:x-3:2] should become
+            // arr[a:(x-3):2]
+            // or list literals [8, 9, 6, 77, sin(c)]
+            if (left) switch (left->kind) {
+            case TKNumber:
+            case TKIdentifier:
+            case TKString:
+            case TKOpColon:
+            case TKMultiDotNumber:
+            case TKUnaryMinus:
+                break;
+            default:
+                leftBr = true;
             }
-            str[sz - 2] = ']';
-            return str;
+            if (right) switch (right->kind) {
+            case TKNumber:
+            case TKIdentifier:
+            case TKString:
+            case TKOpColon:
+            case TKMultiDotNumber:
+            case TKUnaryMinus:
+                break;
+            default:
+                rightBr = true;
+            }
         }
+        // the above should also happen for TKPower with primitives on
+        // both sides && when spacing = false
+
+        //            else if (kind==TKPower) {
+        //                rightBr = right;
+        //                leftBr = left;
+        //            }
+        if (false and kind == TKKeyword_return and right) {
+            switch (right->kind) {
+            case TKString:
+            case TKNumber:
+            case TKIdentifier:
+            case TKFunctionCall:
+            case TKSubscript:
+            case TKRegex:
+            case TKMultiDotNumber:
+                break;
+            default:
+                rightBr = true;
+                break;
+            }
+        } // right may be null if its empty return
+          //             {
+        if (kind == TKPower and not spacing) putc('(', stdout);
+        //            if (level and (kind == TKOpComma or
+        //            kind==TKOpSemiColon)) putc('[', stdout);
+
+        char lpo = leftBr and left->kind == TKOpColon ? '[' : '(';
+        char lpc = leftBr and left->kind == TKOpColon ? ']' : ')';
+        if (leftBr) putc(lpo, stdout);
+        if (left)
+            left->gen(0, spacing and !leftBr and kind != TKOpColon);
+        if (leftBr) putc(lpc, stdout);
+        //            }
+        // TODO: need a way to have compact and full repr for the same
+        // token e.g. (a + b) but x[a+b:-1]
+        printf("%s", TokenKind_repr(kind, spacing));
+        //             {
+        char rpo = rightBr and right->kind == TKOpColon ? '[' : '(';
+        char rpc = rightBr and right->kind == TKOpColon ? ']' : ')';
+        if (rightBr) putc(rpo, stdout);
+        if (right)
+            right->gen(0, spacing and !rightBr and kind != TKOpColon);
+        if (rightBr) putc(rpc, stdout);
+
+        if (kind == TKPower and not spacing) putc(')', stdout);
+        if (kind == TKArrayOpen)
+            putc(']', stdout); // close a list comprehension / literal
+                               // [1, 2, 3] etc.
+                               //            if (level and (kind == TKOpComma or
+                               //            kind==TKOpSemiColon)) putc(']', stdout);
+
+        //            }
     }
-};
-
-#pragma mark - AST Var
-
-struct ASTVar {
-    static Pool<ASTVar> pool;
-    void* operator new(size_t size) { return pool.alloc(); }
-    static const char* _typeName() { return "ASTVar"; }
-
-    ASTTypeSpec* typeSpec = NULL;
-    ASTExpr* init = NULL;
-    char* name = NULL;
-
-    struct {
-        bool unused : 1, //
-            unset : 1, //
-            isLet : 1, //
-            isVar : 1, //
-            isTarget : 1;
-        /* x = f(x,y) */ //
-    } flags;
-
-    void gen(int level = 0)
-    {
-        printf("%.*s%s%s", level * 4, spaces,
-            flags.isVar ? "var " : flags.isLet ? "let " : "", name);
-        if (typeSpec) {
-            printf(" as ");
-            typeSpec->gen(level + 1);
-        } else
-            printf(" as Unknown");
-        if (init) {
-            printf(" = ");
-            init->gen(0);
-        }
-        //        puts("");
-    }
-};
+}
 
 #pragma mark - AST NodeRef
 
@@ -1771,35 +1808,6 @@ struct ASTType {
 //    };
 //    struct ASTStmt* next; // Expr has its own next... so clean this up
 //} ASTStmt;
-
-#pragma mark - AST Scope
-
-struct ASTScope {
-    static Pool<ASTScope> pool;
-    void* operator new(size_t size) { return pool.alloc(); }
-    static const char* _typeName() { return "ASTScope"; }
-
-    List<ASTExpr*> stmts;
-    List<ASTVar*> locals;
-    ASTScope* parent = NULL; // fixme: can be type, func, or scope
-
-    void gen(int level)
-    {
-        // List<ASTExpr*> stmts = this->stmts;
-        // ASTExpr* stmt;
-        foreach (local, locals, this->locals) {
-            //            if (!stmt) continue;
-            local->gen(level);
-            puts("");
-        }
-        foreach (stmt, stmts, this->stmts) {
-            //            if (!stmt) continue;
-            stmt->gen(level);
-            puts("");
-
-        } // while((stmts = *(stmts.next)));
-    }
-};
 
 #pragma mark - AST Func
 
@@ -2160,7 +2168,8 @@ class Parser {
         //        token.flags.noKeywordDetect = true;
         // ******* STEP 1 CONVERT TOKENS INTO RPN
 
-        while (token.kind != TKNullChar and token.kind != TKNewline
+        while (token.kind != TKNullChar
+               and token.kind != TKNewline
             and token.kind != TKLineComment) { // build RPN
 
             // you have to ensure that ops have a space around them, etc.
@@ -2514,10 +2523,12 @@ class Parser {
     {
         auto scope = new ASTScope;
 
-        union {
-            ASTScope* subScope;
+//        union {
+            ASTScope* subScope = NULL;
             ASTVar* var = NULL;
-        }; // last variable encountered
+        ASTExpr *expr = NULL;
+        TokenKind tt;
+//        }; // last variable encountered
 
         // don't conflate this with the while in parse(): it checks against
         // file end, this checks against the keyword 'end'.
@@ -2530,12 +2541,22 @@ class Parser {
                 var = parseVar();
                 if (!var) continue;
                 scope->locals.append(var);
+                break; // the below works but skipping for now
+                expr = new ASTExpr;
+                expr->kind=TKOpAssign;
+                expr->opPrecedence=TokenKind_getPrecedence(TKOpAssign);
+                expr->left = new ASTExpr;
+                expr->left->kind = TKIdentifier;
+                expr->left->name = var->name;
+                expr->left->strLength = strlen(var->name);
+                expr->right=var->init;
+                scope->stmts.append(expr);
                 break;
                 //            case TKKeyword_check:
                 //            case TKKeyword_print:
                 //            case TKKeyword_return:
 
-                break;
+//                break;
                 //            case TKIdentifier:
                 //            case TKFunctionCall:
                 //            case TKSubscript:
@@ -2544,9 +2565,15 @@ class Parser {
             case TKKeyword_if:
             case TKKeyword_for:
             case TKKeyword_while:
-                // not quite
-                //                subScope = parseScope();
-                //                subScope->parent = scope;
+                tt= token.kind;
+                expr = match(tt); // will advance
+                expr->left = parseExpr();
+                if ((expr->body = parseScope()))
+                    expr->body->parent = scope;
+                discard(TKKeyword_end);
+                discard(TKOneSpace);
+                discard(tt);
+                scope->stmts.append(expr);
                 break;
             case TKNewline:
             case TKLineComment:
