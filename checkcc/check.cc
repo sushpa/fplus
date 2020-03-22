@@ -185,7 +185,6 @@ template <class T> class Stack {
 
     public:
     uint32_t count = 0;
-    //    uint32_t count() { return count; }
     T& operator[](int index) { return items[index]; }
     ~Stack<T>()
     {
@@ -193,8 +192,6 @@ template <class T> class Stack {
     }
     void push(T node)
     {
-        //        assert(self != NULL);
-        //        assert(node != NULL); // really?
         if (count < cap) {
             items[count++] = node;
         } else {
@@ -217,7 +214,7 @@ template <class T> class Stack {
         } else {
             printf("error: pop from empty list\n");
         }
-        return ret; // stack->count ? stack->items[--stack->count] : NULL;
+        return ret;
     }
 
     T top() { return count ? items[count - 1] : NULL; }
@@ -229,7 +226,6 @@ template <class T> class Stack {
 
 static size_t globalMemAllocBytes = 0;
 
-// LIST STACK etc.
 template <class T> class Pool {
     T* ref = NULL;
     uint32_t cap = 0, elementsPerBlock = 512, total = 0;
@@ -252,11 +248,11 @@ template <class T> class Pool {
     ~Pool<T>()
     {
         for (int j = 0; j < count; j++) {
-            //         if(++k >= total) break;
             T* obj = &(ref[j]);
             obj->~T();
         }
         free(ref);
+
         int k = 0;
         for (int i = 0; i < ptrs.count; i++) {
             for (int j = 0; j < elementsPerBlock; j++) {
@@ -291,25 +287,16 @@ template <class T> class List {
     T item = NULL;
 
     List<T>* next = NULL;
-    //    operator T() { return item; } // not a good idea for readability
-    // send the *pointer* by reference. if list is NULL, then 'append'ing
-    // something puts it at index 0
 
     List<T>() {}
     List<T>(T item) { this->item = item; }
 
-    void append(T item) // List<T>* listItem)
-    { // adds a single item, creating a wrapping list item holder.
+    void append(T item)
+    {  // adds a single item, creating a wrapping list item holder.
         if (!this->item)
             this->item = item;
         else
             append(List<T>(item));
-        //        auto listItem = new List<T>(item);
-        // //        listItem->item = item;
-        //        List<T>* last = this;
-        //        while (last->next)
-        //            last = last->next;
-        //        last->next = listItem;
     }
 
     void append(List<T> listItem)
@@ -327,22 +314,13 @@ template <class T> class List {
 template <class T> Pool<List<T> > List<T>::pool;
 
 #define foreach(var, listp, listSrc)                                       \
-    /*auto listp = &(listSrc); / *if (listp) */                            \
     auto listp = &(listSrc);                                               \
     for (auto var = listp->item; listp && (var = listp->item);             \
          listp = listp->next)
 
-// Stack<uint64_t> pool8B;
-// Stack<uint64_t[2]> pool16B;
-
-// void* poolptrs[2] = {&pool8B, &pool16B};
-//=============================================================================
-// TOKEN
-//=============================================================================
 #pragma mark - Token Kinds
-// Various kinds of tokens.
+
 enum TokenKind {
-    //    TK_source,
     TKNullChar,
     TKKeyword_cheater,
     TKKeyword_for,
@@ -408,7 +386,8 @@ enum TokenKind {
     //    TKParen_empty,
     TKParenOpen,
     TKPeriod,
-    TKComma,
+    TKOpComma,
+    TKOpSemiColon,
     TKOpColon,
     TKStringBoundary, // "
     //    TKStr_empty, // ""
@@ -576,10 +555,12 @@ const char* TokenKind_repr(const TokenKind kind, bool spacing = true)
         return "(";
     case TKPeriod:
         return ".";
-    case TKComma:
+    case TKOpComma:
         return ", ";
     case TKOpColon:
         return ":";
+    case TKOpSemiColon:
+        return "; ";
     case TKStringBoundary:
         return "\"";
         //    case TKStringEmpty:
@@ -631,7 +612,7 @@ const char* TokenKind_repr(const TokenKind kind, bool spacing = true)
     case TKQuestion:
         return "?";
     case TKUnaryMinus:
-        return spacing ? " -" : "-";
+        return "-"; // the previous op will provide spacing
     }
     printf("unknown kind: %d\n", kind);
     return "(!unk)";
@@ -640,7 +621,8 @@ const char* TokenKind_repr(const TokenKind kind, bool spacing = true)
 bool TokenKind_isUnary(TokenKind kind)
 {
     return kind == TKKeyword_not or kind == TKUnaryMinus
-        or kind == TKKeyword_return; // unary - is handled separately
+        or kind == TKKeyword_return
+        or kind == TKArrayOpen; // unary - is handled separately
 }
 
 bool TokenKind_isRightAssociative(TokenKind kind)
@@ -652,7 +634,9 @@ uint8_t TokenKind_getPrecedence(TokenKind kind)
 { // if templateStr then precedence of < and > should be 0
     switch (kind) {
     case TKUnaryMinus:
-        return 95;
+        return 105;
+    case TKArrayOpen:
+        return 1;
     case TKKeyword_return:
         return 25;
     case TKPeriod:
@@ -693,8 +677,10 @@ uint8_t TokenKind_getPrecedence(TokenKind kind)
     case TKTimesEq:
     case TKSlashEq:
         return 20;
-    case TKComma:
+    case TKOpComma:
         return 10;
+    case TKOpSemiColon:
+        return 9;
     case TKKeyword_do:
         return 5;
         //    case TKParenOpen:
@@ -856,8 +842,10 @@ class Token {
             return TKTab;
         case ':':
             return TKOpColon;
+        case ';':
+            return TKOpSemiColon;
         case ',':
-            return TKComma;
+            return TKOpComma;
         case '?':
             return TKQuestion;
         case '"':
@@ -955,6 +943,9 @@ class Token {
             } else if (isdigit(c)) {
                 return TKDigit;
             } else {
+                fprintf(stderr,
+                    "Unknown token starting with '%c' at %d:%d\n", *pos,
+                    line, col);
                 return TKUnknown;
             }
             break;
@@ -1031,7 +1022,10 @@ class Token {
             tt_ret = TKSpaces;
             break;
 
-        case TKComma:
+        case TKOpComma:
+        case TKOpSemiColon:
+            tt_ret = tt; // TKOpComma;
+
             while (tt != TKNullChar) {
                 tt = peek_nextchar();
                 advance1();
@@ -1054,7 +1048,6 @@ class Token {
                 }
                 if (tt != TKSpaces and tt != TKNewline) break;
             }
-            tt_ret = TKComma;
             break;
 
         case TKArrayOpen:
@@ -1064,7 +1057,7 @@ class Token {
             while (tt != TKNullChar) {
                 tt = peek_nextchar();
                 advance1();
-                if (tt != TKOpColon and tt != TKComma) break;
+                if (tt != TKOpColon and tt != TKOpComma) break;
             }
             tt = gettype();
             if (tt != TKArrayClose) {
@@ -1133,8 +1126,9 @@ class Token {
                     found_e = true;
                     continue;
                 }
-                if (found_e) { //}and (*token.pos == '-' or *token.pos ==
-                               //'+'))
+                if (found_e) {
+                    //}and (*token.pos == '-' or *token.pos ==
+                    //'+'))
                                //{
                     found_e = false;
                     continue;
@@ -1143,23 +1137,14 @@ class Token {
                     found_dot = true;
                     continue;
                 }
-                if (found_dot and tt == TKPeriod) {
+                if (found_dot and tt == TKPeriod)
                     tt_ret = TKMultiDotNumber;
-                    //                                fprintf(stderr, "raise
-                    //                                error: multiple dots
-                    //                                in number\n"); break;
-                }
-                // lets allow that for IP addresses etc., or just bytes
+
                 if (tt != TKDigit and tt != TKPeriod) break;
             }
             break;
 
-            /* case TKNl:
-                 token.line++;
-                 token.col=1;
-                 break; */
         case TKMinus:
-            //        case TKPlus:
 
             switch (tt_lastNonSpace) {
             case TKParenClose:
@@ -1171,14 +1156,14 @@ class Token {
                 tt_ret = tt;
                 break;
             default:
-                tt_ret = TKUnaryMinus; //(tt==TKMinus) ? TKUnaryMinus ?
-                                       // TKUnaryPlus;
+                tt_ret = TKUnaryMinus;
                 break;
             }
             advance1();
             break;
 
-        case TKOpNotResults: // 3-char tokens
+        case TKOpNotResults:
+            // 3-char tokens
             advance1();
         case TKOpEQ:
         case TKOpGE:
@@ -1186,11 +1171,8 @@ class Token {
         case TKOpNE:
         case TKOpResults:
         case TKBackslash:
-            // case TKBraceEmpty:
-            // case TKParenEmpty:
-            // two-char tokens
+            // 2-char tokens
             advance1();
-            // don'self break
         default:
         defaultToken:
             tt_ret = tt;
@@ -1214,8 +1196,7 @@ class Token {
             tt_lastNonSpace = tt_last;
     }
 
-    // Advances the parser to the next token and skips whitespace if the
-    // parser's flag `skipws` is set.
+    // Advance to the next token (skip whitespace if `skipws` is set).
     void advance()
     {
         switch (kind) {
@@ -1265,6 +1246,7 @@ class Token {
         col += matchlen;
         matchlen = 0;
         detect();
+
         if (flags.skipWhiteSpace
             and (kind == TKSpaces
                 or (flags.strictSpacing and kind == TKOneSpace)))
@@ -1279,11 +1261,9 @@ class Token {
 const char* const spaces
     = "                                                                 ";
 const char* const dashes =
-    //"\n------------------------------------------------------------------------";
     "\n____________________________________________________________________"
     "____\n";
 const char* const equaltos =
-    //"\n------------------------------------------------------------------------";
     "\n===================================================================="
     "====\n";
 
@@ -1425,6 +1405,8 @@ struct ASTExpr {
         // rare cases). so level is not passed on to recursive calls.
         printf("%.*s", level * 4, spaces);
 
+        //        static ASTExpr* lpar = new ASTExpr;
+
         switch (kind) {
         case TKIdentifier:
         case TKNumber:
@@ -1457,6 +1439,7 @@ struct ASTExpr {
             if (kind == TKOpColon) {
                 // expressions like arr[a:x-3:2] should become
                 // arr[a:(x-3):2]
+                // or list literals [8, 9, 6, 77, sin(c)]
                 if (left) switch (left->kind) {
                     case TKNumber:
                     case TKIdentifier:
@@ -1504,6 +1487,8 @@ struct ASTExpr {
             } // right may be null if its empty return
             //             {
             if (kind == TKPower and not spacing) putc('(', stdout);
+            //            if (level and (kind == TKOpComma or
+            //            kind==TKOpSemiColon)) putc('[', stdout);
 
             char lpo = leftBr and left->kind == TKOpColon ? '[' : '(';
             char lpc = leftBr and left->kind == TKOpColon ? ']' : ')';
@@ -1524,6 +1509,11 @@ struct ASTExpr {
             if (rightBr) putc(rpc, stdout);
 
             if (kind == TKPower and not spacing) putc(')', stdout);
+            if (kind == TKArrayOpen)
+                putc(']', stdout); // close a list comprehension / literal
+                                   // [1, 2, 3] etc.
+            //            if (level and (kind == TKOpComma or
+            //            kind==TKOpSemiColon)) putc(']', stdout);
 
             //            }
         }
@@ -2150,6 +2140,7 @@ class Parser {
         Stack<ASTExpr*> rpn, ops, result;
         int prec_top = 0;
         ASTExpr* p = NULL;
+        TokenKind revBrkt = TKUnknown;
         //        bool errExpr = false;
 
         //        token.flags.noKeywordDetect = true;
@@ -2196,35 +2187,55 @@ class Parser {
                 //                // nargs.
                 //            }
                 //                break;
-            case TKParenOpen: {
+            case TKParenOpen: //{
                 ops.push(expr);
                 if (not ops.empty() and ops.top()->kind == TKFunctionCall)
                     rpn.push(expr);
                 // instead of marking with (, could consider pushing a NULL.
                 // (not for func calls & array indexes -- for grouping)
 
-            } break;
-            case TKArrayOpen: {
+                //            }
+                break;
+            case TKArrayOpen:
+                //                {
                 ops.push(expr);
                 if (not ops.empty() and ops.top()->kind == TKSubscript)
                     rpn.push(expr);
-            } break;
+                //            }
+                break;
             case TKParenClose:
             case TKArrayClose:
-            case TKBraceClose: {
+            case TKBraceClose: //{
 
-                TokenKind revBrkt = TokenKind_reverseBracket(expr->kind);
+                revBrkt = TokenKind_reverseBracket(expr->kind);
                 while (not ops.empty()) {
                     p = ops.pop();
                     if (p->kind == revBrkt) break;
                     rpn.push(p);
                 }
+                // we'll push the TKArrayOpen as well to indicate a list
+                // literal or comprehension
+                // TKArrayOpen is a unary op.
+                if (p->kind == TKArrayOpen
+                    and (ops.empty()
+                        or ops.top()->kind
+                            != TKSubscript) // don't do this if its part of
+                                            // a subscript
+                    and (rpn.empty()
+                        or rpn.top()->kind
+                            != TKOpColon)) // or aa range. range exprs are
+                                           // handled separately. by
+                                           // themselves they don't need a
+                                           // surrounding [], but for
+                                           // grouping like 2+[8:66] you do.
+                    rpn.push(p);
 
                 // result.push( expr); // for funcs/arrays only.
                 // or we could not use these as seps but mark the func ident
                 // as TKIdentf and set nargs. NOPE u need to know nargs
                 // before starting to parse args.
-            } break;
+                //            }
+                break;
             case TKKeyword_return:
                 // to treat empty return, push a NULL if there is no expr
                 // coming.
@@ -2241,7 +2252,7 @@ class Parser {
                                 and ops.top()->kind != TKOpColon)
                             or (rpn.top() and rpn.top()->kind == TKOpColon
                                 and !ops.empty()
-                                and (ops.top()->kind == TKComma
+                                and (ops.top()->kind == TKOpComma
                                     or ops.top()->kind
                                         == TKArrayOpen)) // <<-----
                                                          // yesssssssssss
@@ -2258,9 +2269,11 @@ class Parser {
                         if (prec == prec_top and rassoc) break;
                         p = ops.pop();
 
-                        if (p->kind != TKComma and p->kind != TKFunctionCall
+                        if (p->kind != TKOpComma
+                            and p->kind != TKOpSemiColon
+                            and p->kind != TKFunctionCall
                             and p->kind != TKSubscript and rpn.top()
-                            and rpn.top()->kind == TKComma) {
+                            and rpn.top()->kind == TKOpComma) {
                             errorUnexpectedToken();
                             goto error;
                         }
@@ -2309,9 +2322,9 @@ class Parser {
         {
             p = ops.pop();
 
-            if (p->kind != TKComma and p->kind != TKFunctionCall
+            if (p->kind != TKOpComma and p->kind != TKFunctionCall
                 and p->kind != TKSubscript and p->kind != TKArrayOpen
-                and rpn.top() and rpn.top()->kind == TKComma) {
+                and rpn.top() and rpn.top()->kind == TKOpComma) {
                 errorUnexpectedExpr(rpn.top()); // errorUnexpectedToken();
                 goto error;
             }
@@ -2479,7 +2492,7 @@ class Parser {
         do {
             arg = parseVar();
             args.append(arg);
-        } while (ignore(TKComma));
+        } while (ignore(TKOpComma));
 
         discard(TKParenClose);
         token.flags.mergeArrayDims = false;
@@ -2584,7 +2597,7 @@ class Parser {
             if (ignore(TKOpColon)) param->typeSpec = parseTypeSpec();
             if (ignore(TKOpAssign)) param->init = parseExpr();
             params.append(param);
-        } while (ignore(TKComma));
+        } while (ignore(TKOpComma));
 
         discard(TKOpGT);
         return params;
@@ -2803,8 +2816,7 @@ int main(int argc, char* argv[])
             fprintf(stderr, "*** %d errors\n", parser->errCount);
         if (parser->warnCount)
             fprintf(stderr, "*** %d warnings\n", parser->warnCount);
-        fprintf(stderr,
-            "*** Your code will not run. Have you considered reading it?");
+        fprintf(stderr, "    *Reading* the code helps, sometimes.");
         fputs(equaltos, stderr);
         return 1;
     };
