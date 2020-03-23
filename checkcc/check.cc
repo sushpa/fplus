@@ -1,5 +1,18 @@
-
-
+// AS A RULE
+// Nothing except Parser should allocate any memory.
+// if you need new strings, Parser should have anticipated that in advance at
+// its init and strdup'd them ready for use (e.g. variations of module names).
+// If you use a single pool for everything, free parsers manually when done.
+// OR
+// have one pool for Parser and one for everything else. This way Parser will
+// have its destructors auto called and since it is the only one that needs
+// destructors to be called, this will get rid of the memory leaks.
+// as a bonus, all AST objects can store a 2-byte index of the associated
+// parser in the Parser pool, and store offsets to strings instead of char*.
+// if bringing down ASTExpr to 16KB can help, consider having a separate pool
+// only for ASTExpr, then left/right ptrs are 32-bit indexes into this pool.
+//
+//----------
 // LINTER should work only on TOKENS! No need to build a tree for that.
 // Right now however the linter generates the AST and dumps it back. This is
 // more to understand and debug the AST generation -- the production linter
@@ -71,6 +84,13 @@ line); return NULL;
     ad_size[ptr] = size;
 }
 */
+
+static int globalCallocCount =0;
+#define calloc(n,s) calloc(n,s); globalCallocCount++;
+static int globalMallocCount =0;
+#define malloc(s) malloc(s); globalMallocCount++;
+static int globalStrdupCount =0;
+#define strdup(s) strdup(s); globalStrdupCount++;
 
 #pragma mark - String Functions
 
@@ -226,27 +246,29 @@ template <class T> class Stack {
 #pragma mark - Pool
 
 static size_t globalMemAllocBytes = 0;
+static size_t globalMemUsedBytes = 0;
 
-template <class T> class Pool {
+template <class T, int elementsPerBlock = 512> struct Pool {
     T* ref = NULL;
-    uint32_t cap = 0, elementsPerBlock = 512, total = 0;
+    uint32_t cap__unused = 0, total = 0;
     Stack<T*> ptrs;
 
-    public:
-    uint32_t count = elementsPerBlock;
+//    public:
+    uint32_t count = 0; //elementsPerBlock;
 
     T* alloc()
     {
-        if (count >= elementsPerBlock) {
+        if (!ref or count >= elementsPerBlock) {
             if (ref) ptrs.push(ref);
             ref = (T*)calloc(elementsPerBlock, sizeof(T));
             count = 0;
+            globalMemAllocBytes += elementsPerBlock* sizeof(T);
         }
         total++;
-        globalMemAllocBytes += sizeof(T);
+        globalMemUsedBytes += sizeof(T);
         return &ref[count++];
     }
-    ~Pool<T>()
+    ~Pool()
     {
         for (int j = 0; j < count; j++) {
             T* obj = &(ref[j]);
@@ -264,26 +286,130 @@ template <class T> class Pool {
             free(ptrs[i]);
         }
     }
-    static const char* _typeName()
-    {
-        const char* a = "Pool<";
-        char* ret = strcat(a, T::_typeName());
-        ret = strcat(ret, ">");
-        return ret;
-    }
+//    static const char* _typeName()
+//    {
+//        const char* a = "Pool<";
+//        char* ret = strcat(a, T::_typeName());
+//        ret = strcat(ret, ">");
+//        return ret;
+//    }
     void stat()
     {
-        fprintf(stderr, "*** %-16s %4ld B x %4d = %ld B\n", T::_typeName(),
-            sizeof(T), total, total * sizeof(T));
+        fprintf(stderr, "*** %-16s %4ld B x %5d = %7ld B (%d allocs)\n", T::_typeName,
+            sizeof(T), total, total * sizeof(T), ptrs.count + (ref?1:0));
     }
 };
+
+#define min(a, b) ((a)<(b))?(a):(b)
+#define KB *1024
+//template < int elementsPerBlock = 512>
+class PoolB {
+//    static const int B = 1;
+      int32_t sizePerPool = 0; // is 0 by default // = 16 * 1024; // TODO: figure out best size to be allocated on each call.
+    void* ref = NULL;
+    uint32_t cap__unused = 0, total = 0;
+//    posix_memalign (void **memptr, size_t alignment, size_t size);
+    Stack<void*> ptrs;
+
+public:
+    int32_t pos = 0; // = sizePerPool; // pos of the next alloc
+
+    void* alloc(size_t size)
+    {
+        void* ans = NULL;
+        if (pos+size > sizePerPool) {
+            if (ref) ptrs.push(ref);
+//            switch(B) {
+//            case 16:
+//            case 32:
+//            case 64:
+//            case 128:
+//                posix_memalign(&ref, B, elementsPerBlock * B);
+//                break;
+//            default:
+            sizePerPool = sizePerPool? min(2*sizePerPool, 256 KB) : 16 KB;
+            ref = calloc(sizePerPool, 1);
+//            }
+            pos = 0;
+            globalMemAllocBytes += sizePerPool; //sizeof(T);
+        }
+        total++;
+        globalMemUsedBytes += size; //sizeof(T);
+        ans= (void*)((uintptr_t)ref + pos ); //&ref[count++];
+        pos += size;
+        return ans;
+//        return ret;
+
+    }
+    ~PoolB() // cant call destructors since the exact type isn't known. DO IT MANUALLY!
+    {
+//        for (int j = 0; j < count; j++) {
+//            T* obj = &(ref[j]);
+//            obj->~T();
+//        }
+        free(ref);
+
+//        int k = 0;
+        for (int i = 0; i < ptrs.count; i++) {
+//            for (int j = 0; j < elementsPerBlock; j++) {
+//                if (++k >= total) break;
+//                T* obj = &(ptrs[i][j]);
+//                obj->~T();
+//            }
+            free(ptrs[i]);
+        }
+    }
+//    static const char* _typeName()
+//    {
+//        const char* a = "PoolB<B>";
+// //        char* ret = strcat(a, T::_typeName());
+// //        ret = strcat(ret, ">");
+//        return a;
+//    }
+    void stat()
+    {
+        fprintf(stderr, "*** PoolB %4d allocations\n",
+                  total);
+    }
+};
+//int32_t PoolB::sizePerPool = 16 * 1024; // intial, this will double on every alloc
+
+PoolB poolb;
+
+// single pool
+#define STHEAD_POOLB(T, s) \
+static Pool<T, s> pool; \
+/*leaving this unused since inits are present */ \
+void* operator new(size_t size) { \
+pool.total++;\
+/* sneaky, count in pool, but allocate from poolb */ \
+return poolb.alloc(size); } \
+static  char*  _typeName ;
+
+//individual pools
+#define STHEAD_POOL(T, s) \
+static Pool<T, s> pool; \
+void* operator new(size_t size) { return pool.alloc(); } \
+static  char*  _typeName ;
+
+#define NAME_CLASS(T)  char* T::_typeName = (char*)#T;
+
+#define STHEAD(T, s) STHEAD_POOLB(T, s) // common pool for all
+//#define STHEAD(T, s) STHEAD_POOL(T, s) // own pool for each class
+
+// Strategies
+// - use own pool for each class but guess the pool block size based on
+//   file size, separately for each class based on its expected no. of
+//   instantiations. this approach is leakproof (hopefully).
+// - use single pool of (void*) but call destructors manually.
 
 #pragma mark - List
 
 template <class T> class List {
     public:
-    static Pool<List<T> > pool;
-    void* operator new(size_t size) { return pool.alloc(); }
+//    static Pool<List<T> > pool;
+//    void* operator new(size_t size) { return pool.alloc(); }
+    STHEAD(List<T>,512)
 
     T item = NULL;
 
@@ -1303,9 +1429,12 @@ const char* const dashes =
 const char* const equaltos =
     "\n=================================================================\n";
 
+
 #pragma mark - AST Import
 
-struct ASTImport {
+struct ASTImport { //canbe 8
+    STHEAD(ASTImport, 32)
+
     char* importFile;
     uint32_t aliasOffset;
     // generally this is not changed (the alias), at least not by the
@@ -1314,9 +1443,9 @@ struct ASTImport {
     // extra space and use that as a string pool. This way we can make new
     // strings while still referring to them using a uint32.
     bool isPackage = false, hasAlias = false;
-    static Pool<ASTImport> pool;
-    void* operator new(size_t size) { return pool.alloc(); }
-    static const char* _typeName() { return "ASTImport"; }
+//    static Pool<ASTImport> pool;
+//    void* operator new(size_t size) { return pool.alloc(); }
+//    static const char* _typeName() { return "ASTImport"; }
     void gen(int level)
     {
         printf("import %s%s%s%s\n", isPackage ? "@" : "", importFile,
@@ -1328,12 +1457,13 @@ struct ASTImport {
 #pragma mark - AST Units
 
 struct ASTUnits {
-    static Pool<ASTUnits> pool;
-    void* operator new(size_t size) { return pool.alloc(); }
-    static const char* _typeName() { return "ASTUnits"; }
+//    static Pool<ASTUnits> pool;
+//    void* operator new(size_t size) { return pool.alloc(); }
+//    static const char* _typeName() { return "ASTUnits"; }
+    STHEAD(ASTUnits, 32)
 
     uint8_t powers[7], something;
-    double factor, factors[7];
+    double factor, factors[7]; //maybe getrid of factors[7]
     char* label;
     void gen(int level) { printf("|%s", label); }
 };
@@ -1348,9 +1478,10 @@ struct ASTVar;
 #pragma mark - AST TypeSpec
 
 struct ASTTypeSpec {
-    static Pool<ASTTypeSpec> pool;
-    void* operator new(size_t size) { return pool.alloc(); }
-    static const char* _typeName() { return "ASTTypeSpec"; }
+//    static Pool<ASTTypeSpec> pool;
+//    void* operator new(size_t size) { return pool.alloc(); }
+//    static const char* _typeName() { return "ASTTypeSpec"; }
+    STHEAD(ASTTypeSpec, 128)
 
     // char* typename; // use name
     union {
@@ -1437,20 +1568,21 @@ struct ASTTypeSpec {
 static uint32_t exprsAllocHistogram[128];
 
 void expralloc_stat() {
-    int iexpr, sum=0;
+    int iexpr, sum=0, thres=0;
     for (int i=0;i<128;i++) sum+= exprsAllocHistogram[i];
-
-    fprintf(stderr,"  Kind        #      %%\n");
+    thres = sum / 20;
+    fprintf(stderr,"Expr alloc distribution (>5%%):\n  Kind        #      %%\n");
     for (int i=0;i<128;i++) {
-        if ((iexpr=exprsAllocHistogram[i]))
+        if ((iexpr=exprsAllocHistogram[i]) > thres)
             fprintf(stderr, "  %-8s %4d %6.2f\n" , TokenKind_repr((TokenKind)i, false), iexpr, iexpr *100.0 / sum);
     }
 }
 
 struct ASTVar {
-    static Pool<ASTVar> pool;
-    void* operator new(size_t size) { return pool.alloc(); }
-    static const char* _typeName() { return "ASTVar"; }
+    STHEAD(ASTVar, 128)
+//    static Pool<ASTVar> pool;
+//    void* operator new(size_t size) { return pool.alloc(); }
+//    static const char* _typeName() { return "ASTVar"; }
 
     ASTTypeSpec* typeSpec = NULL;
     ASTExpr* init = NULL;
@@ -1467,11 +1599,13 @@ struct ASTVar {
 
     void gen(int level = 0);
 };
-struct ASTExpr {
-    static Pool<ASTExpr> pool;
-    void* operator new(size_t size) { return pool.alloc(); }
 
-    static const char* _typeName() { return "ASTExpr"; }
+struct ASTExpr {
+    STHEAD(ASTExpr, 1024)
+//    static Pool<ASTExpr> pool;
+//    void* operator new(size_t size) { return pool.alloc(); }
+//
+//    static const char* _typeName() { return "ASTExpr"; }
     struct {
         uint16_t line = 0;
         union {
@@ -1512,6 +1646,7 @@ struct ASTExpr {
         ASTVar* var; // for array subscript, or to refer to a variable
         ASTScope* body; // for if/for/while
         ASTExpr* right;
+        /* struct {uint32_t left, right}; // for 32-bit ptrs to local pool */
     };
     //    };
 
@@ -1583,9 +1718,11 @@ void ASTVar::gen(int level)
 #pragma mark - AST Scope
 
 struct ASTScope {
-    static Pool<ASTScope> pool;
-    void* operator new(size_t size) { return pool.alloc(); }
-    static const char* _typeName() { return "ASTScope"; }
+//    static Pool<ASTScope> pool;
+//    void* operator new(size_t size) { return pool.alloc(); }
+//    static const char* _typeName() { return "ASTScope"; }
+    STHEAD(ASTScope, 32)
+
     List<ASTExpr*> stmts;
     List<ASTVar*> locals;
     ASTScope* parent = NULL; // fixme: can be type, func, or scope
@@ -1775,9 +1912,10 @@ class ASTNodeRef {
 #pragma mark - AST Type
 
 struct ASTType {
-    static Pool<ASTType> pool;
-    void* operator new(size_t size) { return pool.alloc(); }
-    static const char* _typeName() { return "ASTType"; }
+//    static Pool<ASTType> pool;
+//    void* operator new(size_t size) { return pool.alloc(); }
+//    static const char* _typeName() { return "ASTType"; }
+    STHEAD(ASTType, 32)
 
     List<ASTVar*> vars; // vars contained in this type
     ASTTypeSpec* super = NULL;
@@ -1845,9 +1983,10 @@ struct ASTType {
 #pragma mark - AST Func
 
 struct ASTFunc {
-    static Pool<ASTFunc> pool;
-    void* operator new(size_t size) { return pool.alloc(); }
-    static const char* _typeName() { return "ASTFunc"; }
+//    static Pool<ASTFunc> pool;
+//    void* operator new(size_t size) { return pool.alloc(); }
+//    static const char* _typeName() { return "ASTFunc"; }
+    STHEAD(ASTFunc, 64)
 
     ASTScope* body;
     List<ASTVar*> args;
@@ -1910,9 +2049,10 @@ struct ASTFunc {
 #pragma mark - AST Module
 
 struct ASTModule {
-    static Pool<ASTModule> pool;
-    void* operator new(size_t size) { return pool.alloc(); }
-    static const char* _typeName() { return "ASTModule"; }
+//    static Pool<ASTModule> pool;
+//    void* operator new(size_t size) { return pool.alloc(); }
+//    static const char* _typeName() { return "ASTModule"; }
+    STHEAD(ASTModule, 16)
 
     List<ASTFunc*> funcs;
     List<ASTExpr*> exprs;
@@ -1920,10 +2060,12 @@ struct ASTModule {
     List<ASTVar*> globals;
     List<ASTImport*> imports;
     List<ASTFunc*> tests;
+
     char* name;
     char* moduleName = NULL; // mod.submod.xyz.mycode
     char* mangledName = NULL; // mod_submod_xyz_mycode
     char* capsMangledName = NULL; // MOD_SUBMOD_XYZ_MYCODE
+
     void gen(int level = 0)
     {
         printf("! module %s\n", name);
@@ -1973,21 +2115,6 @@ static void print_sizes()
 // 1-way pools based on type (no freeing)
 // rename this to node pool
 
-void alloc_stat()
-{
-    ASTImport::pool.stat();
-    //    ASTUnits::pool.stat();
-    ASTExpr::pool.stat();
-    ASTVar::pool.stat();
-    ASTType::pool.stat();
-    //    ASTStmt::pool.stat();
-    ASTScope::pool.stat();
-    ASTTypeSpec::pool.stat();
-    ASTFunc::pool.stat();
-    ASTModule::pool.stat();
-//        List<ASTExpr*>::pool.stat();
-    fprintf(stderr, "Total nodes %lu B\n", globalMemAllocBytes);
-}
 
 #pragma mark - Parser
 
@@ -2004,11 +2131,13 @@ class Parser {
     List<ASTModule*> modules; // module node of the AST
     Stack<ASTScope*> scopes; // a stack that keeps track of scope nesting
 
-    public:
-    static Pool<Parser> pool;
+public:
+    STHEAD_POOL(Parser, 16)
+
+//    static Pool<Parser> pool;
     size_t dataSize() {return end-data;}
-    void* operator new(size_t size) { return pool.alloc(); }
-    static const char* _typeName() { return "Parser"; }
+//    void* operator new(size_t size) { return pool.alloc(); }
+//    static const char* _typeName() { return "Parser"; }
 
 #define STR(x) STR_(x)
 #define STR_(x) #x
@@ -2689,10 +2818,10 @@ class Parser {
     ASTType* parseType()
     {
         auto type = new ASTType; // exprFromCurrentToken();
-        union {
+//        union {
             ASTExpr* expr;
             ASTVar* var;
-        };
+//        };
 
         discard(TKKeyword_type);
         discard(TKOneSpace);
@@ -2831,20 +2960,66 @@ class Parser {
     }
 };
 
-Pool<ASTTypeSpec> ASTTypeSpec::pool;
-Pool<ASTVar> ASTVar::pool;
-Pool<ASTImport> ASTImport::pool;
-Pool<ASTModule> ASTModule::pool;
-Pool<ASTFunc> ASTFunc::pool;
-Pool<ASTType> ASTType::pool;
-Pool<ASTExpr> ASTExpr::pool;
-Pool<ASTScope> ASTScope::pool;
-Pool<Parser> Parser::pool;
+Pool<ASTTypeSpec,128> ASTTypeSpec::pool;
+Pool<ASTVar,128> ASTVar::pool;
+Pool<ASTImport,32> ASTImport::pool;
+Pool<ASTModule,16> ASTModule::pool;
+Pool<ASTFunc,64> ASTFunc::pool;
+Pool<ASTType,32> ASTType::pool;
+Pool<ASTExpr,1024> ASTExpr::pool;
+Pool<ASTScope,32> ASTScope::pool;
+Pool<Parser,16> Parser::pool;
+
+NAME_CLASS(Parser)
+NAME_CLASS(ASTVar)
+NAME_CLASS(ASTTypeSpec)
+NAME_CLASS(ASTModule)
+NAME_CLASS(ASTFunc)
+NAME_CLASS(ASTType)
+NAME_CLASS(ASTImport)
+NAME_CLASS(ASTScope)
+NAME_CLASS(ASTUnits)
+NAME_CLASS(ASTExpr)
+template <> NAME_CLASS(List<ASTExpr*>)
+template <> NAME_CLASS(List<ASTFunc*>)
+template <> NAME_CLASS(List<ASTModule*>)
+template <> NAME_CLASS(List<ASTType*>)
+template <> NAME_CLASS(List<ASTVar*>)
+template <> NAME_CLASS(List<ASTScope*>)
+template <> NAME_CLASS(List<ASTImport*>)
+
+
+
+
+void alloc_stat()
+{
+    ASTImport::pool.stat();
+    //    ASTUnits::pool.stat();
+    ASTExpr::pool.stat();
+    ASTVar::pool.stat();
+    ASTType::pool.stat();
+    //    ASTStmt::pool.stat();
+    ASTScope::pool.stat();
+    ASTTypeSpec::pool.stat();
+    ASTFunc::pool.stat();
+    ASTModule::pool.stat();
+    List<ASTExpr*>::pool.stat();
+    List<ASTVar*>::pool.stat();
+    List<ASTModule*>::pool.stat();
+    List<ASTFunc*>::pool.stat();
+    List<ASTType*>::pool.stat();
+    List<ASTImport*>::pool.stat();
+    List<ASTScope*>::pool.stat();
+    Parser::pool.stat();
+    //        List<ASTExpr*>::pool.stat();
+    fprintf(stderr, "Total nodes allocated %lu B, used %lu B (%.2f%%)\n", globalMemAllocBytes, globalMemUsedBytes, globalMemUsedBytes * 100.0 / globalMemAllocBytes);
+}
 
 #pragma mark - main
 int main(int argc, char* argv[])
 {
     if (argc == 1) return 1;
+    bool printDiagnostics = (argc>2 && *argv[2]=='d') or true;
 
     auto parser = new Parser(argv[1]);
 
@@ -2863,8 +3038,14 @@ int main(int argc, char* argv[])
 
     foreach(mod, mods, modules) mod->gen();
 
+    if (printDiagnostics){
     fprintf(stderr, "file %lu B\n", parser->dataSize());
     alloc_stat();
+    fputs( "total global counts:\n", stderr);
+    fprintf(stderr, "calloc: %d\n", globalCallocCount);
+    fprintf(stderr, "malloc: %d\n", globalMallocCount);
+    fprintf(stderr, "strdup: %d\n", globalStrdupCount);
     expralloc_stat();
+    }
     return 0;
 }

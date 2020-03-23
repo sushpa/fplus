@@ -1,11 +1,13 @@
-all: release debug
+all: release debug small
 
-CCFLAGS=-std=c++11 -nodefaultlibs -fno-rtti -fno-exceptions -fno-threadsafe-statics -lc
+CCFLAGS=-std=c++11 -s -nodefaultlibs -flto -fwhole-program -fno-rtti -fno-exceptions -fno-threadsafe-statics
 CPP=g++
 
 release: check.cc
-	$(CPP) -O3 $(CCFLAGS) check.cc -o checkcc
+	$(CPP) -O3 $(CCFLAGS) check.cc -lc -o checkcc
+
+small: check.cc
+	$(CPP) -Os $(CCFLAGS) check.cc /usr/lib/libc.a -o checkcc-s
 
 debug: check.cc
-	$(CPP) -g -O0 $(CCFLAGS) check.cc -o checkcc-dbg
-
+	$(CPP) -g -O0 $(CCFLAGS) check.cc -lc -o checkcc-dbg
