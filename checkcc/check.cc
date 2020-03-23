@@ -25,6 +25,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <cmath>
+#define STEP 4
 
 #pragma mark - Heap Allocation Extras
 
@@ -272,7 +273,7 @@ template <class T> class Pool {
     }
     void stat()
     {
-        fprintf(stderr, "*** %-16s %ld B x %3d = %ld B\n", T::_typeName(),
+        fprintf(stderr, "*** %-16s %4ld B x %4d = %ld B\n", T::_typeName(),
             sizeof(T), total, total * sizeof(T));
     }
 };
@@ -478,19 +479,19 @@ const char* TokenKind_repr(const TokenKind kind, bool spacing = true)
     case TKSubscript:
         return "a[]";
     case TKNumber:
-        return "#";
+        return "num";
         //    case TKWs:
         //        return "(ws)";
     case TKMultiDotNumber:
-        return "#.";
+        return "1.2.3.4";
     case TKSpaces:
-        return "(spc)";
+        return "spc";
     case TKTab:
         return "(tab)";
     case TKNewline:
-        return "(nl)";
+        return "nl";
     case TKLineComment:
-        return "(cmt)";
+        return "cmt";
     case TKAmpersand:
         return "&";
     case TKDigit:
@@ -566,13 +567,13 @@ const char* TokenKind_repr(const TokenKind kind, bool spacing = true)
         //    case TKStringEmpty:
         //        return "\"\"";
     case TKString:
-        return "\"..\"";
+        return "str";
     case TKRegexBoundary:
         return "'";
         //    case TKRegexEmpty:
         //        return "''";
     case TKRegex:
-        return "(rgx)";
+        return "rgx";
     case TKInlineBoundary:
         return "`";
         //    case TKInlineEmpty:
@@ -647,6 +648,7 @@ uint8_t TokenKind_getPrecedence(TokenKind kind)
         return 70;
     case TKTimes:
     case TKSlash:
+    case TKOpMod:
         return 60;
     case TKPlus:
     case TKMinus:
@@ -901,6 +903,8 @@ class Token {
                 return TKOpLE;
                 //        case '<':
                 //            return TKOpLeftShift;
+            case '>':
+                return TKOpNE; // NE variants are !=, <>, =/ (default)
             default:
                 return TKOpLT;
             }
@@ -925,6 +929,10 @@ class Token {
                 return TKOpAssign;
             }
         case '!':
+            switch(cn) {
+            case '=':
+                return TKOpNE;
+            }
             return TKExclamation;
         case '/':
             return TKSlash;
@@ -1426,6 +1434,18 @@ struct ASTTypeSpec {
 };
 
 #pragma mark - AST Var
+static uint32_t exprsAllocHistogram[128];
+
+void expralloc_stat() {
+    int iexpr, sum=0;
+    for (int i=0;i<128;i++) sum+= exprsAllocHistogram[i];
+
+    fprintf(stderr,"  Kind        #      %%\n");
+    for (int i=0;i<128;i++) {
+        if ((iexpr=exprsAllocHistogram[i]))
+            fprintf(stderr, "  %-8s %4d %6.2f\n" , TokenKind_repr((TokenKind)i, false), iexpr, iexpr *100.0 / sum);
+    }
+}
 
 struct ASTVar {
     static Pool<ASTVar> pool;
@@ -1495,7 +1515,9 @@ struct ASTExpr {
     };
     //    };
 
-    ASTExpr() {}
+    ASTExpr() {
+//        left=NULL;
+    }
     ASTExpr(const Token* token)
     {
         kind = token->kind;
@@ -1507,21 +1529,26 @@ struct ASTExpr {
             opIsRightAssociative = TokenKind_isRightAssociative(kind);
             opIsUnary = TokenKind_isUnary(kind);
         }
+
+        exprsAllocHistogram[kind]++;
+
         switch (kind) {
         case TKIdentifier:
-            strLength = (uint16_t)token->matchlen;
-            name = token->pos; // dup();
-            break;
+//            strLength = (uint16_t)token->matchlen;
+//            name = token->pos; // dup(); // name is same as value.string
+//            break;
         case TKString:
         case TKRegex:
         case TKNumber:
         case TKMultiDotNumber:
+        case TKLineComment: // Line comments go in the AST like regular stmts
             strLength = (uint16_t)token->matchlen;
             value.string = token->pos; // dup();
             break;
         default:;
             // what else? errror
         }
+        if (kind==TKLineComment) value.string++; // the '!' will be trampled
         if (kind == TKNumber) {
             // turn all 1.0234[DdE]+01 into 1.0234e+01.
             // right now this is not null terminated. actually this should
@@ -1539,11 +1566,11 @@ struct ASTExpr {
 
 void ASTVar::gen(int level)
 {
-    printf("%.*s%s%s", level * 4, spaces,
+    printf("%.*s%s%s", level, spaces,
            flags.isVar ? "var " : flags.isLet ? "let " : "", name);
     if (typeSpec) {
         printf(" as ");
-        typeSpec->gen(level + 1);
+        typeSpec->gen(level+STEP);
     } else
         printf(" as Unknown");
     if (init) {
@@ -1582,14 +1609,20 @@ void ASTExpr::gen(int level , bool spacing )
 {
     // generally an expr is not split over several lines (but maybe in
     // rare cases). so level is not passed on to recursive calls.
-    printf("%.*s", level * 4, spaces);
+    printf("%.*s", level, spaces);
 
     switch (kind) {
+//    case TKLineComment: // Line comments are part of the AST
+//        puts("lc");
     case TKIdentifier:
     case TKNumber:
     case TKMultiDotNumber:
     case TKString:
         printf("%.*s", strLength, value.string);
+        break;
+
+    case TKLineComment:
+        printf("%s%.*s", *value.string==' ' ? "!" :"! " , strLength, value.string);
         break;
 
     case TKFunctionCall:
@@ -1609,8 +1642,8 @@ void ASTExpr::gen(int level , bool spacing )
     case TKKeyword_while:
         printf("%s ", TokenKind_repr(kind));
         if (left) left->gen(0); puts("");
-        if (body) body->gen(level+1);
-        printf("%.*send %s",level*4,spaces, TokenKind_repr(kind));
+        if (body) body->gen(level+STEP);
+        printf("%.*send %s",level,spaces, TokenKind_repr(kind));
         break;
 
     default:
@@ -1786,14 +1819,14 @@ struct ASTType {
 
         foreach (var, vars, this->vars) {
             if (!var) continue;
-            var->gen(level + 1);
+            var->gen(level+STEP);
             puts("");
         }
         //        }
         //        if (this->checks.item) {
         foreach (check, checks, this->checks) {
             if (!check) continue;
-            check->gen(level + 1);
+            check->gen(level+STEP);
             puts("");
         }
         //        }
@@ -1869,7 +1902,7 @@ struct ASTFunc {
             returnType->gen(level);
         }
         puts("");
-        body->gen(level + 1);
+        body->gen(level+STEP);
         puts("end function\n");
     }
 };
@@ -1953,7 +1986,7 @@ void alloc_stat()
     ASTFunc::pool.stat();
     ASTModule::pool.stat();
 //        List<ASTExpr*>::pool.stat();
-    fprintf(stderr, "Total %lu B\n", globalMemAllocBytes);
+    fprintf(stderr, "Total nodes %lu B\n", globalMemAllocBytes);
 }
 
 #pragma mark - Parser
@@ -1973,6 +2006,7 @@ class Parser {
 
     public:
     static Pool<Parser> pool;
+    size_t dataSize() {return end-data;}
     void* operator new(size_t size) { return pool.alloc(); }
     static const char* _typeName() { return "Parser"; }
 
@@ -2524,19 +2558,22 @@ class Parser {
         auto scope = new ASTScope;
 
 //        union {
-            ASTScope* subScope = NULL;
-            ASTVar* var = NULL;
+//            ASTScope* subScope = NULL;
+        ASTVar* var = NULL;
         ASTExpr *expr = NULL;
-        TokenKind tt;
+        TokenKind tt = TKUnknown; // ALWAYS INITIALIZE ENUMS TO AN OUTOFBAND VALUE ("UNKNOWN")! Always have an outofband enum member unknown (=-1);
 //        }; // last variable encountered
 
         // don't conflate this with the while in parse(): it checks against
         // file end, this checks against the keyword 'end'.
         while (token.kind != TKKeyword_end) {
+
             switch (token.kind) {
+
             case TKNullChar:
                 errorExpectedToken(TKUnknown);
                 goto exitloop;
+
             case TKKeyword_var:
                 var = parseVar();
                 if (!var) continue;
@@ -2575,10 +2612,16 @@ class Parser {
                 discard(tt);
                 scope->stmts.append(expr);
                 break;
+
             case TKNewline:
-            case TKLineComment:
             case TKOneSpace: // found at beginning of line
                 break;
+
+            case TKLineComment:
+                expr = new ASTExpr(&token);
+                scope->stmts.append(expr);
+                break;
+
             default:
                 scope->stmts.append(parseExpr());
                 break;
@@ -2589,6 +2632,7 @@ class Parser {
         return scope;
     }
 
+#pragma mark -
     List<ASTVar*> parseParams()
     {
         discard(TKOpLT);
@@ -2658,31 +2702,39 @@ class Parser {
         while (token.kind != TKKeyword_end) {
             switch (token.kind) {
             case TKNullChar:
-                errorExpectedToken(TKUnknown); // return NULL;
+                errorUnexpectedToken(); // return NULL;
                 goto exitloop;
+
             case TKKeyword_var:
                 var = parseVar();
                 if (!var) continue;
                 type->vars.append(var);
-
                 break;
+
             case TKKeyword_base:
                 discard(TKKeyword_base);
                 discard(TKOneSpace);
                 type->super = parseTypeSpec();
+                break;
+
             case TKIdentifier:
                 break;
 //            case TKKeyword_check:
 //                break;
             case TKNewline:
-            case TKLineComment:
             case TKOneSpace:
+                token.advance();
+                break;
+            case TKLineComment:
+                expr = exprFromCurrentToken(); // new ASTExpr(&token);
+                type->checks.append(expr);
                 break;
             default:
                 errorUnexpectedToken();// errorExpectedToken(TKUnknown);
                 break;
             }
-            token.advance();
+//            discard(TKNewline);
+           // token.advance();
         }
     exitloop:
 
@@ -2811,6 +2863,8 @@ int main(int argc, char* argv[])
 
     foreach(mod, mods, modules) mod->gen();
 
-//    alloc_stat();
+    fprintf(stderr, "file %lu B\n", parser->dataSize());
+    alloc_stat();
+    expralloc_stat();
     return 0;
 }
