@@ -38,7 +38,20 @@
 #include <cstdlib>
 #include <cstring>
 #include <cmath>
+
+#include "cycle.h"
+
 #define STEP 4
+
+class Timer {
+    ticks   _tlast;
+public:
+    Timer() {reset();}
+    double lap() {ticks tmp = getticks(); double ret = elapsed(tmp, _tlast)/1.0e9; _tlast = tmp; return ret;} // lap measures from last lap
+    void print() {fprintf(stderr, "Timer: %.3f s\n", lap());}
+//    double diff() {return elapsed(getticks(), _t)/1.0e6; }
+    void reset() {_tlast=getticks(); }
+};
 
 #pragma mark - Heap Allocation Extras
 
@@ -101,6 +114,10 @@ static int globalReallocCount = 0;
 #define realloc(ptr,s)                                                          \
 realloc(ptr,s);                                                             \
 globalReallocCount++;
+static int globalStrlenCount = 0;
+#define strlen(s)                                                          \
+strlen(s);                                                             \
+globalStrlenCount++;
 
 #pragma mark - String Functions
 
@@ -115,11 +132,12 @@ char* str_noext(char* str)
     return s;
 }
 
-char* str_base(char* str, char sep = '/', size_t len = 0)
+char* str_base(char* str, char sep, size_t slen)
 {
+    if (!slen) return str; // you should pass in the len. len 0 is actually valid since basename for 'mod' is 'mod' itself, and this would have caused a call to strlen below. so len 0 now means really just return what came in.
     char* s = str;
-    if (!len) len = strlen(s);
-    char* sc = s + len;
+//    if (!len) len = strlen(s);
+    char* sc = s + slen;
     while (sc > s and sc[-1] != sep)
         sc--;
     if (sc >= s) s = sc;
@@ -267,7 +285,7 @@ template <class T, int elementsPerBlock = 512> struct Pool {
     {
         if (!ref or count >= elementsPerBlock) {
             if (ref) ptrs.push(ref);
-            ref = (T*)calloc(elementsPerBlock, sizeof(T));
+            ref = (T*)malloc(elementsPerBlock* sizeof(T));
             count = 0;
             globalMemAllocBytes += elementsPerBlock * sizeof(T);
         }
@@ -316,11 +334,17 @@ class PoolB {
     void* alloc(size_t size)
     {
         void* ans = NULL;
+        // Do you want to optimise for small files or large files?
+        // For small files, allow 24B-32B nodes and keep small initial buffers.
+        // For large files, make nodes 8B-16B and keep large initial buffers.
+        // Small files will waste space and incur extra work in "32-bit pointer"
+        // dereferencing if you process them with the large files approach.
+        // Large files will take forever to process with the small files approach.
         if (pos + size > sizePerPool) {
             if (ref) ptrs.push(ref);
             sizePerPool
                 = sizePerPool ? min(2 * sizePerPool, 256 KB) : 16 KB;
-            ref = calloc(sizePerPool, 1);
+            ref = malloc(sizePerPool* 1);
             pos = 0;
             globalMemAllocBytes += sizePerPool;
         }
@@ -484,6 +508,7 @@ enum TokenKind {
     TKUnaryMinus,
     TKTimes,
     TKPower,
+    TKTilde,
     TKDollar,
     TKUnits,
     TKUnknown,
@@ -635,6 +660,8 @@ const char* TokenKind_repr(const TokenKind kind, bool spacing = true)
         return "_";
     case TKSlash:
         return spacing ? " / " : "/";
+    case TKTilde:
+        return spacing ? " ~ " : "~";
     case TKBackslash:
         return "\\";
     case TKPlus:
@@ -708,6 +735,7 @@ uint8_t TokenKind_getPrecedence(TokenKind kind)
     case TKKeyword_in:
         return 41;
     case TKOpEQ:
+    case TKTilde: // regex match op e.g. sIdent ~ '[a-zA-Z_][a-zA-Z0-9_]'
     case TKOpNE:
         return 40;
     case TKKeyword_not:
@@ -762,12 +790,18 @@ TokenKind TokenKind_reverseBracket(TokenKind kind)
 
 #pragma mark - Token
 
+const uint8_t TokenKindTable[256] = {
+    /* 0 */ TKNullChar, /* 1 */ TKUnknown, /* 2 */ TKUnknown, /* 3 */ TKUnknown, /* 4 */ TKUnknown, /* 5 */ TKUnknown, /* 6 */ TKUnknown, /* 7 */ TKUnknown, /* 8 */ TKUnknown, /* 9 */ TKUnknown, /* 10 */ TKNewline, /* 11 */ TKUnknown, /* 12 */ TKUnknown, /* 13 */ TKUnknown, /* 14 */ TKUnknown, /* 15 */ TKUnknown, /* 16 */ TKUnknown, /* 17 */ TKUnknown, /* 18 */ TKUnknown, /* 19 */ TKUnknown, /* 20 */ TKUnknown, /* 21 */ TKUnknown, /* 22 */ TKUnknown, /* 23 */ TKUnknown, /* 24 */ TKUnknown, /* 25 */ TKUnknown, /* 26 */ TKUnknown, /* 27 */ TKUnknown, /* 28 */ TKUnknown, /* 29 */ TKUnknown, /* 30 */ TKUnknown, /* 31 */ TKUnknown,
+    /* 32   */ TKSpaces, /* 33 ! */ TKExclamation, /* 34 " */ TKStringBoundary, /* 35 # */TKHash, /* 36 $ */TKDollar, /* 37 % */TKOpMod, /* 38 & */TKAmpersand, /* 39 ' */TKRegexBoundary, /* 40 ( */ TKParenOpen, /* 41 ) */ TKParenClose, /* 42 * */TKTimes, /* 43 + */TKPlus, /* 44 , */TKOpComma, /* 45 - */TKMinus, /* 46 . */TKPeriod, /* 47 / */TKSlash, /* 48 0 */TKDigit, /* 49 1 */TKDigit, /* 50 2 */TKDigit, /* 51 3 */TKDigit, /* 52 4 */TKDigit, /* 53 5 */TKDigit, /* 54 6 */TKDigit, /* 55 7 */TKDigit, /* 56 8 */TKDigit, /* 57 9 */TKDigit, /* 58 : */TKOpColon, /* 59 ; */TKOpSemiColon, /* 60 < */TKOpLT, /* 61 = */TKOpAssign, /* 62 > */TKOpGT, /* 63 ? */TKQuestion, /* 64 @ */TKAt,
+    /* 65 A */ TKAlphabet, /* 66 B */ TKAlphabet, /* 67 C */ TKAlphabet, /* 68 D */ TKAlphabet, /* 69 E */ TKAlphabet, /* 70 F */ TKAlphabet, /* 71 G */ TKAlphabet, /* 72 H */ TKAlphabet, /* 73 I */ TKAlphabet, /* 74 J */ TKAlphabet, /* 75 K */ TKAlphabet, /* 76 L */ TKAlphabet, /* 77 M */ TKAlphabet, /* 78 N */ TKAlphabet, /* 79 O */ TKAlphabet, /* 80 P */ TKAlphabet, /* 81 Q */ TKAlphabet, /* 82 R */ TKAlphabet, /* 83 S */ TKAlphabet, /* 84 T */ TKAlphabet, /* 85 U */ TKAlphabet, /* 86 V */ TKAlphabet, /* 87 W */ TKAlphabet, /* 88 X */ TKAlphabet, /* 89 Y */ TKAlphabet, /* 90 Z */ TKAlphabet,
+    /* 91 [ */TKArrayOpen, /* 92 \ */TKBackslash, /* 93 ] */TKArrayClose, /* 94 ^ */TKPower, /* 95 _ */TKUnderscore, /* 96 ` */TKInlineBoundary,
+    /* 97 a */ TKAlphabet, /* 98 b */ TKAlphabet, /* 99 c */ TKAlphabet, /* 100 d */ TKAlphabet, /* 101 e */ TKAlphabet, /* 102 f */ TKAlphabet, /* 103 g */ TKAlphabet, /* 104 h */ TKAlphabet, /* 105 i */ TKAlphabet, /* 106 j */ TKAlphabet, /* 107 k */ TKAlphabet, /* 108 l */ TKAlphabet, /* 109 m */ TKAlphabet, /* 110 n */ TKAlphabet, /* 111 o */ TKAlphabet, /* 112 p */ TKAlphabet, /* 113 q */ TKAlphabet, /* 114 r */ TKAlphabet, /* 115 s */ TKAlphabet, /* 116 t */ TKAlphabet, /* 117 u */ TKAlphabet, /* 118 v */ TKAlphabet, /* 119 w */ TKAlphabet, /* 120 x */ TKAlphabet, /* 121 y */ TKAlphabet, /* 122 z */ TKAlphabet,
+    /* 123 { */ TKBraceOpen ,/* 124 | */ TKPipe, /* 125 } */ TKBraceClose,  /* 126 ~ */ TKTilde,
+    /* 127 */ TKUnknown, /* 128 */ TKUnknown, /* 129 */ TKUnknown, /* 130 */ TKUnknown, /* 131 */ TKUnknown, /* 132 */ TKUnknown, /* 133 */ TKUnknown, /* 134 */ TKUnknown, /* 135 */ TKUnknown, /* 136 */ TKUnknown, /* 137 */ TKUnknown, /* 138 */ TKUnknown, /* 139 */ TKUnknown, /* 140 */ TKUnknown, /* 141 */ TKUnknown, /* 142 */ TKUnknown, /* 143 */ TKUnknown, /* 144 */ TKUnknown, /* 145 */ TKUnknown, /* 146 */ TKUnknown, /* 147 */ TKUnknown, /* 148 */ TKUnknown, /* 149 */ TKUnknown, /* 150 */ TKUnknown, /* 151 */ TKUnknown, /* 152 */ TKUnknown, /* 153 */ TKUnknown, /* 154 */ TKUnknown, /* 155 */ TKUnknown, /* 156 */ TKUnknown, /* 157 */ TKUnknown, /* 158 */ TKUnknown, /* 159 */ TKUnknown, /* 160 */ TKUnknown, /* 161 */ TKUnknown, /* 162 */ TKUnknown, /* 163 */ TKUnknown, /* 164 */ TKUnknown, /* 165 */ TKUnknown, /* 166 */ TKUnknown, /* 167 */ TKUnknown, /* 168 */ TKUnknown, /* 169 */ TKUnknown, /* 170 */ TKUnknown, /* 171 */ TKUnknown, /* 172 */ TKUnknown, /* 173 */ TKUnknown, /* 174 */ TKUnknown, /* 175 */ TKUnknown, /* 176 */ TKUnknown, /* 177 */ TKUnknown, /* 178 */ TKUnknown, /* 179 */ TKUnknown, /* 180 */ TKUnknown, /* 181 */ TKUnknown, /* 182 */ TKUnknown, /* 183 */ TKUnknown, /* 184 */ TKUnknown, /* 185 */ TKUnknown, /* 186 */ TKUnknown, /* 187 */ TKUnknown, /* 188 */ TKUnknown, /* 189 */ TKUnknown, /* 190 */ TKUnknown, /* 191 */ TKUnknown, /* 192 */ TKUnknown, /* 193 */ TKUnknown, /* 194 */ TKUnknown, /* 195 */ TKUnknown, /* 196 */ TKUnknown, /* 197 */ TKUnknown, /* 198 */ TKUnknown, /* 199 */ TKUnknown, /* 200 */ TKUnknown, /* 201 */ TKUnknown, /* 202 */ TKUnknown, /* 203 */ TKUnknown, /* 204 */ TKUnknown, /* 205 */ TKUnknown, /* 206 */ TKUnknown, /* 207 */ TKUnknown, /* 208 */ TKUnknown, /* 209 */ TKUnknown, /* 210 */ TKUnknown, /* 211 */ TKUnknown, /* 212 */ TKUnknown, /* 213 */ TKUnknown, /* 214 */ TKUnknown, /* 215 */ TKUnknown, /* 216 */ TKUnknown, /* 217 */ TKUnknown, /* 218 */ TKUnknown, /* 219 */ TKUnknown, /* 220 */ TKUnknown, /* 221 */ TKUnknown, /* 222 */ TKUnknown, /* 223 */ TKUnknown, /* 224 */ TKUnknown, /* 225 */ TKUnknown, /* 226 */ TKUnknown, /* 227 */ TKUnknown, /* 228 */ TKUnknown, /* 229 */ TKUnknown, /* 230 */ TKUnknown, /* 231 */ TKUnknown, /* 232 */ TKUnknown, /* 233 */ TKUnknown, /* 234 */ TKUnknown, /* 235 */ TKUnknown, /* 236 */ TKUnknown, /* 237 */ TKUnknown, /* 238 */ TKUnknown, /* 239 */ TKUnknown, /* 240 */ TKUnknown, /* 241 */ TKUnknown, /* 242 */ TKUnknown, /* 243 */ TKUnknown, /* 244 */ TKUnknown, /* 245 */ TKUnknown, /* 246 */ TKUnknown, /* 247 */ TKUnknown, /* 248 */ TKUnknown, /* 249 */ TKUnknown, /* 250 */ TKUnknown, /* 251 */ TKUnknown, /* 252 */ TKUnknown, /* 253 */ TKUnknown, /* 254 */ TKUnknown, /* 255 */ TKUnknown
+};
+
 // Holds information about a syntax token.
-class Token {
-    public:
-    static Pool<Token> pool;
-    void* operator new(size_t size) { return pool.alloc(); }
-    static const char* _typeName() { return "Token"; }
+struct Token {
 
     char* pos = NULL;
     uint32_t matchlen : 24;
@@ -789,10 +823,10 @@ class Token {
     {
     }
     const char* repr() { return TokenKind_repr(kind); }
-    inline char* dup() const // const Token* const token)
-    {
-        return strndup(pos, matchlen);
-    }
+//    inline char* dup() const
+//    {
+//        return strndup(pos, matchlen);
+//    }
 
     // Advance the token position by one char.
     inline void advance1() { pos++; }
@@ -860,6 +894,50 @@ class Token {
     // Get the token kind based only on the char at the current position (or
     // an offset).
     TokenKind getType(const size_t offset = 0)
+    {
+        const char c = pos[offset];
+        const char cn = c ? pos[1 + offset] : 0;
+        TokenKind ret = (TokenKind)TokenKindTable[c];
+        switch (c) {
+         case '<':
+            switch (cn) {
+            case '=':
+                return TKOpLE;
+            case '>':
+                return TKOpNE; // NE variants are !=, <>, =/ (default)
+            default:
+                return TKOpLT;
+            }
+        case '>':
+            switch (cn) {
+            case '=':
+                return TKOpGE;
+            default:
+                return TKOpGT;
+            }
+        case '=':
+            switch (cn) {
+            case '=':
+                return TKOpEQ;
+            case '/':
+                return TKOpNE;
+            case '>':
+                return TKOpResults;
+            default:
+                return TKOpAssign;
+            }
+        case '!':
+            switch (cn) {
+            case '=':
+                return TKOpNE;
+            }
+            return TKExclamation;
+         default:
+            return ret;
+        }
+    }
+
+    TokenKind getType_old(const size_t offset = 0)
     {
         const char c = pos[offset];
         const char cn = c ? pos[1 + offset] : 0;
@@ -959,17 +1037,81 @@ class Token {
                             // others?) then this is unary -
         case '*':
             return TKTimes;
+        case 'a':
+        case 'b':
+        case 'c':
+        case 'd':
+        case 'e':
+        case 'f':
+        case 'g':
+        case 'h':
+        case 'i':
+        case 'j':
+        case 'k':
+        case 'l':
+        case 'm':
+        case 'n':
+        case 'o':
+        case 'p':
+        case 'q':
+        case 'r':
+        case 's':
+        case 't':
+        case 'u':
+        case 'v':
+        case 'w':
+        case 'x':
+        case 'y':
+        case 'z':
+        case 'A':
+        case 'B':
+        case 'C':
+        case 'D':
+        case 'E':
+        case 'F':
+        case 'G':
+        case 'H':
+        case 'I':
+        case 'J':
+        case 'K':
+        case 'L':
+        case 'M':
+        case 'N':
+        case 'O':
+        case 'P':
+        case 'Q':
+        case 'R':
+        case 'S':
+        case 'T':
+        case 'U':
+        case 'V':
+        case 'W':
+        case 'X':
+        case 'Y':
+        case 'Z':
+        case '_':
+            return TKAlphabet;
+        case '1':
+        case '2':
+        case '3':
+        case '4':
+        case '5':
+        case '6':
+        case '7':
+        case '8':
+        case '9':
+        case '0':
+            return TKDigit;
         default:
-            if (isalpha(c) or c == '_') {
-                return TKAlphabet;
-            } else if (isdigit(c)) {
-                return TKDigit;
-            } else {
-                fprintf(stderr,
+            //            if (isalpha(c) or c == '_') {
+            //            } else
+            //                if (isdigit(c)) {
+            //            } else {
+            fprintf(stderr,
                     "Unknown token starting with '%c' at %d:%d\n", *pos,
                     line, col);
-                return TKUnknown;
-            }
+            return TKUnknown;
+            //            }
             break;
         }
     }
@@ -1912,6 +2054,7 @@ class Parser {
 
         static const auto FILE_SIZE_MAX = 1 << 24;
         FILE* file = fopen(filename, "r");
+        size_t flen = strlen(filename);
         fprintf(stdout, "compiling %s\n", filename);
         this->filename = filename;
         noext = str_noext(filename);
@@ -1927,7 +2070,7 @@ class Parser {
             moduleName = str_tr(noext, '/', '.');
             mangledName = str_tr(noext, '/', '_');
             capsMangledName = str_upper(mangledName);
-            basename = str_base(noext);
+            basename = str_base(noext, '/', flen);
             dirname = str_dir(noext);
             end = data + size;
             token.pos = data;
@@ -2022,7 +2165,7 @@ class Parser {
             return NULL;
         }
     }
-
+ // these should all be part of Token_ when converted back to C
     // in the match case, token should be advanced on error
     ASTExpr* match(TokenKind expected)
     {
@@ -2263,7 +2406,8 @@ class Parser {
                 // careful now, assuming everything except those above is a
                 // nonterminpal and needs left/right
                 assert(
-                    p->opPrecedence); // if (not p->opPrecedence) continue;
+                    p->opPrecedence);
+                // if (not p->opPrecedence) continue;
                 // operator must have some precedence, right?
 
                 if (result.empty()) {
@@ -2594,7 +2738,7 @@ class Parser {
 
         import->isPackage = ignore(TKAt);
         import->importFile = parseIdent();
-
+        size_t len = token.pos - import->importFile;
         ignore(TKOneSpace);
         if (ignore(TKKeyword_as)) {
 
@@ -2606,7 +2750,7 @@ class Parser {
 
         } else {
             import->aliasOffset = (uint32_t)(
-                str_base(import->importFile, '.') - import->importFile);
+                str_base(import->importFile, '.', len) - import->importFile);
         }
         return import;
     }
@@ -2620,6 +2764,20 @@ class Parser {
         token.advance(); // maybe put this in parser ctor
         ASTImport* import = NULL;
 
+        // The take away is (for C gen):
+        // Every caller who calls List->append() should keep a local List*
+        // to follow the list top as items are appended. Each actual append call
+        // must be followed by an update of this pointer to its own ->next.
+        // Append should be called on the last item of the list, not the first.
+        // (it will work but seek through the whole list every time).
+
+        List<ASTFunc*>* funcsTop = & root->funcs;
+        List<ASTImport*>* importsTop = & root->imports;
+        List<ASTType*>* typesTop = & root->types;
+        List<ASTFunc*>* testsTop = & root->tests;
+        List<ASTVar*>* globalsTop = & root->globals;
+
+
         while (token.kind != TKNullChar) {
             if (onlyPrintTokens) {
                 printf("%s %2d %3d %3d %-6s\t%.*s\n", basename, token.line,
@@ -2631,15 +2789,21 @@ class Parser {
             }
             switch (token.kind) {
             case TKKeyword_function:
-                root->funcs.append(parseFunc());
+//                root->funcs
+                funcsTop->append(parseFunc());
+                if (funcsTop->next) funcsTop=funcsTop->next;
                 break;
             case TKKeyword_type:
-                root->types.append(parseType());
+//                root->types.
+                typesTop->append(parseType());
+                if (typesTop->next) typesTop=typesTop->next;
                 break;
             case TKKeyword_import:
                 import = parseImport();
                 if (import) {
-                    root->imports.append(import);
+//                    root->imports.
+                    importsTop->append(import);
+                    if (importsTop->next) importsTop=importsTop->next;
                     //                    auto subParser = new
                     //                    Parser(import->importFile);
                     //                    List<ASTModule*> subMods =
@@ -2648,11 +2812,15 @@ class Parser {
                 }
                 break;
             case TKKeyword_test:
-                root->tests.append(parseTest());
+//                root->tests.
+                testsTop->append(parseTest());
+                if (testsTop->next) testsTop=testsTop->next;
                 break;
             case TKKeyword_var:
             case TKKeyword_let:
-                root->globals.append(parseVar());
+//                root->globals.
+                globalsTop->append(parseVar());
+                if (globalsTop->next) globalsTop=globalsTop->next;
                 break;
             case TKNewline:
             case TKLineComment:
@@ -2665,6 +2833,7 @@ class Parser {
                 token.advance();
             }
         }
+        // also keep modulesTop
         modules.append(root);
         return modules;
     }
@@ -2735,6 +2904,8 @@ int main(int argc, char* argv[])
     if (argc == 1) return 1;
     bool printDiagnostics = (argc > 2 && *argv[2] == 'd') or true;
 
+    Timer t ;
+
     auto parser = new Parser(argv[1]);
 
     List<ASTModule*> modules = parser->parse();
@@ -2761,7 +2932,11 @@ int main(int argc, char* argv[])
         fprintf(stderr, "malloc: %d\n", globalMallocCount);
         fprintf(stderr, "strdup: %d\n", globalStrdupCount);
         fprintf(stderr, "realloc: %d\n", globalReallocCount);
+        fprintf(stderr, "strlen: %d\n", globalStrlenCount);
         expralloc_stat();
     }
+
+//    fprintf(stderr, "ticks: %f\n", t.lap());
+    t.print();
     return 0;
 }
