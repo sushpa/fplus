@@ -29,6 +29,27 @@
 // keep modules limited to 2000 lines, or even 1000
 // BUT if errors are found, no formatting can be done. in this case, after
 // errors are reported, run the token-based linter (formatter).
+// ----
+// For C gen, new_Object() should be the only way to get a new instance.
+// (new means initialized instance in the sense of objc, not op new in the
+// sense of cpp which calls ctor later). Object_alloc() should not be called
+// by anyone except new_Object(). Best is to not have Object_alloc() and
+// Object_init() separately at all but directly in the new_Object() methods
+// (which may be overloaded). The reason is performance: if parameters to
+// new_Object are not as expected or something goes wrong e.g. a filename
+// passed in doesn't exist then new can return NULL without doing any
+// allocations etc. Separating alloc and init means allowing the user to do
+// a wasteful alloc only for the init to fail later.
+
+// --
+// String library will mostly work on plain char* and ask for length
+// where needed. The caller should compute length once (unless it was passed
+// in already) and pass it into the string function. Functions that don't
+// need the length will not have it as a parameter (all funcs have to check
+// \0 anyway). this doesn't make buffer overflows any more likely: the
+// length is generally computed by strlen which itself is problematic.
+// Therefore whenever the length can be computed by other means (e.g. diff
+// of two ptrs etc.) prefer that.
 
 #include <cassert>
 #include <cctype>
@@ -42,16 +63,6 @@
 #include "cycle.h"
 
 #define STEP 4
-
-class Timer {
-    ticks   _tlast;
-public:
-    Timer() {reset();}
-    double lap() {ticks tmp = getticks(); double ret = elapsed(tmp, _tlast)/1.0e9; _tlast = tmp; return ret;} // lap measures from last lap
-    void print() {fprintf(stderr, "Timer: %.3f s\n", lap());}
-//    double diff() {return elapsed(getticks(), _t)/1.0e6; }
-    void reset() {_tlast=getticks(); }
-};
 
 #pragma mark - Heap Allocation Extras
 
@@ -111,13 +122,13 @@ static int globalStrdupCount = 0;
     strdup(s);                                                             \
     globalStrdupCount++;
 static int globalReallocCount = 0;
-#define realloc(ptr,s)                                                          \
-realloc(ptr,s);                                                             \
-globalReallocCount++;
+#define realloc(ptr, s)                                                    \
+    realloc(ptr, s);                                                       \
+    globalReallocCount++;
 static int globalStrlenCount = 0;
 #define strlen(s)                                                          \
-strlen(s);                                                             \
-globalStrlenCount++;
+    strlen(s);                                                             \
+    globalStrlenCount++;
 
 #pragma mark - String Functions
 
@@ -134,9 +145,13 @@ char* str_noext(char* str)
 
 char* str_base(char* str, char sep, size_t slen)
 {
-    if (!slen) return str; // you should pass in the len. len 0 is actually valid since basename for 'mod' is 'mod' itself, and this would have caused a call to strlen below. so len 0 now means really just return what came in.
+    if (!slen)
+        return str; // you should pass in the len. len 0 is actually valid
+                    // since basename for 'mod' is 'mod' itself, and this
+                    // would have caused a call to strlen below. so len 0
+                    // now means really just return what came in.
     char* s = str;
-//    if (!len) len = strlen(s);
+    //    if (!len) len = strlen(s);
     char* sc = s + slen;
     while (sc > s and sc[-1] != sep)
         sc--;
@@ -227,14 +242,14 @@ static_assert(sizeof(NumberL) == 8, "");
 
 #pragma mark - Stack
 
-template <class T> class Stack {
+template <class T, int initialSize = 8> class Stack {
     T* items = NULL;
     uint32_t cap = 0;
 
     public:
     uint32_t count = 0;
     T& operator[](int index) { return items[index]; }
-    ~Stack<T>()
+    ~Stack<T, initialSize>()
     {
         if (cap) free(items);
     }
@@ -243,7 +258,7 @@ template <class T> class Stack {
         if (count < cap) {
             items[count++] = node;
         } else {
-            cap = cap ? 2 * cap : 8;
+            cap = cap ? 2 * cap : initialSize;
             items = (T*)realloc(items, sizeof(T) * cap);
             // !! realloc can NULL the ptr!
             items[count++] = node;
@@ -285,7 +300,7 @@ template <class T, int elementsPerBlock = 512> struct Pool {
     {
         if (!ref or count >= elementsPerBlock) {
             if (ref) ptrs.push(ref);
-            ref = (T*)malloc(elementsPerBlock* sizeof(T));
+            ref = (T*)malloc(elementsPerBlock * sizeof(T));
             count = 0;
             globalMemAllocBytes += elementsPerBlock * sizeof(T);
         }
@@ -335,16 +350,17 @@ class PoolB {
     {
         void* ans = NULL;
         // Do you want to optimise for small files or large files?
-        // For small files, allow 24B-32B nodes and keep small initial buffers.
-        // For large files, make nodes 8B-16B and keep large initial buffers.
-        // Small files will waste space and incur extra work in "32-bit pointer"
-        // dereferencing if you process them with the large files approach.
-        // Large files will take forever to process with the small files approach.
+        // For small files, allow 24B-32B nodes and keep small initial
+        // buffers. For large files, make nodes 8B-16B and keep large
+        // initial buffers. Small files will waste space and incur extra
+        // work in "32-bit pointer" dereferencing if you process them with
+        // the large files approach. Large files will take forever to
+        // process with the small files approach.
         if (pos + size > sizePerPool) {
             if (ref) ptrs.push(ref);
-            sizePerPool
-                = sizePerPool ? min(2 * sizePerPool, 256 KB) : 16 KB;
-            ref = malloc(sizePerPool* 1);
+            sizePerPool = sizePerPool > 64 KB ? min(2 * sizePerPool, 256 KB)
+                                              : 16 KB;
+            ref = malloc(sizePerPool * 1);
             pos = 0;
             globalMemAllocBytes += sizePerPool;
         }
@@ -373,15 +389,15 @@ PoolB poolb;
         pool.total++;                                                      \
         return poolb.alloc(size);                                          \
     }                                                                      \
-    static char* _typeName;
+    static const char* _typeName;
 
 // individual pools
 #define STHEAD_POOL(T, s)                                                  \
     static Pool<T, s> pool;                                                \
     void* operator new(size_t size) { return pool.alloc(); }               \
-    static char* _typeName;
+    static const char* _typeName;
 
-#define NAME_CLASS(T) char* T::_typeName = (char*)#T;
+#define NAME_CLASS(T) const char* T::_typeName = #T;
 
 #define STHEAD(T, s) STHEAD_POOLB(T, s) // common pool for all
 //#define STHEAD(T, s) STHEAD_POOL(T, s) // own pool for each class
@@ -583,7 +599,7 @@ const char* TokenKind_repr(const TokenKind kind, bool spacing = true)
     case TKNewline:
         return "nl";
     case TKLineComment:
-        return "cmt";
+        return spacing ? "# " : "#";
     case TKAmpersand:
         return "&";
     case TKDigit:
@@ -617,7 +633,7 @@ const char* TokenKind_repr(const TokenKind kind, bool spacing = true)
     case TKOpEQ:
         return spacing ? " == " : "==";
     case TKOpNE:
-        return spacing ? " =/ " : "=/";
+        return spacing ? " != " : "!=";
     case TKOpGE:
         return spacing ? " >= " : ">=";
     case TKOpGT:
@@ -791,13 +807,95 @@ TokenKind TokenKind_reverseBracket(TokenKind kind)
 #pragma mark - Token
 
 const uint8_t TokenKindTable[256] = {
-    /* 0 */ TKNullChar, /* 1 */ TKUnknown, /* 2 */ TKUnknown, /* 3 */ TKUnknown, /* 4 */ TKUnknown, /* 5 */ TKUnknown, /* 6 */ TKUnknown, /* 7 */ TKUnknown, /* 8 */ TKUnknown, /* 9 */ TKUnknown, /* 10 */ TKNewline, /* 11 */ TKUnknown, /* 12 */ TKUnknown, /* 13 */ TKUnknown, /* 14 */ TKUnknown, /* 15 */ TKUnknown, /* 16 */ TKUnknown, /* 17 */ TKUnknown, /* 18 */ TKUnknown, /* 19 */ TKUnknown, /* 20 */ TKUnknown, /* 21 */ TKUnknown, /* 22 */ TKUnknown, /* 23 */ TKUnknown, /* 24 */ TKUnknown, /* 25 */ TKUnknown, /* 26 */ TKUnknown, /* 27 */ TKUnknown, /* 28 */ TKUnknown, /* 29 */ TKUnknown, /* 30 */ TKUnknown, /* 31 */ TKUnknown,
-    /* 32   */ TKSpaces, /* 33 ! */ TKExclamation, /* 34 " */ TKStringBoundary, /* 35 # */TKHash, /* 36 $ */TKDollar, /* 37 % */TKOpMod, /* 38 & */TKAmpersand, /* 39 ' */TKRegexBoundary, /* 40 ( */ TKParenOpen, /* 41 ) */ TKParenClose, /* 42 * */TKTimes, /* 43 + */TKPlus, /* 44 , */TKOpComma, /* 45 - */TKMinus, /* 46 . */TKPeriod, /* 47 / */TKSlash, /* 48 0 */TKDigit, /* 49 1 */TKDigit, /* 50 2 */TKDigit, /* 51 3 */TKDigit, /* 52 4 */TKDigit, /* 53 5 */TKDigit, /* 54 6 */TKDigit, /* 55 7 */TKDigit, /* 56 8 */TKDigit, /* 57 9 */TKDigit, /* 58 : */TKOpColon, /* 59 ; */TKOpSemiColon, /* 60 < */TKOpLT, /* 61 = */TKOpAssign, /* 62 > */TKOpGT, /* 63 ? */TKQuestion, /* 64 @ */TKAt,
-    /* 65 A */ TKAlphabet, /* 66 B */ TKAlphabet, /* 67 C */ TKAlphabet, /* 68 D */ TKAlphabet, /* 69 E */ TKAlphabet, /* 70 F */ TKAlphabet, /* 71 G */ TKAlphabet, /* 72 H */ TKAlphabet, /* 73 I */ TKAlphabet, /* 74 J */ TKAlphabet, /* 75 K */ TKAlphabet, /* 76 L */ TKAlphabet, /* 77 M */ TKAlphabet, /* 78 N */ TKAlphabet, /* 79 O */ TKAlphabet, /* 80 P */ TKAlphabet, /* 81 Q */ TKAlphabet, /* 82 R */ TKAlphabet, /* 83 S */ TKAlphabet, /* 84 T */ TKAlphabet, /* 85 U */ TKAlphabet, /* 86 V */ TKAlphabet, /* 87 W */ TKAlphabet, /* 88 X */ TKAlphabet, /* 89 Y */ TKAlphabet, /* 90 Z */ TKAlphabet,
-    /* 91 [ */TKArrayOpen, /* 92 \ */TKBackslash, /* 93 ] */TKArrayClose, /* 94 ^ */TKPower, /* 95 _ */TKUnderscore, /* 96 ` */TKInlineBoundary,
-    /* 97 a */ TKAlphabet, /* 98 b */ TKAlphabet, /* 99 c */ TKAlphabet, /* 100 d */ TKAlphabet, /* 101 e */ TKAlphabet, /* 102 f */ TKAlphabet, /* 103 g */ TKAlphabet, /* 104 h */ TKAlphabet, /* 105 i */ TKAlphabet, /* 106 j */ TKAlphabet, /* 107 k */ TKAlphabet, /* 108 l */ TKAlphabet, /* 109 m */ TKAlphabet, /* 110 n */ TKAlphabet, /* 111 o */ TKAlphabet, /* 112 p */ TKAlphabet, /* 113 q */ TKAlphabet, /* 114 r */ TKAlphabet, /* 115 s */ TKAlphabet, /* 116 t */ TKAlphabet, /* 117 u */ TKAlphabet, /* 118 v */ TKAlphabet, /* 119 w */ TKAlphabet, /* 120 x */ TKAlphabet, /* 121 y */ TKAlphabet, /* 122 z */ TKAlphabet,
-    /* 123 { */ TKBraceOpen ,/* 124 | */ TKPipe, /* 125 } */ TKBraceClose,  /* 126 ~ */ TKTilde,
-    /* 127 */ TKUnknown, /* 128 */ TKUnknown, /* 129 */ TKUnknown, /* 130 */ TKUnknown, /* 131 */ TKUnknown, /* 132 */ TKUnknown, /* 133 */ TKUnknown, /* 134 */ TKUnknown, /* 135 */ TKUnknown, /* 136 */ TKUnknown, /* 137 */ TKUnknown, /* 138 */ TKUnknown, /* 139 */ TKUnknown, /* 140 */ TKUnknown, /* 141 */ TKUnknown, /* 142 */ TKUnknown, /* 143 */ TKUnknown, /* 144 */ TKUnknown, /* 145 */ TKUnknown, /* 146 */ TKUnknown, /* 147 */ TKUnknown, /* 148 */ TKUnknown, /* 149 */ TKUnknown, /* 150 */ TKUnknown, /* 151 */ TKUnknown, /* 152 */ TKUnknown, /* 153 */ TKUnknown, /* 154 */ TKUnknown, /* 155 */ TKUnknown, /* 156 */ TKUnknown, /* 157 */ TKUnknown, /* 158 */ TKUnknown, /* 159 */ TKUnknown, /* 160 */ TKUnknown, /* 161 */ TKUnknown, /* 162 */ TKUnknown, /* 163 */ TKUnknown, /* 164 */ TKUnknown, /* 165 */ TKUnknown, /* 166 */ TKUnknown, /* 167 */ TKUnknown, /* 168 */ TKUnknown, /* 169 */ TKUnknown, /* 170 */ TKUnknown, /* 171 */ TKUnknown, /* 172 */ TKUnknown, /* 173 */ TKUnknown, /* 174 */ TKUnknown, /* 175 */ TKUnknown, /* 176 */ TKUnknown, /* 177 */ TKUnknown, /* 178 */ TKUnknown, /* 179 */ TKUnknown, /* 180 */ TKUnknown, /* 181 */ TKUnknown, /* 182 */ TKUnknown, /* 183 */ TKUnknown, /* 184 */ TKUnknown, /* 185 */ TKUnknown, /* 186 */ TKUnknown, /* 187 */ TKUnknown, /* 188 */ TKUnknown, /* 189 */ TKUnknown, /* 190 */ TKUnknown, /* 191 */ TKUnknown, /* 192 */ TKUnknown, /* 193 */ TKUnknown, /* 194 */ TKUnknown, /* 195 */ TKUnknown, /* 196 */ TKUnknown, /* 197 */ TKUnknown, /* 198 */ TKUnknown, /* 199 */ TKUnknown, /* 200 */ TKUnknown, /* 201 */ TKUnknown, /* 202 */ TKUnknown, /* 203 */ TKUnknown, /* 204 */ TKUnknown, /* 205 */ TKUnknown, /* 206 */ TKUnknown, /* 207 */ TKUnknown, /* 208 */ TKUnknown, /* 209 */ TKUnknown, /* 210 */ TKUnknown, /* 211 */ TKUnknown, /* 212 */ TKUnknown, /* 213 */ TKUnknown, /* 214 */ TKUnknown, /* 215 */ TKUnknown, /* 216 */ TKUnknown, /* 217 */ TKUnknown, /* 218 */ TKUnknown, /* 219 */ TKUnknown, /* 220 */ TKUnknown, /* 221 */ TKUnknown, /* 222 */ TKUnknown, /* 223 */ TKUnknown, /* 224 */ TKUnknown, /* 225 */ TKUnknown, /* 226 */ TKUnknown, /* 227 */ TKUnknown, /* 228 */ TKUnknown, /* 229 */ TKUnknown, /* 230 */ TKUnknown, /* 231 */ TKUnknown, /* 232 */ TKUnknown, /* 233 */ TKUnknown, /* 234 */ TKUnknown, /* 235 */ TKUnknown, /* 236 */ TKUnknown, /* 237 */ TKUnknown, /* 238 */ TKUnknown, /* 239 */ TKUnknown, /* 240 */ TKUnknown, /* 241 */ TKUnknown, /* 242 */ TKUnknown, /* 243 */ TKUnknown, /* 244 */ TKUnknown, /* 245 */ TKUnknown, /* 246 */ TKUnknown, /* 247 */ TKUnknown, /* 248 */ TKUnknown, /* 249 */ TKUnknown, /* 250 */ TKUnknown, /* 251 */ TKUnknown, /* 252 */ TKUnknown, /* 253 */ TKUnknown, /* 254 */ TKUnknown, /* 255 */ TKUnknown
+    /* 0 */ TKNullChar, /* 1 */ TKUnknown, /* 2 */ TKUnknown,
+    /* 3 */ TKUnknown, /* 4 */ TKUnknown, /* 5 */ TKUnknown,
+    /* 6 */ TKUnknown, /* 7 */ TKUnknown, /* 8 */ TKUnknown,
+    /* 9 */ TKUnknown, /* 10 */ TKNewline, /* 11 */ TKUnknown,
+    /* 12 */ TKUnknown, /* 13 */ TKUnknown, /* 14 */ TKUnknown,
+    /* 15 */ TKUnknown, /* 16 */ TKUnknown, /* 17 */ TKUnknown,
+    /* 18 */ TKUnknown, /* 19 */ TKUnknown, /* 20 */ TKUnknown,
+    /* 21 */ TKUnknown, /* 22 */ TKUnknown, /* 23 */ TKUnknown,
+    /* 24 */ TKUnknown, /* 25 */ TKUnknown, /* 26 */ TKUnknown,
+    /* 27 */ TKUnknown, /* 28 */ TKUnknown, /* 29 */ TKUnknown,
+    /* 30 */ TKUnknown, /* 31 */ TKUnknown,
+    /* 32   */ TKSpaces, /* 33 ! */ TKExclamation,
+    /* 34 " */ TKStringBoundary, /* 35 # */ TKHash, /* 36 $ */ TKDollar,
+    /* 37 % */ TKOpMod, /* 38 & */ TKAmpersand, /* 39 ' */ TKRegexBoundary,
+    /* 40 ( */ TKParenOpen, /* 41 ) */ TKParenClose, /* 42 * */ TKTimes,
+    /* 43 + */ TKPlus, /* 44 , */ TKOpComma, /* 45 - */ TKMinus,
+    /* 46 . */ TKPeriod, /* 47 / */ TKSlash, /* 48 0 */ TKDigit,
+    /* 49 1 */ TKDigit, /* 50 2 */ TKDigit, /* 51 3 */ TKDigit,
+    /* 52 4 */ TKDigit, /* 53 5 */ TKDigit, /* 54 6 */ TKDigit,
+    /* 55 7 */ TKDigit, /* 56 8 */ TKDigit, /* 57 9 */ TKDigit,
+    /* 58 : */ TKOpColon, /* 59 ; */ TKOpSemiColon, /* 60 < */ TKOpLT,
+    /* 61 = */ TKOpAssign, /* 62 > */ TKOpGT, /* 63 ? */ TKQuestion,
+    /* 64 @ */ TKAt,
+    /* 65 A */ TKAlphabet, /* 66 B */ TKAlphabet, /* 67 C */ TKAlphabet,
+    /* 68 D */ TKAlphabet, /* 69 E */ TKAlphabet, /* 70 F */ TKAlphabet,
+    /* 71 G */ TKAlphabet, /* 72 H */ TKAlphabet, /* 73 I */ TKAlphabet,
+    /* 74 J */ TKAlphabet, /* 75 K */ TKAlphabet, /* 76 L */ TKAlphabet,
+    /* 77 M */ TKAlphabet, /* 78 N */ TKAlphabet, /* 79 O */ TKAlphabet,
+    /* 80 P */ TKAlphabet, /* 81 Q */ TKAlphabet, /* 82 R */ TKAlphabet,
+    /* 83 S */ TKAlphabet, /* 84 T */ TKAlphabet, /* 85 U */ TKAlphabet,
+    /* 86 V */ TKAlphabet, /* 87 W */ TKAlphabet, /* 88 X */ TKAlphabet,
+    /* 89 Y */ TKAlphabet, /* 90 Z */ TKAlphabet,
+    /* 91 [ */ TKArrayOpen, /* 92 \ */ TKBackslash, /* 93 ] */ TKArrayClose,
+    /* 94 ^ */ TKPower, /* 95 _ */ TKUnderscore,
+    /* 96 ` */ TKInlineBoundary,
+    /* 97 a */ TKAlphabet, /* 98 b */ TKAlphabet, /* 99 c */ TKAlphabet,
+    /* 100 d */ TKAlphabet, /* 101 e */ TKAlphabet, /* 102 f */ TKAlphabet,
+    /* 103 g */ TKAlphabet, /* 104 h */ TKAlphabet, /* 105 i */ TKAlphabet,
+    /* 106 j */ TKAlphabet, /* 107 k */ TKAlphabet, /* 108 l */ TKAlphabet,
+    /* 109 m */ TKAlphabet, /* 110 n */ TKAlphabet, /* 111 o */ TKAlphabet,
+    /* 112 p */ TKAlphabet, /* 113 q */ TKAlphabet, /* 114 r */ TKAlphabet,
+    /* 115 s */ TKAlphabet, /* 116 t */ TKAlphabet, /* 117 u */ TKAlphabet,
+    /* 118 v */ TKAlphabet, /* 119 w */ TKAlphabet, /* 120 x */ TKAlphabet,
+    /* 121 y */ TKAlphabet, /* 122 z */ TKAlphabet,
+    /* 123 { */ TKBraceOpen, /* 124 | */ TKPipe, /* 125 } */ TKBraceClose,
+    /* 126 ~ */ TKTilde,
+    /* 127 */ TKUnknown, /* 128 */ TKUnknown, /* 129 */ TKUnknown,
+    /* 130 */ TKUnknown, /* 131 */ TKUnknown, /* 132 */ TKUnknown,
+    /* 133 */ TKUnknown, /* 134 */ TKUnknown, /* 135 */ TKUnknown,
+    /* 136 */ TKUnknown, /* 137 */ TKUnknown, /* 138 */ TKUnknown,
+    /* 139 */ TKUnknown, /* 140 */ TKUnknown, /* 141 */ TKUnknown,
+    /* 142 */ TKUnknown, /* 143 */ TKUnknown, /* 144 */ TKUnknown,
+    /* 145 */ TKUnknown, /* 146 */ TKUnknown, /* 147 */ TKUnknown,
+    /* 148 */ TKUnknown, /* 149 */ TKUnknown, /* 150 */ TKUnknown,
+    /* 151 */ TKUnknown, /* 152 */ TKUnknown, /* 153 */ TKUnknown,
+    /* 154 */ TKUnknown, /* 155 */ TKUnknown, /* 156 */ TKUnknown,
+    /* 157 */ TKUnknown, /* 158 */ TKUnknown, /* 159 */ TKUnknown,
+    /* 160 */ TKUnknown, /* 161 */ TKUnknown, /* 162 */ TKUnknown,
+    /* 163 */ TKUnknown, /* 164 */ TKUnknown, /* 165 */ TKUnknown,
+    /* 166 */ TKUnknown, /* 167 */ TKUnknown, /* 168 */ TKUnknown,
+    /* 169 */ TKUnknown, /* 170 */ TKUnknown, /* 171 */ TKUnknown,
+    /* 172 */ TKUnknown, /* 173 */ TKUnknown, /* 174 */ TKUnknown,
+    /* 175 */ TKUnknown, /* 176 */ TKUnknown, /* 177 */ TKUnknown,
+    /* 178 */ TKUnknown, /* 179 */ TKUnknown, /* 180 */ TKUnknown,
+    /* 181 */ TKUnknown, /* 182 */ TKUnknown, /* 183 */ TKUnknown,
+    /* 184 */ TKUnknown, /* 185 */ TKUnknown, /* 186 */ TKUnknown,
+    /* 187 */ TKUnknown, /* 188 */ TKUnknown, /* 189 */ TKUnknown,
+    /* 190 */ TKUnknown, /* 191 */ TKUnknown, /* 192 */ TKUnknown,
+    /* 193 */ TKUnknown, /* 194 */ TKUnknown, /* 195 */ TKUnknown,
+    /* 196 */ TKUnknown, /* 197 */ TKUnknown, /* 198 */ TKUnknown,
+    /* 199 */ TKUnknown, /* 200 */ TKUnknown, /* 201 */ TKUnknown,
+    /* 202 */ TKUnknown, /* 203 */ TKUnknown, /* 204 */ TKUnknown,
+    /* 205 */ TKUnknown, /* 206 */ TKUnknown, /* 207 */ TKUnknown,
+    /* 208 */ TKUnknown, /* 209 */ TKUnknown, /* 210 */ TKUnknown,
+    /* 211 */ TKUnknown, /* 212 */ TKUnknown, /* 213 */ TKUnknown,
+    /* 214 */ TKUnknown, /* 215 */ TKUnknown, /* 216 */ TKUnknown,
+    /* 217 */ TKUnknown, /* 218 */ TKUnknown, /* 219 */ TKUnknown,
+    /* 220 */ TKUnknown, /* 221 */ TKUnknown, /* 222 */ TKUnknown,
+    /* 223 */ TKUnknown, /* 224 */ TKUnknown, /* 225 */ TKUnknown,
+    /* 226 */ TKUnknown, /* 227 */ TKUnknown, /* 228 */ TKUnknown,
+    /* 229 */ TKUnknown, /* 230 */ TKUnknown, /* 231 */ TKUnknown,
+    /* 232 */ TKUnknown, /* 233 */ TKUnknown, /* 234 */ TKUnknown,
+    /* 235 */ TKUnknown, /* 236 */ TKUnknown, /* 237 */ TKUnknown,
+    /* 238 */ TKUnknown, /* 239 */ TKUnknown, /* 240 */ TKUnknown,
+    /* 241 */ TKUnknown, /* 242 */ TKUnknown, /* 243 */ TKUnknown,
+    /* 244 */ TKUnknown, /* 245 */ TKUnknown, /* 246 */ TKUnknown,
+    /* 247 */ TKUnknown, /* 248 */ TKUnknown, /* 249 */ TKUnknown,
+    /* 250 */ TKUnknown, /* 251 */ TKUnknown, /* 252 */ TKUnknown,
+    /* 253 */ TKUnknown, /* 254 */ TKUnknown, /* 255 */ TKUnknown
 };
 
 // Holds information about a syntax token.
@@ -823,10 +921,10 @@ struct Token {
     {
     }
     const char* repr() { return TokenKind_repr(kind); }
-//    inline char* dup() const
-//    {
-//        return strndup(pos, matchlen);
-//    }
+    //    inline char* dup() const
+    //    {
+    //        return strndup(pos, matchlen);
+    //    }
 
     // Advance the token position by one char.
     inline void advance1() { pos++; }
@@ -899,100 +997,6 @@ struct Token {
         const char cn = c ? pos[1 + offset] : 0;
         TokenKind ret = (TokenKind)TokenKindTable[c];
         switch (c) {
-         case '<':
-            switch (cn) {
-            case '=':
-                return TKOpLE;
-            case '>':
-                return TKOpNE; // NE variants are !=, <>, =/ (default)
-            default:
-                return TKOpLT;
-            }
-        case '>':
-            switch (cn) {
-            case '=':
-                return TKOpGE;
-            default:
-                return TKOpGT;
-            }
-        case '=':
-            switch (cn) {
-            case '=':
-                return TKOpEQ;
-            case '/':
-                return TKOpNE;
-            case '>':
-                return TKOpResults;
-            default:
-                return TKOpAssign;
-            }
-        case '!':
-            switch (cn) {
-            case '=':
-                return TKOpNE;
-            }
-            return TKExclamation;
-         default:
-            return ret;
-        }
-    }
-
-    TokenKind getType_old(const size_t offset = 0)
-    {
-        const char c = pos[offset];
-        const char cn = c ? pos[1 + offset] : 0;
-
-        switch (c) {
-        case 0:
-            return TKNullChar;
-        case '\n':
-            return TKNewline;
-        case ' ':
-            return TKSpaces;
-        case '\t':
-            return TKTab;
-        case ':':
-            return TKOpColon;
-        case ';':
-            return TKOpSemiColon;
-        case ',':
-            return TKOpComma;
-        case '?':
-            return TKQuestion;
-        case '"':
-            return TKStringBoundary;
-        case '`':
-            return TKInlineBoundary;
-        case '[':
-            return TKArrayOpen;
-        case '$':
-            return TKDollar;
-        case '%':
-            return TKOpMod;
-        case '.':
-            return TKPeriod;
-        case '\'':
-            return TKRegexBoundary;
-        case '&':
-            return TKAmpersand;
-        case '^':
-            return TKPower;
-        case '@':
-            return TKAt;
-        case '#':
-            return TKHash;
-        case '|':
-            return TKPipe;
-        case '{':
-            return TKBraceOpen;
-        case '(':
-            return TKParenOpen;
-        case ')':
-            return TKParenClose;
-        case '}':
-            return TKBraceClose;
-        case ']':
-            return TKArrayClose;
         case '<':
             switch (cn) {
             case '=':
@@ -1026,96 +1030,189 @@ struct Token {
                 return TKOpNE;
             }
             return TKExclamation;
-        case '/':
-            return TKSlash;
-        case '\\':
-            return TKBackslash;
-        case '+':
-            return TKPlus;
-        case '-':
-            return TKMinus; // if prev token was +-*/^(<> (and some
-                            // others?) then this is unary -
-        case '*':
-            return TKTimes;
-        case 'a':
-        case 'b':
-        case 'c':
-        case 'd':
-        case 'e':
-        case 'f':
-        case 'g':
-        case 'h':
-        case 'i':
-        case 'j':
-        case 'k':
-        case 'l':
-        case 'm':
-        case 'n':
-        case 'o':
-        case 'p':
-        case 'q':
-        case 'r':
-        case 's':
-        case 't':
-        case 'u':
-        case 'v':
-        case 'w':
-        case 'x':
-        case 'y':
-        case 'z':
-        case 'A':
-        case 'B':
-        case 'C':
-        case 'D':
-        case 'E':
-        case 'F':
-        case 'G':
-        case 'H':
-        case 'I':
-        case 'J':
-        case 'K':
-        case 'L':
-        case 'M':
-        case 'N':
-        case 'O':
-        case 'P':
-        case 'Q':
-        case 'R':
-        case 'S':
-        case 'T':
-        case 'U':
-        case 'V':
-        case 'W':
-        case 'X':
-        case 'Y':
-        case 'Z':
-        case '_':
-            return TKAlphabet;
-        case '1':
-        case '2':
-        case '3':
-        case '4':
-        case '5':
-        case '6':
-        case '7':
-        case '8':
-        case '9':
-        case '0':
-            return TKDigit;
         default:
-            //            if (isalpha(c) or c == '_') {
-            //            } else
-            //                if (isdigit(c)) {
-            //            } else {
-            fprintf(stderr,
-                    "Unknown token starting with '%c' at %d:%d\n", *pos,
-                    line, col);
-            return TKUnknown;
-            //            }
-            break;
+            return ret;
         }
     }
 
+    /*
+        TokenKind getType_old(const size_t offset = 0)
+        {
+            const char c = pos[offset];
+            const char cn = c ? pos[1 + offset] : 0;
+
+            switch (c) {
+            case 0:
+                return TKNullChar;
+            case '\n':
+                return TKNewline;
+            case ' ':
+                return TKSpaces;
+            case '\t':
+                return TKTab;
+            case ':':
+                return TKOpColon;
+            case ';':
+                return TKOpSemiColon;
+            case ',':
+                return TKOpComma;
+            case '?':
+                return TKQuestion;
+            case '"':
+                return TKStringBoundary;
+            case '`':
+                return TKInlineBoundary;
+            case '[':
+                return TKArrayOpen;
+            case '$':
+                return TKDollar;
+            case '%':
+                return TKOpMod;
+            case '.':
+                return TKPeriod;
+            case '\'':
+                return TKRegexBoundary;
+            case '&':
+                return TKAmpersand;
+            case '^':
+                return TKPower;
+            case '@':
+                return TKAt;
+            case '#':
+                return TKHash;
+            case '|':
+                return TKPipe;
+            case '{':
+                return TKBraceOpen;
+            case '(':
+                return TKParenOpen;
+            case ')':
+                return TKParenClose;
+            case '}':
+                return TKBraceClose;
+            case ']':
+                return TKArrayClose;
+            case '<':
+                switch (cn) {
+                case '=':
+                    return TKOpLE;
+                case '>':
+                    return TKOpNE; // NE variants are !=, <>, =/ (default)
+                default:
+                    return TKOpLT;
+                }
+            case '>':
+                switch (cn) {
+                case '=':
+                    return TKOpGE;
+                default:
+                    return TKOpGT;
+                }
+            case '=':
+                switch (cn) {
+                case '=':
+                    return TKOpEQ;
+                case '/':
+                    return TKOpNE;
+                case '>':
+                    return TKOpResults;
+                default:
+                    return TKOpAssign;
+                }
+            case '!':
+                switch (cn) {
+                case '=':
+                    return TKOpNE;
+                }
+                return TKExclamation;
+            case '/':
+                return TKSlash;
+            case '\\':
+                return TKBackslash;
+            case '+':
+                return TKPlus;
+            case '-':
+                return TKMinus; // if prev token was *++/^(<> (and some
+                                // others?) then this is unary -
+            case '*':
+                return TKTimes;
+            case 'a':
+            case 'b':
+            case 'c':
+            case 'd':
+            case 'e':
+            case 'f':
+            case 'g':
+            case 'h':
+            case 'i':
+            case 'j':
+            case 'k':
+            case 'l':
+            case 'm':
+            case 'n':
+            case 'o':
+            case 'p':
+            case 'q':
+            case 'r':
+            case 's':
+            case 't':
+            case 'u':
+            case 'v':
+            case 'w':
+            case 'x':
+            case 'y':
+            case 'z':
+            case 'A':
+            case 'B':
+            case 'C':
+            case 'D':
+            case 'E':
+            case 'F':
+            case 'G':
+            case 'H':
+            case 'I':
+            case 'J':
+            case 'K':
+            case 'L':
+            case 'M':
+            case 'N':
+            case 'O':
+            case 'P':
+            case 'Q':
+            case 'R':
+            case 'S':
+            case 'T':
+            case 'U':
+            case 'V':
+            case 'W':
+            case 'X':
+            case 'Y':
+            case 'Z':
+            case '_':
+                return TKAlphabet;
+            case '1':
+            case '2':
+            case '3':
+            case '4':
+            case '5':
+            case '6':
+            case '7':
+            case '8':
+            case '9':
+            case '0':
+                return TKDigit;
+            default:
+                //            if (isalpha(c) or c == '_') {
+                //            } else
+                //                if (isdigit(c)) {
+                //            } else {
+                fprintf(stderr, "Unknown token starting with '%c' at
+       %d:%d\n", *pos, line, col); return TKUnknown;
+                //            }
+                break;
+            }
+        }
+    */
     // Scans ahead from the current position until the actual end of the
     // token.
     void detect()
@@ -1277,7 +1374,7 @@ struct Token {
             tt_ret = TKIdentifier;
             break;
 
-        case TKExclamation:
+        case TKHash: // TKExclamation:
             while (tt != TKNullChar) {
                 tt = getType(1);
                 advance1();
@@ -1335,7 +1432,7 @@ struct Token {
                 }
                 if (found_dot and tt == TKPeriod) tt_ret = TKMultiDotNumber;
 
-                if (tt != TKDigit and tt != TKPeriod) break;
+                if (tt != TKDigit and tt != TKPeriod and *pos!='i') break;
             }
             break;
 
@@ -1436,14 +1533,15 @@ struct Token {
         matchlen = 0;
         detect();
 
-        if (flags.skipWhiteSpace
-            and (kind == TKSpaces
-                or (flags.strictSpacing and kind == TKOneSpace)))
-            advance();
+
         if (kind == TKNewline) {
             line++;
             col = 0; // position of the nl itself is 0
         }
+        if (flags.skipWhiteSpace
+            and (kind == TKSpaces
+                 or ( flags.strictSpacing and kind == TKOneSpace)))
+            advance();
     }
 };
 
@@ -1666,7 +1764,7 @@ struct ASTExpr {
             strLength = (uint16_t)token->matchlen;
             value.string = token->pos;
             break;
-            // default:;
+        default:;
         }
         // the '!' will be trampled
         if (kind == TKLineComment) value.string++;
@@ -1689,7 +1787,7 @@ void ASTVar::gen(int level)
         printf(" as ");
         typeSpec->gen(level + STEP);
     } else
-        printf(" as Unknown");
+        printf(" as UnknownType");
     if (init) {
         printf(" = ");
         init->gen(0);
@@ -1732,12 +1830,15 @@ void ASTExpr::gen(int level, bool spacing)
     case TKIdentifier:
     case TKNumber:
     case TKMultiDotNumber:
+    case TKRegex:
+    case TKInline:
     case TKString:
         printf("%.*s", strLength, value.string);
         break;
 
     case TKLineComment:
-        printf("%s%.*s", *value.string == ' ' ? "!" : "! ", strLength,
+        printf("%s%.*s",
+            TokenKind_repr(TKLineComment, *value.string != ' '), strLength,
             value.string);
         break;
 
@@ -2011,6 +2112,7 @@ static void print_sizes()
 #pragma mark - Parser
 
 class Parser {
+    // bring down struct size!
     char* filename = NULL; // mod/submod/xyz/mycode.ch
     char* moduleName = NULL; // mod.submod.xyz.mycode
     char* mangledName = NULL; // mod_submod_xyz_mycode
@@ -2018,6 +2120,8 @@ class Parser {
     char* basename = NULL; // mycode
     char* dirname = NULL; // mod/submod/xyz
     char *data = NULL, *end = NULL;
+    bool generateCommentExprs
+        = false; // set to false when compiling, set to true when linting
     char* noext = NULL;
     Token token; // current
     List<ASTModule*> modules; // module node of the AST
@@ -2165,7 +2269,7 @@ class Parser {
             return NULL;
         }
     }
- // these should all be part of Token_ when converted back to C
+    // these should all be part of Token_ when converted back to C
     // in the match case, token should be advanced on error
     ASTExpr* match(TokenKind expected)
     {
@@ -2212,7 +2316,7 @@ class Parser {
         // calls, array index, ...)
 
         // we could make this static and set len to 0 upon func exit
-        static Stack<ASTExpr*> rpn, ops, result;
+        static Stack<ASTExpr*, 32> rpn, ops, result;
         int prec_top = 0;
         ASTExpr* p = NULL;
         TokenKind revBrkt = TKUnknown;
@@ -2275,7 +2379,7 @@ class Parser {
                 // we'll push the TKArrayOpen as well to indicate a list
                 // literal or comprehension
                 // TKArrayOpen is a unary op.
-                if (p->kind == TKArrayOpen
+                if ((p and p->kind == TKArrayOpen)
                     and (ops.empty() or ops.top()->kind != TKSubscript)
                     // don't do this if its part of a subscript
                     and (rpn.empty() or rpn.top()->kind != TKOpColon))
@@ -2391,12 +2495,18 @@ class Parser {
             switch (p->kind) {
             case TKFunctionCall:
             case TKSubscript:
-                assert(result.count > 0);
-                arg = result.pop();
-                p->left = arg;
+                if (result.count > 0) {
+                    //                    errorParsingExpr();
+                    //                    goto error;
+                    //                }
+                    arg = result.pop();
+                    p->left = arg;
+                }
             case TKNumber:
             case TKString:
             case TKRegex:
+            case TKInline:
+            case TKUnits:
             case TKMultiDotNumber:
             case TKIdentifier:
             case TKParenOpen:
@@ -2405,8 +2515,11 @@ class Parser {
             default:
                 // careful now, assuming everything except those above is a
                 // nonterminpal and needs left/right
-                assert(
-                    p->opPrecedence);
+                if (!p->opPrecedence) {
+                    errorParsingExpr();
+                    goto error;
+                }
+
                 // if (not p->opPrecedence) continue;
                 // operator must have some precedence, right?
 
@@ -2433,10 +2546,11 @@ class Parser {
             goto error;
         }
 
-        // for next invocation just set count to 0, allocation will be reused
-        ops.count=0;
-        rpn.count=0;
-        result.count=0;
+        // for next invocation just set count to 0, allocation will be
+        // reused
+        ops.count = 0;
+        rpn.count = 0;
+        result.count = 0;
         return result[0];
 
     error:
@@ -2463,9 +2577,9 @@ class Parser {
 
         if (rpn.count or ops.count) puts("");
 
-        ops.count=0; // "reset" stacks
-        rpn.count=0;
-        result.count=0;
+        ops.count = 0; // "reset" stacks
+        rpn.count = 0;
+        result.count = 0;
         return NULL;
     }
 
@@ -2536,12 +2650,12 @@ class Parser {
 
         var->name = parseIdent();
 
-        if (ignore(TKOneSpace)) {
-            if (ignore(TKKeyword_as)) {
-                discard(TKOneSpace);
-                var->typeSpec = parseTypeSpec();
-            }
-        }
+        if (ignore(TKOneSpace) and ignore(TKKeyword_as)) //{
+          {  discard(TKOneSpace);
+            var->typeSpec = parseTypeSpec();}
+        // if (ignore(TKOneSpace)) {
+        // }
+        // }
 
         ignore(TKOneSpace);
         if (ignore(TKOpAssign)) {
@@ -2579,7 +2693,7 @@ class Parser {
                 if (!var) continue;
                 scope->locals.append(var);
                 break; // the below works but skipping for now
-                expr = new ASTExpr;
+                expr = new ASTExpr; // skip comments when not linting
                 expr->kind = TKOpAssign;
                 expr->opPrecedence = TokenKind_getPrecedence(TKOpAssign);
                 expr->left = new ASTExpr;
@@ -2608,8 +2722,11 @@ class Parser {
                 break;
 
             case TKLineComment:
-                expr = new ASTExpr(&token);
-                scope->stmts.append(expr);
+                // do this only when linting! parser should have a flag
+                if (generateCommentExprs) {
+                    expr = new ASTExpr(&token);
+                    scope->stmts.append(expr);
+                }
                 break;
 
             default:
@@ -2631,7 +2748,7 @@ class Parser {
         do {
             param = new ASTVar;
             param->name = parseIdent();
-            if (ignore(TKOpColon)) param->typeSpec = parseTypeSpec();
+            if (ignore(TKKeyword_as)) param->typeSpec = parseTypeSpec();
             if (ignore(TKOpAssign)) param->init = parseExpr();
             params.append(param);
         } while (ignore(TKOpComma));
@@ -2651,7 +2768,7 @@ class Parser {
         func->args = parseArgs();
         if (ignore(TKOneSpace) and ignore(TKKeyword_as)) {
 
-            discard(TKOneSpace);
+                        discard(TKOneSpace);
             func->returnType = parseTypeSpec();
         }
 
@@ -2703,19 +2820,27 @@ class Parser {
                 type->super = parseTypeSpec();
                 break;
 
-            case TKIdentifier:
-                break;
+                //            case TKIdentifier:
+                //                break;
 
             case TKNewline:
             case TKOneSpace:
                 token.advance();
                 break;
             case TKLineComment:
-                expr = exprFromCurrentToken();
-                type->checks.append(expr);
+                if (generateCommentExprs) {
+                    expr = new ASTExpr(&token); // exprFromCurrentToken();
+                    type->checks.append(expr);
+                }
+                token.advance();
                 break;
             default:
+                // general exprs are not allowed. Report the error as
+                // unexpected token (first token on the line), then seek to
+                // the next newline.
                 errorUnexpectedToken();
+                while (token.kind != TKNewline)
+                    token.advance();
                 break;
             }
         }
@@ -2749,9 +2874,17 @@ class Parser {
                 import->aliasOffset = (uint32_t)(tmp - import->importFile);
 
         } else {
-            import->aliasOffset = (uint32_t)(
-                str_base(import->importFile, '.', len) - import->importFile);
+            import->aliasOffset
+                = (uint32_t)(str_base(import->importFile, '.', len)
+                    - import->importFile);
         }
+
+        ignore(TKOneSpace);
+
+        if (token.kind != TKLineComment and token.kind != TKNewline)
+            errorUnexpectedToken();
+        while (token.kind != TKLineComment and token.kind != TKNewline)
+            token.advance();
         return import;
     }
 
@@ -2766,17 +2899,17 @@ class Parser {
 
         // The take away is (for C gen):
         // Every caller who calls List->append() should keep a local List*
-        // to follow the list top as items are appended. Each actual append call
-        // must be followed by an update of this pointer to its own ->next.
-        // Append should be called on the last item of the list, not the first.
-        // (it will work but seek through the whole list every time).
+        // to follow the list top as items are appended. Each actual append
+        // call must be followed by an update of this pointer to its own
+        // ->next. Append should be called on the last item of the list, not
+        // the first. (it will work but seek through the whole list every
+        // time).
 
-        List<ASTFunc*>* funcsTop = & root->funcs;
-        List<ASTImport*>* importsTop = & root->imports;
-        List<ASTType*>* typesTop = & root->types;
-        List<ASTFunc*>* testsTop = & root->tests;
-        List<ASTVar*>* globalsTop = & root->globals;
-
+        List<ASTFunc*>* funcsTop = &root->funcs;
+        List<ASTImport*>* importsTop = &root->imports;
+        List<ASTType*>* typesTop = &root->types;
+        List<ASTFunc*>* testsTop = &root->tests;
+        List<ASTVar*>* globalsTop = &root->globals;
 
         while (token.kind != TKNullChar) {
             if (onlyPrintTokens) {
@@ -2789,21 +2922,21 @@ class Parser {
             }
             switch (token.kind) {
             case TKKeyword_function:
-//                root->funcs
+                //                root->funcs
                 funcsTop->append(parseFunc());
-                if (funcsTop->next) funcsTop=funcsTop->next;
+                if (funcsTop->next) funcsTop = funcsTop->next;
                 break;
             case TKKeyword_type:
-//                root->types.
+                //                root->types.
                 typesTop->append(parseType());
-                if (typesTop->next) typesTop=typesTop->next;
+                if (typesTop->next) typesTop = typesTop->next;
                 break;
             case TKKeyword_import:
                 import = parseImport();
                 if (import) {
-//                    root->imports.
+                    //                    root->imports.
                     importsTop->append(import);
-                    if (importsTop->next) importsTop=importsTop->next;
+                    if (importsTop->next) importsTop = importsTop->next;
                     //                    auto subParser = new
                     //                    Parser(import->importFile);
                     //                    List<ASTModule*> subMods =
@@ -2812,15 +2945,15 @@ class Parser {
                 }
                 break;
             case TKKeyword_test:
-//                root->tests.
+                //                root->tests.
                 testsTop->append(parseTest());
-                if (testsTop->next) testsTop=testsTop->next;
+                if (testsTop->next) testsTop = testsTop->next;
                 break;
             case TKKeyword_var:
             case TKKeyword_let:
-//                root->globals.
+                //                root->globals.
                 globalsTop->append(parseVar());
-                if (globalsTop->next) globalsTop=globalsTop->next;
+                if (globalsTop->next) globalsTop = globalsTop->next;
                 break;
             case TKNewline:
             case TKLineComment:
@@ -2904,7 +3037,7 @@ int main(int argc, char* argv[])
     if (argc == 1) return 1;
     bool printDiagnostics = (argc > 2 && *argv[2] == 'd') or true;
 
-    Timer t ;
+    Stopwatch sw;
 
     auto parser = new Parser(argv[1]);
 
@@ -2936,7 +3069,7 @@ int main(int argc, char* argv[])
         expralloc_stat();
     }
 
-//    fprintf(stderr, "ticks: %f\n", t.lap());
-    t.print();
+    //    fprintf(stderr, "ticks: %f\n", t.lap());
+    sw.print();
     return 0;
 }

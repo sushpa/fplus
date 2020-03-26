@@ -39,7 +39,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		85554440242911A90071EF5E /* Makefile */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.make; path = Makefile; sourceTree = "<group>"; };
+		85554440242911A90071EF5E /* Makefile */ = {isa = PBXFileReference; explicitFileType = text; fileEncoding = 4; path = Makefile; sourceTree = "<group>"; };
 		859CB3CE241BB2D400C32B9E /* checkcc */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = checkcc; sourceTree = BUILT_PRODUCTS_DIR; };
 		859CB3D8241BB49800C32B9E /* check.c */ = {isa = PBXFileReference; explicitFileType = text; fileEncoding = 4; path = check.c; sourceTree = "<group>"; };
 		859CB3D9241BB49800C32B9E /* parser.h */ = {isa = PBXFileReference; explicitFileType = text; fileEncoding = 4; path = parser.h; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.c; };
