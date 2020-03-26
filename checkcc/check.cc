@@ -287,8 +287,8 @@ template <class T, int initialSize = 8> class Stack {
 
 #pragma mark - Pool
 
-static size_t globalMemAllocBytes = 0;
-static size_t globalMemUsedBytes = 0;
+//static size_t globalMemAllocBytes = 0;
+//static size_t globalMemUsedBytes = 0;
 
 template <class T, int elementsPerBlock = 512> struct Pool {
     T* ref = NULL;
@@ -302,10 +302,10 @@ template <class T, int elementsPerBlock = 512> struct Pool {
             if (ref) ptrs.push(ref);
             ref = (T*)malloc(elementsPerBlock * sizeof(T));
             count = 0;
-            globalMemAllocBytes += elementsPerBlock * sizeof(T);
+//            globalMemAllocBytes += elementsPerBlock * sizeof(T);
         }
         total++;
-        globalMemUsedBytes += sizeof(T);
+//        globalMemUsedBytes += sizeof(T);
         return &ref[count++];
     }
     ~Pool()
@@ -329,7 +329,7 @@ template <class T, int elementsPerBlock = 512> struct Pool {
 
     void stat()
     {
-        fprintf(stderr, "*** %-16s %4ld B x %5d = %7ld B (%d allocs)\n",
+        fprintf(stderr, "*** %-24s %4ld B x %5d = %7ld B (%d allocs)\n",
             T::_typeName, sizeof(T), total, total * sizeof(T),
             ptrs.count + (ref ? 1 : 0));
     }
@@ -338,13 +338,12 @@ template <class T, int elementsPerBlock = 512> struct Pool {
 #define min(a, b) ((a) < (b)) ? (a) : (b)
 #define KB *1024
 
-class PoolB {
+struct PoolB {
 //    int32_t sizePerPool = 0;
     void* ref = NULL;
     uint32_t cap = 0; // used = 0;
 //    Stack<void*, 32> ptrs;
 
-    public:
     uint32_t used = 0;
 
     void* alloc(size_t reqd)
@@ -391,33 +390,35 @@ class PoolB {
 //    void stat() { fprintf(stderr, "*** PoolB %4d allocations\n", total); }
 };
 
-PoolB poolb;
+PoolB globalPool;
 
 ////typedef uint32_t aptr;
 //struct aptr {    uint32_t p:24, id: 8;
 //};
 //// 32-bit pointer within a local pool
-//template <class T> class SmallPtr {
-//    aptr ptr;
-//    static PoolB *mypool ;
-//public:
-//    SmallPtr(aptr p ) {ptr = *(aptr*)&p;}
-//    inline operator T*() {return (T*)mypool->deref(ptr);}
-//};
-//template <class T> PoolB * SmallPtr<T>::mypool = &poolb;
-//static_assert(sizeof(SmallPtr<void>) == 4, ""); // for any type T actually
+template <class T> class SPtr {
+    uint32_t ptr;
+    static PoolB *myPool;
+public:
+    SPtr(uint32_t p ) {ptr =  &p;}
+    inline operator T*() {return getFrom(myPool);} // dunno if this is a sane default
+    inline T* getFrom(PoolB* pool) {return (T*)pool->deref(ptr);}
+};
+template <class T> PoolB * SPtr<T>::myPool = &globalPool; // sane or insane default
+static_assert(sizeof(SPtr<void>) == 4, ""); // for any type T actually
 
+// TODO: change this to remove Pool<T, S>. keep count elsewhere
 #define STHEAD_POOLB(T, s)                                                 \
     static Pool<T, s> pool;                                                \
     void* operator new(size_t size)                                        \
     {                                                                      \
         pool.total++;                                                      \
-        return poolb.alloc(size);                                          \
+        return globalPool.alloc(size);                                          \
     }                                                                      \
     static const char* _typeName;
 
 // individual pools
-#define STHEAD_POOL(T, s)                                                  \
+#define __UNUSED__STHEAD_POOL(T, s)                                                  \
     static Pool<T, s> pool;                                                \
     void* operator new(size_t size) { return pool.alloc(); }               \
     static const char* _typeName;
@@ -429,38 +430,72 @@ PoolB poolb;
 
 #pragma mark - List
 
-template <class T> struct List {
+template <class T> struct PtrList {
 
-    STHEAD(List<T>, 512)
+    STHEAD(PtrList<T>, 512)
 
-    T item = NULL;
+    T* item = NULL;
 
-    List<T>* next = NULL;
+    PtrList<T>* next = NULL;
 
-    List<T>() {}
-    List<T>(T item) { this->item = item; }
+    PtrList<T>() {}
+    PtrList<T>(T* item) { this->item = item; }
+
+    void append(T* item)
+    { // adds a single item, creating a wrapping list item holder.
+        if (!this->item)
+            this->item = item;
+        else
+            append(PtrList<T>(item));
+    }
+
+    void append(PtrList<T> listItem)
+    {
+        // adds a list item, including its next pointer, effectively
+        // concatenating this with listItem
+        auto li = new PtrList<T>;
+        *li = listItem;
+        PtrList<T>* last = this;
+        while (last->next)
+            last = last->next;
+        last->next = li;
+    }
+};
+template <class T> Pool<PtrList<T> > PtrList<T>::pool;
+
+
+template <class T> struct SPtrList {
+
+    STHEAD(SPtrList<T>, 512)
+
+    SPtr<T> item = 0;
+
+    SPtrList<T>* next = NULL;
+
+    SPtrList<T>() {}
+    SPtrList<T>(T item) { this->item = item; }
 
     void append(T item)
     { // adds a single item, creating a wrapping list item holder.
         if (!this->item)
             this->item = item;
         else
-            append(List<T>(item));
+            append(SPtrList<T>(item));
     }
 
-    void append(List<T> listItem)
+    void append(SPtrList<T> listItem)
     {
         // adds a list item, including its next pointer, effectively
         // concatenating this with listItem
-        auto li = new List<T>;
+        auto li = new SPtrList<T>;
         *li = listItem;
-        List<T>* last = this;
+        SPtrList<T>* last = this;
         while (last->next)
             last = last->next;
         last->next = li;
     }
 };
-template <class T> Pool<List<T> > List<T>::pool;
+template <class T> Pool<SPtrList<T> > SPtrList<T>::pool;
 
 #define foreach(var, listp, listSrc)                                       \
     auto listp = &(listSrc);                                               \
@@ -1645,8 +1680,8 @@ struct ASTScope {
 
     STHEAD(ASTScope, 32)
 
-    List<ASTExpr*> stmts;
-    List<ASTVar*> locals;
+    PtrList<ASTExpr> stmts;
+    PtrList<ASTVar> locals;
     ASTScope* parent = NULL;
     void gen(int level);
 };
@@ -1824,13 +1859,13 @@ struct ASTType {
 
     STHEAD(ASTType, 32)
 
-    List<ASTVar*> vars;
+    PtrList<ASTVar> vars;
     ASTTypeSpec* super = NULL;
     char* name = NULL;
 
-    List<ASTExpr*> checks; // invariants
+    PtrList<ASTExpr> checks; // invariants
 
-    List<ASTVar*> params; // params of this type
+    PtrList<ASTVar> params; // params of this type
 
     void gen(int level = 0)
     {
@@ -1865,7 +1900,7 @@ struct ASTFunc {
     STHEAD(ASTFunc, 64)
 
     ASTScope* body;
-    List<ASTVar*> args;
+    PtrList<ASTVar> args;
     ASTTypeSpec* returnType;
     char* mangledName;
     char* owner; // if method of a type
@@ -1912,12 +1947,12 @@ struct ASTModule {
 
     STHEAD(ASTModule, 16)
 
-    List<ASTFunc*> funcs;
-    List<ASTExpr*> exprs;
-    List<ASTType*> types;
-    List<ASTVar*> globals;
-    List<ASTImport*> imports;
-    List<ASTFunc*> tests;
+    PtrList<ASTFunc> funcs;
+    PtrList<ASTExpr> exprs;
+    PtrList<ASTType> types;
+    PtrList<ASTVar> globals;
+    PtrList<ASTImport> imports;
+    PtrList<ASTFunc> tests;
 
     char* name;
     char* moduleName = NULL; // mod.submod.xyz.mycode
@@ -1956,7 +1991,7 @@ class Parser {
         = false; // set to false when compiling, set to true when linting
     char* noext = NULL;
     Token token; // current
-    List<ASTModule*> modules; // module node of the AST
+    PtrList<ASTModule> modules; // module node of the AST
     Stack<ASTScope*> scopes; // a stack that keeps track of scope nesting
 
     public:
@@ -2433,12 +2468,12 @@ class Parser {
         return typeSpec;
     }
 
-    List<ASTVar*> parseArgs()
+    PtrList<ASTVar> parseArgs()
     {
         token.flags.mergeArrayDims = true;
         discard(TKParenOpen);
 
-        List<ASTVar*> args;
+        PtrList<ASTVar> args;
         ASTVar* arg;
         do {
             arg = parseVar();
@@ -2550,10 +2585,10 @@ class Parser {
     }
 
 #pragma mark -
-    List<ASTVar*> parseParams()
+    PtrList<ASTVar> parseParams()
     {
         discard(TKOpLT);
-        List<ASTVar*> params;
+        PtrList<ASTVar> params;
         ASTVar* param;
         do {
             param = new ASTVar;
@@ -2695,7 +2730,7 @@ class Parser {
     }
 
 #pragma mark -
-    List<ASTModule*> parse()
+    PtrList<ASTModule> parse()
     {
         auto root = new ASTModule;
         root->name = moduleName;
@@ -2711,11 +2746,11 @@ class Parser {
         // the first. (it will work but seek through the whole list every
         // time).
 
-        List<ASTFunc*>* funcsTop = &root->funcs;
-        List<ASTImport*>* importsTop = &root->imports;
-        List<ASTType*>* typesTop = &root->types;
-        List<ASTFunc*>* testsTop = &root->tests;
-        List<ASTVar*>* globalsTop = &root->globals;
+        PtrList<ASTFunc>* funcsTop = &root->funcs;
+        PtrList<ASTImport>* importsTop = &root->imports;
+        PtrList<ASTType>* typesTop = &root->types;
+        PtrList<ASTFunc>* testsTop = &root->tests;
+        PtrList<ASTVar>* globalsTop = &root->globals;
 
         while (token.kind != TKNullChar) {
             if (onlyPrintTokens) {
@@ -2794,19 +2829,19 @@ NAME_CLASS(ASTScope)
 NAME_CLASS(ASTUnits)
 NAME_CLASS(ASTExpr)
 template <>
-NAME_CLASS(List<ASTExpr*>)
+NAME_CLASS(PtrList<ASTExpr*>)
 template <>
-NAME_CLASS(List<ASTFunc*>)
+NAME_CLASS(PtrList<ASTFunc*>)
 template <>
-NAME_CLASS(List<ASTModule*>)
+NAME_CLASS(PtrList<ASTModule*>)
 template <>
-NAME_CLASS(List<ASTType*>)
+NAME_CLASS(PtrList<ASTType*>)
 template <>
-NAME_CLASS(List<ASTVar*>)
+NAME_CLASS(PtrList<ASTVar*>)
 template <>
-NAME_CLASS(List<ASTScope*>)
+NAME_CLASS(PtrList<ASTScope*>)
 template <>
-NAME_CLASS(List<ASTImport*>)
+NAME_CLASS(PtrList<ASTImport*>)
 
 void alloc_stat()
 {
@@ -2818,18 +2853,18 @@ void alloc_stat()
     ASTTypeSpec::pool.stat();
     ASTFunc::pool.stat();
     ASTModule::pool.stat();
-    List<ASTExpr*>::pool.stat();
-    List<ASTVar*>::pool.stat();
-    List<ASTModule*>::pool.stat();
-    List<ASTFunc*>::pool.stat();
-    List<ASTType*>::pool.stat();
-    List<ASTImport*>::pool.stat();
-    List<ASTScope*>::pool.stat();
+    PtrList<ASTExpr*>::pool.stat();
+    PtrList<ASTVar*>::pool.stat();
+    PtrList<ASTModule*>::pool.stat();
+    PtrList<ASTFunc*>::pool.stat();
+    PtrList<ASTType*>::pool.stat();
+    PtrList<ASTImport*>::pool.stat();
+    PtrList<ASTScope*>::pool.stat();
     Parser::pool.stat();
 
-    fprintf(stderr, "Total nodes allocated %lu B, used %lu B (%.2f%%)\n",
-        globalMemAllocBytes, globalMemUsedBytes,
-        globalMemUsedBytes * 100.0 / globalMemAllocBytes);
+    fprintf(stderr, "Total nodes allocated %u B, used %u B (%.2f%%)\n",
+        globalPool.cap, globalPool.used,
+        globalPool.used * 100.0 / globalPool.cap);
 }
 
 #pragma mark - main
@@ -2842,7 +2877,7 @@ int main(int argc, char* argv[])
 
     auto parser = new Parser(argv[1]);
 
-    List<ASTModule*> modules = parser->parse();
+    PtrList<ASTModule> modules = parser->parse();
 
     if (parser->errCount or parser->warnCount) {
         fputs(equaltos, stderr);
