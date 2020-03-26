@@ -339,15 +339,15 @@ template <class T, int elementsPerBlock = 512> struct Pool {
 #define KB *1024
 
 class PoolB {
-    int32_t sizePerPool = 0;
+//    int32_t sizePerPool = 0;
     void* ref = NULL;
-    uint32_t cap__unused = 0, total = 0;
-    Stack<void*, 32> ptrs;
+    uint32_t cap = 0; // used = 0;
+//    Stack<void*, 32> ptrs;
 
     public:
-    int32_t pos = 0;
+    uint32_t used = 0;
 
-    void* alloc(size_t size)
+    void* alloc(size_t reqd)
     {
         void* ans = NULL;
         // Do you want to optimise for small files or large files?
@@ -358,34 +358,37 @@ class PoolB {
         // the large files approach. Large files will take forever to
         // process with the small files approach.
 
-        if (pos + size > sizePerPool) {
-            if (ref) ptrs.push(ref);
-            sizePerPool = sizePerPool > 64 KB ? min(2 * sizePerPool, 256 KB)
-                                              : 16 KB;
-            ref = malloc(sizePerPool * 1);
-            pos = 0;
-            globalMemAllocBytes += sizePerPool;
+        // This is a pool for single objects, not arrays or large strings.
+        // dont ask for a big fat chunk larger than 16KB (or up to 256KB
+        // depending on how much is already there) all at one time.
+        if (used + reqd > cap) {
+//            if (ref) ptrs.push(ref);
+            cap += (cap > 64 KB ? 256 KB : 16 KB);
+            ref = realloc(ref, cap);
+            assert(ref != NULL);
+//            pos = 0;
+//            globalMemAllocBytes += sizePerPool;
         }
-        total++;
-        globalMemUsedBytes += size;
-        ans = (void*)((uintptr_t)ref + pos);
-        pos += size;
+//        count++;
+//        used += size;
+        ans = (void*)((uintptr_t)ref + used);
+        used += reqd;
         return ans;
     }
 
-//    void* deref(aptr ptr) {
-//        // ptr is in steps of sizeof(void*), not in steps of any sizeof(T*)
-//        return (void*)( (uintptr_t)ref + aptr.ptr);
-//    }
+    void* deref(uint32_t ptr) {
+        // ptr is in steps of sizeof(void*), not in steps of any sizeof(T*)
+        return (void*)((uintptr_t)ref + ptr);
+    }
 
     ~PoolB()
     {
         free(ref);
-        for (int i = 0; i < ptrs.count; i++)
-            free(ptrs[i]);
+//        for (int i = 0; i < ptrs.count; i++)
+//            free(ptrs[i]);
     }
 
-    void stat() { fprintf(stderr, "*** PoolB %4d allocations\n", total); }
+//    void stat() { fprintf(stderr, "*** PoolB %4d allocations\n", total); }
 };
 
 PoolB poolb;
@@ -1957,7 +1960,7 @@ class Parser {
     Stack<ASTScope*> scopes; // a stack that keeps track of scope nesting
 
     public:
-    STHEAD_POOL(Parser, 16)
+    STHEAD_POOLB(Parser, 16)
 
     size_t dataSize() { return end - data; }
 
