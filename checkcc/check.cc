@@ -2002,14 +2002,17 @@ class Parser {
 #define STR(x) STR_(x)
 #define STR_(x) #x
 
-    ~Parser()
-    {
+    void fini() {
         free(data);
         free(noext);
         free(moduleName);
         free(mangledName);
         free(capsMangledName);
         free(dirname);
+
+    }
+    ~Parser()
+    { fini();
     }
     uint32_t errCount = 0, warnCount = 0;
     Parser(char* filename, bool skipws = true)
@@ -2913,6 +2916,9 @@ int main(int argc, char* argv[])
 #define GET(T, addr) (T*)poolb.deref(addr)
 //    auto v = GET(ASTImport, 128);
 //    const int s = sizeof(SmallPtr<ASTImport>);
+
+//    free(parser);
+    parser->fini();
 
     return 0;
 }
