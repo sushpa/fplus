@@ -1,3 +1,5 @@
+// TODO: need ASTEnum
+//
 // AS A RULE
 // Nothing except Parser should allocate any memory.
 // if you need new strings, Parser should have anticipated that in advance
@@ -2832,19 +2834,19 @@ NAME_CLASS(ASTScope)
 NAME_CLASS(ASTUnits)
 NAME_CLASS(ASTExpr)
 template <>
-NAME_CLASS(PtrList<ASTExpr*>)
+NAME_CLASS(PtrList<ASTExpr>)
 template <>
-NAME_CLASS(PtrList<ASTFunc*>)
+NAME_CLASS(PtrList<ASTFunc>)
 template <>
-NAME_CLASS(PtrList<ASTModule*>)
+NAME_CLASS(PtrList<ASTModule>)
 template <>
-NAME_CLASS(PtrList<ASTType*>)
+NAME_CLASS(PtrList<ASTType>)
 template <>
-NAME_CLASS(PtrList<ASTVar*>)
+NAME_CLASS(PtrList<ASTVar>)
 template <>
-NAME_CLASS(PtrList<ASTScope*>)
+NAME_CLASS(PtrList<ASTScope>)
 template <>
-NAME_CLASS(PtrList<ASTImport*>)
+NAME_CLASS(PtrList<ASTImport>)
 
 void alloc_stat()
 {
@@ -2856,13 +2858,13 @@ void alloc_stat()
     ASTTypeSpec::pool.stat();
     ASTFunc::pool.stat();
     ASTModule::pool.stat();
-    PtrList<ASTExpr*>::pool.stat();
-    PtrList<ASTVar*>::pool.stat();
-    PtrList<ASTModule*>::pool.stat();
-    PtrList<ASTFunc*>::pool.stat();
-    PtrList<ASTType*>::pool.stat();
-    PtrList<ASTImport*>::pool.stat();
-    PtrList<ASTScope*>::pool.stat();
+    PtrList<ASTExpr>::pool.stat();
+    PtrList<ASTVar>::pool.stat();
+    PtrList<ASTModule>::pool.stat();
+    PtrList<ASTFunc>::pool.stat();
+    PtrList<ASTType>::pool.stat();
+    PtrList<ASTImport>::pool.stat();
+    PtrList<ASTScope>::pool.stat();
     Parser::pool.stat();
 
     fprintf(stderr, "Total nodes allocated %u B, used %u B (%.2f%%)\n",
