@@ -59,6 +59,7 @@
 #include <cstdio>
 #include <cstdint>
 #include <cstdlib>
+#include <unistd.h>
 #include <cstring>
 #include <cmath>
 
@@ -374,6 +375,8 @@ struct PoolB {
 //        used += size;
         ans = (void*)((uintptr_t)ref + used);
         used += reqd;
+        if (((uintptr_t)ans/8)*8 != (uintptr_t)ans)
+            printf("");
         return ans;
     }
 
@@ -1640,6 +1643,7 @@ struct ASTExpr {
         case TKIdentifier:
         case TKString:
         case TKRegex:
+            case TKInline:
         case TKNumber:
         case TKMultiDotNumber:
         case TKLineComment: // Comments go in the AST like regular stmts
@@ -1901,12 +1905,12 @@ struct ASTFunc {
 
     STHEAD(ASTFunc, 64)
 
-    ASTScope* body;
+    ASTScope* body = NULL;
     PtrList<ASTVar> args;
-    ASTTypeSpec* returnType;
-    char* mangledName;
-    char* owner; // if method of a type
-    char* name;
+    ASTTypeSpec* returnType = NULL;
+    char* mangledName = "";
+    char* owner = ""; // if method of a type
+    char* name = "";
     struct {
         uint16_t line;
         struct {
@@ -2199,7 +2203,7 @@ class Parser {
 
             ASTExpr* expr = new ASTExpr(&token); // dont advance yet
             int prec = expr->opPrecedence;
-            bool rassoc = expr->opIsRightAssociative;
+            bool rassoc = prec ?  expr->opIsRightAssociative : false;
             char lookAheadChar = token.peekCharAfter();
 
             switch (expr->kind) {
@@ -2295,7 +2299,8 @@ class Parser {
                             goto error;
                         }
 
-                        if (!p->opIsUnary and p->kind != TKFunctionCall
+                        if (!(p->opPrecedence or p->opIsUnary)
+                            and p->kind != TKFunctionCall
                             and p->kind != TKOpColon
                             // in case of ::, second colon will add null
                             // later
@@ -2342,7 +2347,7 @@ class Parser {
                 goto error;
             }
 
-            if (!p->opIsUnary
+            if (!(p->opPrecedence or p->opIsUnary)
                 and (p->kind != TKFunctionCall and p->kind != TKSubscript)
                 and rpn.count < 2) {
                 errorParsingExpr();
@@ -2879,10 +2884,13 @@ int main(int argc, char* argv[])
     bool printDiagnostics = (argc > 2 && *argv[2] == 'd') or true;
 
     Stopwatch sw;
+    PtrList<ASTModule> modules ;
+    Parser* parser;
+    if (access(argv[1], F_OK ) == -1){fprintf(stderr, "checkcc: file '%s' not found.\n", argv[1]);
+        return 2;}
+     parser = new Parser(argv[1]);
 
-    auto parser = new Parser(argv[1]);
-
-    PtrList<ASTModule> modules = parser->parse();
+    modules = parser->parse();
 
     if (parser->errCount or parser->warnCount) {
         fputs(equaltos, stderr);
@@ -2920,9 +2928,10 @@ int main(int argc, char* argv[])
 //    const int s = sizeof(SmallPtr<ASTImport>);
 
 //    free(parser);
-    parser->fini();
+//    parser->fini();
 
     return 0;
+
 }
 
 
