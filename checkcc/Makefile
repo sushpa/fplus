@@ -1,6 +1,6 @@
 all: release debug small
 
-CCFLAGS=-std=c++11 -nodefaultlibs -flto -fwhole-program -fno-rtti -fno-exceptions -fno-threadsafe-statics
+CCFLAGS=-std=c++11 -nodefaultlibs -flto   -fno-rtti -fno-exceptions -fno-threadsafe-statics
 CPP=g++
 
 release: check.cc

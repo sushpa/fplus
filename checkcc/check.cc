@@ -473,7 +473,7 @@ template <class T> struct PtrList {
         last->next = li;
     }
 };
-template <class T> Pool<PtrList<T> > PtrList<T>::pool;
+template <class T> Pool<PtrList<T>> PtrList<T>::pool;
 
 template <class T> struct SPtrList {
 
@@ -506,7 +506,7 @@ template <class T> struct SPtrList {
         last->next = li;
     }
 };
-template <class T> Pool<SPtrList<T> > SPtrList<T>::pool;
+template <class T> Pool<SPtrList<T>> SPtrList<T>::pool;
 
 #define foreach(var, listp, listSrc)                                       \
     auto listp = &(listSrc);                                               \
@@ -701,6 +701,7 @@ const char* TokenKind_repr(const TokenKind kind, bool spacing = true)
     case TKPipe:
         return "|";
     case TKOpAssign:
+    case TKVarAssign:
         return spacing ? " = " : "=";
     case TKOpEQ:
         return spacing ? " == " : "==";
@@ -783,6 +784,75 @@ const char* TokenKind_repr(const TokenKind kind, bool spacing = true)
     }
     printf("unknown kind: %d\n", kind);
     return "(!unk)";
+}
+
+// Return the repr of a token kind (for debug)
+const char* TokenKind_defaultType(const TokenKind kind)
+{
+    switch (kind) {
+    case TKKeyword_not:
+    case TKKeyword_and:
+    case TKKeyword_or:
+    case TKKeyword_in:
+    case TKOpEQ:
+    case TKOpNE:
+    case TKOpGE:
+    case TKOpGT:
+    case TKOpLE:
+    case TKOpLT:
+    case TKOpResults:
+    case TKOpNotResults:
+        return "Boolean";
+    case TKPower:
+    case TKOpMod:
+    case TKSlash:
+    case TKPlus:
+    case TKMinus:
+    case TKTimes:
+    case TKUnaryMinus:
+
+        return "Scalar";
+
+    case TKDigit:
+    case TKNumber:
+
+    case TKMultiDotNumber:
+        return NULL; //"IPv4";
+
+    case TKArrayOpen:
+        return "[";
+    case TKArrayDims:
+        return "[:]";
+    case TKBraceOpen:
+        return "{";
+
+    case TKSubscript:
+        return "Slice"; // not if index resolves to 1 scalar, then it's well
+                        // Scalar
+
+    case TKParenClose:
+        return ")";
+    case TKParenOpen:
+        return "(";
+    case TKPeriod:
+        return ".";
+    case TKOpComma:
+        return ", ";
+    case TKOpColon:
+        return "Range";
+    case TKOpSemiColon:
+        return "Tensor";
+    case TKStringBoundary:
+    case TKString:
+    case TKRegexBoundary:
+    case TKRegex:
+    case TKInlineBoundary:
+    case TKInline:
+        return NULL; // "String";
+    default:
+        return "UnknownType";
+    }
+    //    printf("unknown kind: %d\n", kind);
 }
 
 bool TokenKind_isUnary(TokenKind kind)
@@ -1073,8 +1143,9 @@ struct Token {
             switch (cn) {
             case '=':
                 return TKOpLE;
-//            case '>':
-//                return TKOpNE; // NE variants are !=, <>, =/ (default)
+                //            case '>':
+                //                return TKOpNE; // NE variants are !=, <>,
+                //                =/ (default)
             default:
                 return TKOpLT;
             }
@@ -1089,8 +1160,8 @@ struct Token {
             switch (cn) {
             case '=':
                 return TKOpEQ;
-//            case '/':
-//                return TKOpNE;
+                //            case '/':
+                //                return TKOpNE;
             case '>':
                 return TKOpResults;
             default:
@@ -1475,16 +1546,17 @@ struct ASTImport { // canbe 8
     void genc(int level)
     {
         str_tr_ip(importFile, '.', '_');
-        printf("\n#include \"%s.h\"\n",  importFile);
-        if (hasAlias) printf("#define %s %s\n", importFile+aliasOffset, importFile);
+        printf("\n#include \"%s.h\"\n", importFile);
+        if (hasAlias)
+            printf("#define %s %s\n", importFile + aliasOffset, importFile);
         str_tr_ip(importFile, '_', '.');
     }
-    void undefc() //helper for genc
+    void undefc() // helper for genc
     {
-//        str_tr_ip(importFile, '.', '_');
-//        printf("\n#include \"%s.h\"\n",  importFile);
-        if (hasAlias) printf("#undef %s\n", importFile+aliasOffset);
-//        str_tr_ip(importFile, '_', '.');
+        //        str_tr_ip(importFile, '.', '_');
+        //        printf("\n#include \"%s.h\"\n",  importFile);
+        if (hasAlias) printf("#undef %s\n", importFile + aliasOffset);
+        //        str_tr_ip(importFile, '_', '.');
     }
 };
 
@@ -1526,7 +1598,8 @@ struct ASTTypeSpec {
         TSResolved, // type ptr is set and points to the type
         TSDimensionedNumber // type can only be Number, units ptr is set
                             // if more (predefined) number types can use
-                            // units, add them here NOPE! could be arrays whatever
+                            // units, add them here NOPE! could be arrays
+                            // whatever
     };
     TypeSpecStatus status = TSUnresolved;
     // if false, name is set, else type is set
@@ -1539,48 +1612,48 @@ struct ASTTypeSpec {
         if (status == TSDimensionedNumber) units->gen(level);
     }
 
-    void genc(int level = 0, bool isconst=false)
+    void genc(int level = 0, bool isconst = false)
     {
         if (isconst) printf("const ");
-        if (dims) printf("Array%dD(", dims  );
+        if (dims) printf("Array%dD(", dims);
         if (status == TSUnresolved) printf("%s", name);
-        if (isconst) printf(" const"); // only if a ptr type
-        if (dims) printf("%s", ")"  );
-//        if (status == TSDimensionedNumber) {
-//            units->genc(level);
-//        }
-    }    /*
-        const char* dimsGenStr(int32_t dims)
-        {
-            switch (dims) {
-            case 0:
-                return "";
-            case 1:
-                return "[]";
-            case 2:
-                return "[:,:]";
-            case 3:
-                return "[:,:,:]";
-            case 4:
-                return "[:,:,:,:]";
-            case 5:
-                return "[:,:,:,:,:]";
-            case 6:
-                return "[:,:,:,:,:,:]";
-            default:
-                int32_t i;
-                int32_t sz = 2 + dims + (dims ? (dims - 1) : 0) + 1;
-                char* str = (char*)malloc(sz * sizeof(char));
-                str[sz * 0] = '[';
-                str[sz - 1] = 0;
-                for (i = 0; i < dims; i++) {
-                    str[i * 2 + 1] = ':';
-                    str[i * 2 + 2] = ',';
-                }
-                str[sz - 2] = ']';
-                return str;
-            }
-        } */
+        // if (isconst) printf(" const"); // only if a ptr type
+        if (dims) printf("%s", ")");
+        //        if (status == TSDimensionedNumber) {
+        //            units->genc(level);
+        //        }
+    } /*
+     const char* dimsGenStr(int32_t dims)
+     {
+         switch (dims) {
+         case 0:
+             return "";
+         case 1:
+             return "[]";
+         case 2:
+             return "[:,:]";
+         case 3:
+             return "[:,:,:]";
+         case 4:
+             return "[:,:,:,:]";
+         case 5:
+             return "[:,:,:,:,:]";
+         case 6:
+             return "[:,:,:,:,:,:]";
+         default:
+             int32_t i;
+             int32_t sz = 2 + dims + (dims ? (dims - 1) : 0) + 1;
+             char* str = (char*)malloc(sz * sizeof(char));
+             str[sz * 0] = '[';
+             str[sz - 1] = 0;
+             for (i = 0; i < dims; i++) {
+                 str[i * 2 + 1] = ':';
+                 str[i * 2 + 2] = ',';
+             }
+             str[sz - 2] = ']';
+             return str;
+         }
+     } */
 };
 
 #pragma mark - AST Var
@@ -1705,22 +1778,35 @@ struct ASTExpr {
     }
 
     void gen(int level = 0, bool spacing = true);
-    void genc(int level = 0, bool spacing = true, bool inFuncArgs=false);
-    void catarglabels(); //helper  for genc
+    void genc(int level = 0, bool spacing = true, bool inFuncArgs = false);
+    void catarglabels(); // helper  for genc
 };
-
-
 
 void ASTVar::gen(int level)
 {
     printf("%.*s%s%s", level, spaces,
         flags.isVar ? "var " : flags.isLet ? "let " : "", name);
     if (typeSpec) {
-        printf(" as ");
-        typeSpec->gen(level + STEP);
+        if (!(init and init->kind == TKFunctionCall
+                and !strcmp(init->name, typeSpec->name))) {
+            printf(" as ");
+            typeSpec->gen(level + STEP);
+        }
+    } else {
+        // should make this Expr_defaultType and it does it recursively for
+        // [, etc
+        const char* ctyp
+            = TokenKind_defaultType(init ? init->kind : TKUnknown);
+        if (init and init->kind == TKArrayOpen)
+            ctyp = TokenKind_defaultType(
+                init->right ? init->right->kind : TKUnknown);
+        if (init and init->kind == TKFunctionCall and *init->name >= 'A'
+            and *init->name <= 'Z')
+            ctyp = NULL; // init->name;
+        if (ctyp) printf(" as %s", ctyp);
     }
-//    else
-//        printf(" as UnknownType");
+    //    else
+    //        printf(" as UnknownType");
     if (init) {
         printf(" = ");
         init->gen(0);
@@ -1729,25 +1815,32 @@ void ASTVar::gen(int level)
 
 void ASTVar::genc(int level, bool isconst)
 {
-    // for C the variable declarations go at the top of the block, without init
-//    printf("%.*s%s%s", level, spaces,
-//           flags.isVar ? "var " : flags.isLet ? "let " : "", name);
-    printf("%.*s",level, spaces);
+    // for C the variable declarations go at the top of the block, without
+    // init
+    //    printf("%.*s%s%s", level, spaces,
+    //           flags.isVar ? "var " : flags.isLet ? "let " : "", name);
+    printf("%.*s", level, spaces);
     if (typeSpec) {
-//        printf(" as ");
+        //        printf(" as ");
         typeSpec->genc(level + STEP, isconst);
-    } else
-        printf("UnknownType");
+    } else {
+        const char* ctyp
+            = TokenKind_defaultType(init ? init->kind : TKUnknown);
+        if (init and init->kind == TKFunctionCall and *init->name >= 'A'
+            and *init->name <= 'Z')
+            ctyp = init->name;
+        printf("%s", ctyp);
+    }
+    //        printf("UnknownType");
     printf(" %s", name);
 
-    //flags.isVar ? "/* var */" : flags.isLet ? "/* let */" : "");
+    // flags.isVar ? "/* var */" : flags.isLet ? "/* let */" : "");
 
-//    if (init) {
-//        printf(" = ");
-//        init->gen(0);
-//    }
+    //    if (init) {
+    //        printf(" = ");
+    //        init->gen(0);
+    //    }
 }
-
 
 #pragma mark - AST Scope
 
@@ -1767,7 +1860,8 @@ void ASTScope::gen(int level)
     //    foreach (local, locals, this->locals) {
     //        local->gen(level);
     //        puts("");
-    //    } // these will be done from within the expr list using TKVarAssign
+    //    } // these will be done from within the expr list using
+    //    TKVarAssign
     foreach (stmt, stmts, this->stmts) {
         stmt->gen(level);
         puts("");
@@ -1782,10 +1876,11 @@ void ASTScope::genc(int level)
         puts(";");
     } // these will be declared at top and defined within the expr list
     foreach (stmt, stmts, this->stmts) {
-        if (stmt->kind== TKLineComment) continue;
-        if (genLineNumbers) printf("    # %d\n" ,stmt->line);
+        if (stmt->kind == TKLineComment) continue;
+        if (genLineNumbers) printf("    # %d\n", stmt->line);
         stmt->genc(level);
         puts(";");
+        puts("if (*err_ == ERROR_TRACE) goto backtrace;");
     }
 }
 
@@ -1828,7 +1923,7 @@ void ASTExpr::gen(int level, bool spacing)
     case TKVarAssign:
         // var x as XYZ = abc... -> becomes an ASTVar and an ASTExpr
         // (to keep location). Send it to ASTVar::gen.
-        assert(var!=NULL);
+        assert(var != NULL);
         var->gen();
         break;
 
@@ -1916,8 +2011,9 @@ void ASTExpr::gen(int level, bool spacing)
         if (kind == TKArrayOpen) putc(']', stdout);
     }
 }
-void ASTExpr::catarglabels() {
-    switch(this->kind) {
+void ASTExpr::catarglabels()
+{
+    switch (this->kind) {
     case TKOpComma:
         this->left->catarglabels();
         this->right->catarglabels();
@@ -1943,26 +2039,24 @@ void ASTExpr::genc(int level, bool spacing, bool inFuncArgs)
         break;
 
     case TKRegex:
-        value.string[0]='"';
-        value.string[strLength-1]='"';
+        value.string[0] = '"';
+        value.string[strLength - 1] = '"';
         printf("%.*s", strLength, value.string);
-        value.string[0]='\'';
-        value.string[strLength-1]='\'';
+        value.string[0] = '\'';
+        value.string[strLength - 1] = '\'';
         break;
 
     case TKInline:
-        value.string[0]='"';
-        value.string[strLength-1]='"';
+        value.string[0] = '"';
+        value.string[strLength - 1] = '"';
         printf("mkRe_(%.*s)", strLength, value.string);
-        value.string[0]='`';
-        value.string[strLength-1]='`';
+        value.string[0] = '`';
+        value.string[strLength - 1] = '`';
         break;
 
     case TKLineComment:
         // TODO: skip  comments in generated code
-        printf("// %.*s",
-               strLength,
-               value.string);
+        printf("// %.*s", strLength, value.string);
         break;
 
     case TKFunctionCall:
@@ -1970,14 +2064,21 @@ void ASTExpr::genc(int level, bool spacing, bool inFuncArgs)
         printf("%.*s", strLength, name);
         if (left) left->catarglabels();
         str_tr_ip(value.string, '_', '.');
-//        printf("%.*s(", strLength, name);
+        //        printf("%.*s(", strLength, name);
         printf("(");
         if (left) left->genc(0, false, true);
+        printf("\n#ifdef DEBUG\n"
+               "        ,THISFILE,%d\n"
+               "#endif\n        ",
+            line);
+        if (strcmp(name, "print")) printf(", err_"); // temporary -- this
+        // should be if the function throws. resolve the func first
         printf(")");
         break;
 
     case TKSubscript: // TODO
-        // TODO: lookup the var, its typespec, then its dims. then slice here should be slice1D slice2D etc.
+        // TODO: lookup the var, its typespec, then its dims. then slice
+        // here should be slice1D slice2D etc.
         printf("slice(%.*s, {", strLength, name);
         if (left) left->genc(0, false);
         printf("})");
@@ -1986,41 +2087,48 @@ void ASTExpr::genc(int level, bool spacing, bool inFuncArgs)
     case TKOpAssign:
         if (!inFuncArgs) {
             left->genc();
-            printf("%s",TokenKind_repr(TKOpAssign,spacing));
+            printf("%s", TokenKind_repr(TKOpAssign, spacing));
         }
         right->genc();
-        // check various types of lhs  here, eg arr[9:87] = 0, map["uuyt"]="hello" etc.
+        // check various types of lhs  here, eg arr[9:87] = 0,
+        // map["uuyt"]="hello" etc.
         break;
 
     case TKOpColon: // convert 3:4:5 to range(...)
-        printf("%s(" , left->kind!=TKOpColon ? "range_to" : "range_to_by");
-        if (left->kind==TKOpColon) {
-            left->kind=TKOpComma;
-            left->genc(0,false);
-        left->kind=TKOpColon;
-        }
-        else left->genc(0,false);
+        // must do bounds check first!
+        printf("%s(", left->kind != TKOpColon ? "range_to" : "range_to_by");
+        if (left->kind == TKOpColon) {
+            left->kind = TKOpComma;
+            left->genc(0, false);
+            left->kind = TKOpColon;
+        } else
+            left->genc(0, false);
         printf(", ");
-        right->genc(0,false);
+        right->genc(0, false);
         printf(")");
         break;
 
     case TKVarAssign: // basically a TKOpAssign corresponding to a local var
         // var x as XYZ = abc... -> becomes an ASTVar and an ASTExpr
         // (to keep location). Send it to ASTVar::gen.
-        if(var->init!=NULL) {
-        printf("%s = ", var->name);
-//        var->gen();
-        var->init->genc();
-//            printf(";");
+        if (var->init != NULL) {
+            printf("%s = ", var->name);
+            //        var->gen();
+            var->init->genc();
+            //            printf(";");
         }
         break;
 
     case TKKeyword_for:
     case TKKeyword_if:
     case TKKeyword_while:
-        printf("%s (", TokenKind_repr(kind));
+        if (kind == TKKeyword_for)
+            printf("FOR(");
+        else
+            printf("%s (", TokenKind_repr(kind));
+        if (kind == TKKeyword_for) left->kind = TKOpComma;
         if (left) left->genc(0);
+        if (kind == TKKeyword_for) left->kind = TKOpAssign;
         puts(") {");
         if (body) body->genc(level + STEP);
         printf("%.*s}", level, spaces);
@@ -2034,83 +2142,92 @@ void ASTExpr::genc(int level, bool spacing, bool inFuncArgs)
         printf(")");
         break;
 
+    case TKKeyword_return:
+        printf("{*err_ = NULL; stackdepth--; return ");
+        right->genc(0);
+        printf(";}\n");
+        break;
 
     default:
         if (not opPrecedence) break;
         // not an operator, but this should be error if you reach here
         bool leftBr = left and left->opPrecedence
-        and left->opPrecedence < this->opPrecedence;
+            and left->opPrecedence < this->opPrecedence;
         bool rightBr = right and right->opPrecedence
-        and right->kind != TKKeyword_return // found in 'or return'
-        and right->opPrecedence < this->opPrecedence;
+            and right->kind != TKKeyword_return // found in 'or return'
+            and right->opPrecedence < this->opPrecedence;
 
-//        if (kind == TKOpColon) {
-//            // expressions like arr[a:x-3:2] should become
-//            // arr[a:(x-3):2]
-//            // or list literals [8, 9, 6, 77, sin(c)]
-//            if (left) switch (left->kind) {
-//            case TKNumber:
-//            case TKIdentifier:
-//            case TKString:
-//            case TKOpColon:
-//            case TKMultiDotNumber:
-//            case TKUnaryMinus:
-//                break;
-//            default:
-//                leftBr = true;
-//            }
-//            if (right) switch (right->kind) {
-//            case TKNumber:
-//            case TKIdentifier:
-//            case TKString:
-//            case TKOpColon:
-//            case TKMultiDotNumber:
-//            case TKUnaryMinus:
-//                break;
-//            default:
-//                rightBr = true;
-//            }
-//        }
+        //        if (kind == TKOpColon) {
+        //            // expressions like arr[a:x-3:2] should become
+        //            // arr[a:(x-3):2]
+        //            // or list literals [8, 9, 6, 77, sin(c)]
+        //            if (left) switch (left->kind) {
+        //            case TKNumber:
+        //            case TKIdentifier:
+        //            case TKString:
+        //            case TKOpColon:
+        //            case TKMultiDotNumber:
+        //            case TKUnaryMinus:
+        //                break;
+        //            default:
+        //                leftBr = true;
+        //            }
+        //            if (right) switch (right->kind) {
+        //            case TKNumber:
+        //            case TKIdentifier:
+        //            case TKString:
+        //            case TKOpColon:
+        //            case TKMultiDotNumber:
+        //            case TKUnaryMinus:
+        //                break;
+        //            default:
+        //                rightBr = true;
+        //            }
+        //        }
 
-//        if (false and kind == TKKeyword_return and right) {
-//            switch (right->kind) {
-//            case TKString:
-//            case TKNumber:
-//            case TKIdentifier:
-//            case TKFunctionCall:
-//            case TKSubscript:
-//            case TKRegex:
-//            case TKMultiDotNumber:
-//                break;
-//            default:
-//                rightBr = true;
-//                break;
-//            }
-//        }
-//
-//        if (kind == TKPower and not spacing) putc('(', stdout);
+        //        if (false and kind == TKKeyword_return and right) {
+        //            switch (right->kind) {
+        //            case TKString:
+        //            case TKNumber:
+        //            case TKIdentifier:
+        //            case TKFunctionCall:
+        //            case TKSubscript:
+        //            case TKRegex:
+        //            case TKMultiDotNumber:
+        //                break;
+        //            default:
+        //                rightBr = true;
+        //                break;
+        //            }
+        //        }
+        //
+        //        if (kind == TKPower and not spacing) putc('(', stdout);
 
-        char lpo =  '(';
-        char lpc =   ')';
+        char lpo = '(';
+        char lpc = ')';
         if (leftBr) putc(lpo, stdout);
-        if (left) left->genc(0, spacing and !leftBr and kind != TKOpColon,inFuncArgs);
+        if (left)
+            left->genc(
+                0, spacing and !leftBr and kind != TKOpColon, inFuncArgs);
         if (leftBr) putc(lpc, stdout);
 
-        if (kind == TKArrayOpen) putc('{', stdout);
-        else printf("%s", TokenKind_repr(kind, spacing));
+        if (kind == TKArrayOpen)
+            putc('{', stdout);
+        else
+            printf("%s", TokenKind_repr(kind, spacing));
 
-        char rpo =   '(';
-        char rpc =   ')';
+        char rpo = '(';
+        char rpc = ')';
         if (rightBr) putc(rpo, stdout);
         if (right)
-            right->genc(0, spacing and !rightBr and kind != TKOpColon,inFuncArgs);
+            right->genc(
+                0, spacing and !rightBr and kind != TKOpColon, inFuncArgs);
         if (rightBr) putc(rpc, stdout);
 
-//        if (kind == TKPower and not spacing) putc(')', stdout);
+        //        if (kind == TKPower and not spacing) putc(')', stdout);
         if (kind == TKArrayOpen) putc('}', stdout);
     }
 }
-
 
 #pragma mark - AST NodeRef
 
@@ -2170,11 +2287,11 @@ struct ASTType {
             puts("");
         }
 
-//        foreach (var, vars, this->vars) {
-//            if (!var) continue;
-//            var->gen(level + STEP);
-//            puts("");
-//        }
+        //        foreach (var, vars, this->vars) {
+        //            if (!var) continue;
+        //            var->gen(level + STEP);
+        //            puts("");
+        //        }
 
         foreach (check, checks, this->checks) {
             if (!check) continue;
@@ -2187,7 +2304,7 @@ struct ASTType {
 
     void genc(int level = 0)
     {
-        printf("typedef struct %s %s;\nstruct %s {\n", name, name, name);
+        printf("struct %s {\n", name);
 
         if (super) {
             printf("    ");
@@ -2197,26 +2314,37 @@ struct ASTType {
 
         foreach (var, vars, this->vars) {
             if (!var) continue;
-//            printf("    ");
+            //            printf("    ");
             var->genc(level + STEP);
             puts(";");
         }
         puts("};\n");
-        printf("static const char* %s_name_ = \"%s\";\n",name,name);
-        printf("static %s* %s_alloc_() {\n    return _Pool_alloc_(&gPool_, sizeof(%s));\n}\n",name,name,name);
+        printf("static const char* %s_name_ = \"%s\";\n", name, name);
+        printf("static %s* %s_alloc_() {\n    return _Pool_alloc_(&gPool_, "
+               "sizeof(%s));\n}\n",
+            name, name, name);
         printf("static %s* %s_init_(%s* self) {\n", name, name, name);
-            foreach (check, checks, this->checks) {
-                if (!check or check->kind!=TKVarAssign or !check->var->init) continue;
-                printf("    self->"); check->genc();
-                puts(";");
-            }
+        foreach (check, checks, this->checks) {
+            if (!check or check->kind != TKVarAssign or !check->var->init)
+                continue;
+            printf("    self->");
+            check->genc();
+            puts(";");
+        }
         printf("    return self;\n}\n");
-        printf("static %s* %s_new_() {\n    return %s_init_(%s_alloc_());\n}\n",name,name,name,name);
-        printf("public %s* %s() {\n    return %s_new_();\n}\n",name,name,name);
-        // you cant hijack  the default constructor, only make new ones OR CAN YOU
-        // constructors have all arguments named? or not
+        printf("static %s* %s_new_() {\n    return "
+               "%s_init_(%s_alloc_());\n}\n",
+            name, name, name, name);
+        printf("public %s* %s() {\n    return %s_new_();\n}\n", name, name,
+            name);
+        // you cant hijack  the default constructor, only make new ones OR
+        // CAN YOU constructors have all arguments named? or not
         puts("");
+    }
 
+    void genh(int level = 0)
+    {
+        printf("typedef struct %s %s; struct %s;\n", name, name, name);
     }
 };
 
@@ -2236,9 +2364,9 @@ struct ASTFunc {
         uint16_t line;
         struct {
             uint16_t io : 1, throws : 1, recurs : 1, net : 1, gui : 1,
-                exported : 1, refl : 1, nodispatch : 1;
-        } flags = {0,0,0,0,0,0,0,0};
-        uint8_t col;
+                exported : 1, refl : 1, nodispatch : 1, isStmt : 1;
+        } flags = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+        uint8_t col; // not needed
     };
 
     void gen(int level = 0)
@@ -2260,32 +2388,57 @@ struct ASTFunc {
 
         puts("end function\n");
     }
+    const char* getDefaultValueForType(ASTTypeSpec* type)
+    {
+        if (!type) return ""; // for no type e.g. void
+        if (!strcmp(type->name, "String")) return "\"\"";
+        if (!strcmp(type->name, "Scalar")) return "0";
+        if (!strcmp(type->name, "Int")) return "0";
+        if (!strcmp(type->name, "Int32")) return "0";
+        if (!strcmp(type->name, "UInt32")) return "0";
+        if (!strcmp(type->name, "UInt")) return "0";
+        if (!strcmp(type->name, "UInt64")) return "0";
+        if (!strcmp(type->name, "Int64")) return "0";
+        if (!strcmp(type->name, "Real32")) return "0";
+        if (!strcmp(type->name, "Real64")) return "0";
+        if (!strcmp(type->name, "Real")) return "0";
+        if (!strcmp(type->name, "Logical")) return "false";
+        return "NULL";
+    }
 
     void genc(int level = 0)
     {
-        if (!flags.exported)printf("static ");
+        printf("#define DF_ %s\n", getDefaultValueForType(returnType));
+        if (!flags.exported) printf("static ");
         if (returnType) {
             returnType->genc(level);
-        } else printf("void");
+        } else
+            printf("void");
         str_tr_ip(name, '.', '_');
         printf(" %s", name);
         str_tr_ip(name, '_', '.');
         if (this->args.next) { // means at least 2 args
-        foreach (arg, nargs, *(this->args.next)) {
-//            printf(nargs->next ? "_" : "(");
-            printf("_%s",arg->name);
-        }
+            foreach (arg, nargs, *(this->args.next)) {
+                //            printf(nargs->next ? "_" : "(");
+                printf("_%s", arg->name);
+            }
         }
         printf("(");
-
         foreach (arg, args, this->args) {
             arg->genc(level, true);
-            printf(", ") ; //args->next ? ", " : "");
+            printf(", "); // args->next ? ", " : "");
         }
 
-        puts("ErrStatus _err) {");
-        printf("    static const char* _sig = \"");
-        printf("function %s(", name);
+        printf("\n#ifdef DEBUG\n"
+               "    const char* file_, const int line_, "
+               "\n#endif\n");
+
+        // if (flags.throws)  // TODO
+        printf("const char** err_");
+        puts(") {");
+        printf("#ifdef DEBUG\n"
+               "    static const char* sig_ = \"");
+        printf("%s%s(", flags.isStmt ? "" : "function ", name);
         foreach (arg, chargs, this->args) {
             arg->gen(level);
             printf(chargs->next ? ", " : ")");
@@ -2294,13 +2447,71 @@ struct ASTFunc {
             printf(" as ");
             returnType->gen(level);
         }
-        puts("\";");
+        puts("\";\n"
+             "#endif");
+
+        printf("%s",
+            "#ifndef NOSTACKCHECK\n"
+            "stackdepth++;\n"
+            "if (stackstart - (char*)&err_ > STACKMAX) {\n"
+            "printf(\"Error: stack overflow, exceeded %lu KB at depth "
+            "%d.\\n\", STACKMAX/1024, stackdepth);\n"
+            "#ifdef DEBUG\n"
+            "printf(\"Backtrace shows only %d outer functions at "
+            "most.\\n\", "
+            "BTLIMIT);\n"
+            "#endif\n"
+            "DOBACKTRACE\n}\n"
+            "#endif\n");
 
         body->genc(level + STEP);
 
-        puts("}\n");
+        puts("    // ------------ error handling\n"
+             "    return DF_; assert(0);\n" // must be unreachable due to
+                                            // function's normal return
+             "    error:\n"
+             "#ifdef DEBUG\n"
+             "        fprintf(stderr,\"Error: %s\\n\",*err_);\n"
+             "#endif\n"
+             "    backtrace:\n"
+             "#ifdef DEBUG\n"
+             "        if (stackdepth<=BTLIMIT) printf(\"#%-4d %s called "
+             "from "
+             "%s:%d\\n\",stackdepth,sig_,file_,line_);\n"
+             "#endif\n"
+             "    done:\n"
+             "        stackdepth--;"
+             "        return DF_;");
+        puts("}\n#undef DF_");
     }
 
+    void genh(int level = 0)
+    {
+
+        if (!flags.exported) printf("static ");
+        if (returnType) {
+            returnType->genc(level);
+        } else
+            printf("void");
+        str_tr_ip(name, '.', '_');
+        printf(" %s", name);
+        str_tr_ip(name, '_', '.');
+        if (this->args.next) { // means at least 2 args
+            foreach (arg, nargs, *(this->args.next)) {
+                //            printf(nargs->next ? "_" : "(");
+                printf("_%s", arg->name);
+            }
+        }
+        printf("(");
+
+        foreach (arg, args, this->args) {
+            arg->genc(level, true);
+            printf(", "); // args->next ? ", " : "");
+        }
+        printf("\n#ifdef DEBUG\n    const char* _file, const int _line, "
+               "\n#endif\n");
+        puts("const char** err_);\n");
+    }
 };
 
 #pragma mark - AST Module
@@ -2339,21 +2550,27 @@ struct ASTModule {
 
     void genc(int level = 0)
     {
-        printf("static const char* _module = \"%s\"\n", name);
+        //        printf("static const char* _module = \"%s\"\n", name);
 
         foreach (import, imports, this->imports)
-        import->genc(level);
+            import->genc(level);
 
         puts("");
 
         foreach (type, types, this->types)
-        type->genc(level);
+            type->genh(level);
 
         foreach (func, funcs, this->funcs)
-        func->genc(level);
+            func->genh(level);
 
-        foreach(simport, simports, this->imports)
-        simport->undefc();
+        foreach (type, mtypes, this->types)
+            type->genc(level);
+
+        foreach (func, mfuncs, this->funcs)
+            func->genc(level);
+
+        foreach (simport, simports, this->imports)
+            simport->undefc();
     }
 };
 
@@ -2369,7 +2586,7 @@ class Parser {
     char* dirname = NULL; // mod/submod/xyz
     char *data = NULL, *end = NULL;
     bool generateCommentExprs
-        = true; // set to false when compiling, set to true when linting
+        = false; // set to false when compiling, set to true when linting
     char* noext = NULL;
     Token token; // current
     PtrList<ASTModule> modules; // module node of the AST
@@ -2408,7 +2625,7 @@ class Parser {
         static const auto FILE_SIZE_MAX = 1 << 24;
         FILE* file = fopen(filename, "r");
         size_t flen = strlen(filename);
-        fprintf(stdout, "compiling %s\n", filename);
+        // fprintf(stdout, "compiling %s\n", filename);
         this->filename = filename;
         noext = str_noext(filename);
         fseek(file, 0, SEEK_END);
@@ -2605,34 +2822,40 @@ class Parser {
                 ops.push(expr);
                 if (not ops.empty() and ops.top()->kind == TKFunctionCall)
                     rpn.push(expr);
-                // instead of marking with (, could consider pushing a NULL. -- nope you need line no info etc.
-                // (not for func calls & array indexes -- for grouping)
-                if (lookAheadChar==')') rpn.push(NULL); // for empty func() push null for no args
+                // instead of marking with (, could consider pushing a NULL.
+                // -- nope you need line no info etc. (not for func calls &
+                // array indexes -- for grouping)
+                if (lookAheadChar == ')')
+                    rpn.push(
+                        NULL); // for empty func() push null for no args
                 break;
 
             case TKArrayOpen:
                 ops.push(expr);
                 if (not ops.empty() and ops.top()->kind == TKSubscript)
                     rpn.push(expr);
-                if (lookAheadChar==')') rpn.push(NULL); // for empty arr[] push null for no args
-break;
+                if (lookAheadChar == ')')
+                    rpn.push(NULL); // for empty arr[] push null for no args
+                break;
 
             case TKParenClose:
             case TKArrayClose:
             case TKBraceClose:
 
                 revBrkt = TokenKind_reverseBracket(expr->kind);
-                if (ops.empty()) { // need atleast the opening bracket of the current kind
+                if (ops.empty()) { // need atleast the opening bracket of
+                                   // the current kind
                     errorParsingExpr();
                     goto error;
                 }
-//                else if (ops.top()->kind==revBrkt) rpn.push(NULL); // push a null for no args
-                else while (not ops.empty()) {
-                    p = ops.pop();
-                    if (p->kind == revBrkt)
-                        break;
-                     rpn.push(p);
-                }
+                //                else if (ops.top()->kind==revBrkt)
+                //                rpn.push(NULL); // push a null for no args
+                else
+                    while (not ops.empty()) {
+                        p = ops.pop();
+                        if (p->kind == revBrkt) break;
+                        rpn.push(p);
+                    }
                 // we'll push the TKArrayOpen as well to indicate a list
                 // literal or comprehension
                 // TKArrayOpen is a unary op.
@@ -2805,7 +3028,8 @@ break;
 
     error:
 
-        while (token.pos < this->end and (token.kind != TKNewline and token.kind != TKLineComment) )
+        while (token.pos < this->end
+            and (token.kind != TKNewline and token.kind != TKLineComment))
             token.advance();
 
         if (ops.count) printf("\n      ops: ");
@@ -2821,23 +3045,26 @@ break;
                     rpn[i]->opPrecedence ? 100 : rpn[i]->strLength,
                     rpn[i]->opPrecedence ? TokenKind_repr(rpn[i]->kind)
                                          : rpn[i]->name);
-//        if (p)
-//            printf("\n      p: %.*s ", p->opPrecedence ? 100 : p->strLength,
-//                p->opPrecedence ? TokenKind_repr(p->kind) : p->name);
-//
+        //        if (p)
+        //            printf("\n      p: %.*s ", p->opPrecedence ? 100 :
+        //            p->strLength,
+        //                p->opPrecedence ? TokenKind_repr(p->kind) :
+        //                p->name);
+        //
         if (result.count) printf("\n      rpn: ");
         for (int i = 0; i < result.count; i++)
             if (!result[i])
                 printf("NUL ");
             else
                 printf("%.*s ",
-                       result[i]->opPrecedence ? 100 : result[i]->strLength,
-                       result[i]->opPrecedence ? TokenKind_repr(result[i]->kind)
-                       : result[i]->name);
+                    result[i]->opPrecedence ? 100 : result[i]->strLength,
+                    result[i]->opPrecedence
+                        ? TokenKind_repr(result[i]->kind)
+                        : result[i]->name);
 
         if (p)
             printf("\n      p: %.*s ", p->opPrecedence ? 100 : p->strLength,
-                   p->opPrecedence ? TokenKind_repr(p->kind) : p->name);
+                p->opPrecedence ? TokenKind_repr(p->kind) : p->name);
 
         if (rpn.count or ops.count or result.count) puts("");
 
@@ -2945,7 +3172,8 @@ break;
                 var = parseVar();
                 if (!var) continue;
                 scope->locals.append(var);
-//                break; // the below works but skipping for now
+                //                break; // the below works but skipping for
+                //                now
                 // validation should raise issue is var->init is missing
                 expr = new ASTExpr; // skip comments when not linting
                 expr->kind = TKVarAssign;
@@ -2971,7 +3199,7 @@ break;
                 discard(TKOneSpace);
                 discard(tt);
                 scope->stmts.append(expr);
-//                token.advance();
+                //                token.advance();
 
                 break;
 
@@ -3025,7 +3253,13 @@ break;
         discard(TKOneSpace);
         auto func = new ASTFunc;
 
+        func->line = token.line;
+        func->col = token.col;
+
         func->name = parseIdent();
+
+        if (!strcmp(func->name, "print")) func->flags.throws = 0;
+
         func->args = parseArgs();
         if (ignore(TKOneSpace) and ignore(TKKeyword_as)) {
             discard(TKOneSpace);
@@ -3045,9 +3279,12 @@ break;
 
     ASTFunc* parseStmtFunc()
     {
-//        discard(TKKeyword_function);
-//        discard(TKOneSpace);
+        //        discard(TKKeyword_function);
+        //        discard(TKOneSpace);
         auto func = new ASTFunc;
+
+        func->line = token.line;
+        func->col = token.col;
 
         func->name = parseIdent();
         func->args = parseArgs();
@@ -3056,18 +3293,19 @@ break;
             func->returnType = parseTypeSpec();
         }
 
+        auto ret = exprFromCurrentToken();
+        assert(ret->kind == TKColEq);
+        ret->kind = TKKeyword_return;
 
-        discard(TKColEq); // :=
-
-        auto expr = parseExpr();
+        ret->right = parseExpr();
         auto scope = new ASTScope;
-        scope->stmts.append(expr);
+        scope->stmts.append(ret);
 
         func->body = scope;
 
-//        discard(TKNewline);
-//        discard(TKOneSpace);
-//        discard(TKKeyword_function);
+        //        discard(TKNewline);
+        //        discard(TKOneSpace);
+        //        discard(TKKeyword_function);
 
         return func;
     }
@@ -3101,7 +3339,11 @@ break;
             case TKKeyword_var:
                 var = parseVar();
                 if (!var) continue;
-                type->vars.append(var); // vars holds the local vars just like parseScope does. but each var also goes in the expr list to keep ordering. the expr list is named 'checks' unfortunately.
+                type->vars.append(
+                    var); // vars holds the local vars just like parseScope
+                          // does. but each var also goes in the expr list
+                          // to keep ordering. the expr list is named
+                          // 'checks' unfortunately.
 
                 expr = new ASTExpr; // skip comments when not linting
                 expr->kind = TKVarAssign;
@@ -3135,8 +3377,11 @@ break;
                 // unexpected token (first token on the line), then seek to
                 // the next newline.
                 errorUnexpectedToken();
-                fprintf(stderr,"      only 'var', 'let', and 'check' statements are allowed in types\n");
-                while (token.kind != TKNewline and token.kind!=TKLineComment)
+                fprintf(stderr,
+                    "      only 'var', 'let', and 'check' statements are "
+                    "allowed in types\n");
+                while (
+                    token.kind != TKNewline and token.kind != TKLineComment)
                     token.advance();
                 break;
             }
@@ -3253,7 +3498,7 @@ break;
                 token.advance();
                 break;
             case TKIdentifier: // stmt funcs: f(x) := f(y, w = 4) etc.
-                if (token.peekCharAfter()=='(') {
+                if (token.peekCharAfter() == '(') {
                     funcsTop->append(parseStmtFunc());
                     if (funcsTop->next) globalsTop = globalsTop->next;
                     break;
@@ -3268,6 +3513,25 @@ break;
         // also keep modulesTop
         modules.append(root);
         return modules;
+    }
+    void genc_open()
+    {
+        printf("#ifndef HAVE_%s\n#define HAVE_%s\n\n",
+            this->capsMangledName, this->capsMangledName);
+        printf("#define THISMODULE %s\n", this->mangledName);
+        printf("#define THISFILE \"%s\"\n", this->filename);
+        //        puts("#ifdef DEBUG");
+        //        printf("static const char* %s_filename =
+        //        \"%s\";\n",this->mangledName, this->filename);
+        //        printf("static const char* %s_basename =
+        //        \"%s\";\n",this->mangledName, this->basename);
+        //        printf("static const char* %s_modname = \"%s\";\n",
+        //        this->mangledName,this->moduleName); puts("#endif");
+    }
+    void genc_close()
+    {
+        printf("#undef THISMODULE\n");
+        printf("#endif // HAVE_%s\n", this->capsMangledName);
     }
 };
 
@@ -3334,7 +3598,7 @@ void alloc_stat()
 int main(int argc, char* argv[])
 {
     if (argc == 1) return 1;
-    bool printDiagnostics = (argc > 2 && *argv[2] == 'd') or true;
+    bool printDiagnostics = (argc > 2 && *argv[2] == 'd') or false;
 
     Stopwatch sw;
     PtrList<ASTModule> modules;
@@ -3358,8 +3622,14 @@ int main(int argc, char* argv[])
         return 1;
     };
 
+    printf("#include \"checkstd.h\"\n");
+    parser->genc_open();
     foreach (mod, mods, modules)
         mod->genc();
+    parser->genc_close();
+
+    //    foreach (mod, mods, modules)
+    //    mod->gen();
 
     if (printDiagnostics) {
         fprintf(stderr, "file %lu B\n", parser->dataSize());
@@ -3374,7 +3644,7 @@ int main(int argc, char* argv[])
     }
 
     //    fprintf(stderr, "ticks: %f\n", t.lap());
-    sw.print();
+    if (printDiagnostics) sw.print();
 
 //    SmallPtr<ASTImport> vp = 128;
 //    ASTImport* va = vp;

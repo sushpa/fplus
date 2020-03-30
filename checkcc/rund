@@ -1,0 +1,4 @@
+#!/bin/sh
+[ -f "$1" ] || exit 6
+./checkcc "$1" $2 > aout.c && gcc -g -DDEBUG aout.c -o a.out &&  ./a.out 
+
