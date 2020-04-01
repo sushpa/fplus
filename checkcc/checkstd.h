@@ -13,19 +13,17 @@
 #include <windows.h>
 #endif
 
-#ifdef WINDOWS
 size_t sys_pageSize()
 {
+#ifdef WINDOWS
     SYSTEM_INFO si;
     GetSystemInfo(&si);
     return si.dwPageSize;
-}
 #else
-size_t sys_pageSize()
-{
-    return sysconf(_SC_PAGESIZE); /* _SC_PAGE_SIZE is OK too. */
-}
+    return sysconf(_SC_PAGESIZE);
 #endif
+}
+
 #include "cycle.h"
 
 // FIXME
@@ -54,7 +52,7 @@ static size_t sys_stackSize()
 #define DEREF1(x, y) (x ? x->y : NULL)
 #define DEREF2(x, y, z) (x && x->y ? x->y->z : NULL)
 #define DEREF3(x, y, z, a) (x && x->y && x->y->z ? x->y->z->a : NULL)
-#define DEREF4(x, y, z, a, b)                                              \
+#define DEREF4(x, y, z, a, b)                                                  \
     (x && x->y && x->y->z && x->y->z->a ? x->y->z->a->b : NULL)
 
 #else
@@ -66,23 +64,38 @@ static size_t sys_stackSize()
 
 #endif
 
-#define BTLIMIT 5
+#define PROP(var, propname, type) JOIN_(type, propname)(var)
+#define SETPROP(var, propname, type) JOIN3_(type, set, propname)(var)
+// a.x becomes AType_x(a),  a.x = y becomes AType_set_x(a, y)
+
+#define _btLimit_ 5
 #define ERROR_TRACE (char*)0xFFFFFFFFFFFFFFFF
-#define DOBACKTRACE                                                        \
-    {                                                                      \
-        err_ = ERROR_TRACE;                                                \
-        goto done;                                                         \
+#define DOBACKTRACE                                                            \
+    {                                                                          \
+        _err_ = ERROR_TRACE;                                                   \
+        goto done;                                                             \
     }
-// ulimit -s is 8192KB on Life, STACKMAX 8184 is last until which
-// stackoverflow check works after that segfault
-// #define STACKMAX 8160 KB // max stack to use. Get it from rusage etc.
-static size_t STACKMAX;
+
+static size_t _scSize_; // size of stack
+static const char* _scStart_; // start of stack, set in main()
+static int _scDepth_ = 0; // current depth, updated in each function
+static int _scPrintAbove_ = 0; // used for truncating long backtraces
+#ifdef DEBUG
+#define STACKDEPTH_UP _scDepth_++;
+#define STACKDEPTH_DOWN _scDepth_--;
+#else
+#define STACKDEPTH_UP
+#define STACKDEPTH_DOWN
+#endif
+// what is the point of a separate NOSTACKCHECK option if release mode doesn't
+// track ANY info (stack depth, function name etc.) other than showing "stack
+// overflow" instead of "segmentation fault".
 
 typedef int Int;
 typedef int Scalar;
 typedef char** Strs;
 typedef char* String;
-#define DF_
+#define DEFAULT_VALUE
 
 // output funcs: print -> normal print, debug -> only prints (to stderr) in
 // debug mode, error -> print to stderr, fatal -> print to stderr and exit
@@ -95,40 +108,36 @@ static void start(const Strs args
 #endif
 );
 
-static const char* stackstart;
-static int stackdepth = 0;
-static int stackOverflowDepthThreshold = 0;
-
-static const char* err_ = NULL;
+static const char* _err_ = NULL;
 
 int main(int argc, char* argv[])
 {
     // const char* nul = NULL;
-    // const char* err_ = NULL;
+    // const char* _err_ = NULL;
 
     ticks t0 = getticks();
 
-    stackstart = (char*)&argc;
-    STACKMAX = sys_stackSize() - 8192;
+    _scStart_ = (char*)&argc;
+    _scSize_ = sys_stackSize() - 8192;
 
     start(NULL
 #ifdef DEBUG
         ,
-        "start(args)"
+        "start\033[0m"
 #endif
     );
 
     double dt = elapsed(getticks(), t0) / 1e9;
-    if (err_ == ERROR_TRACE) {
+    if (_err_ == ERROR_TRACE) {
         printf("[%.3fs] Aborted due to an unhandled error.\n", dt);
 #ifndef DEBUG
         printf("(run in debug mode to see a backtrace)\n");
 #endif
-    } else if (err_ == NULL) {
+    } else if (_err_ == NULL) {
         printf("[%.3fs] Completed successfully.\n", dt);
     }
 
-    return err_ ? 1 : 0;
+    return _err_ ? 1 : 0;
 }
 
 #endif // CHECKSTD
