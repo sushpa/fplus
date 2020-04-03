@@ -32,12 +32,12 @@ function start(a as Strs)
     var x as Int = NSDocument.initWithFrame(34 + 4 * 3)
     # var fi = FolderItem()
     # var fn as String = fi.fileName
-    # print(fn)
+    print(fn)
     # print("Hello, World %d!\n", x)
 end function
 
 function NSDocument.initWithFrame(a as Int) as Int
-    var m as Int = NSWindow.getFrame(5 - 4 + 2)
+    var m as Int = NSWindow.getFrame(5 - 4 + 2 / x)
     return m
 end function
 
