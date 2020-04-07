@@ -1,1 +1,6 @@
 *.dSYM/
+*.bin.*
+*.bin
+*.zip
+a.out
+aout.c
