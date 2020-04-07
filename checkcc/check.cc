@@ -1,3 +1,7 @@
+#include "checkc.c"
+
+#ifdef MYCPP
+
 // TODO: need ASTEnum
 //
 // AS A RULE
@@ -431,6 +435,44 @@ const char* TypeType_defaultFormatSpec(TypeTypes tyty)
     }
 }
 
+unsigned int TypeType_nativeSizeForType(TypeTypes tyty)
+{
+    switch (tyty) {
+    case TYUnresolved:
+        return 0;
+    case TYObject:
+        return sizeof(void*);
+    case TYSize:
+        return sizeof(size_t);
+    case TYString:
+        return sizeof(char*); // what about length
+    case TYBool:
+        return sizeof(int);
+     case TYInt8:
+        return 1;
+    case TYUInt8:
+        return 1;
+    case TYInt16:
+        return 2;
+    case TYUInt16:
+        return 2;
+    case TYInt32:
+        return 4;
+    case TYUInt32:
+        return 4;
+    case TYInt64:
+        return 8;
+    case TYUInt64:
+        return 8;
+    case TYReal16:
+        return 2;
+    case TYReal32:
+        return 4;
+    case TYReal64:
+        return 8;
+    }
+}
+
 // If we get entirely rid of type annotation, the process for determining
 // type as it is now will be very convoluted. First you pass strings around
 // and compare them ("String", "Scalar", etc.) and then set TypeTypes
@@ -467,7 +509,17 @@ enum CollectionTypes {
     CTYOrderedSet,
     CTYSortedSet,
     CTYTensor, // will need to store dims. includes vector/matrix/tensor
-    CTYDataFrame
+    CTYDataFrame,
+    CTYStackArray8, // these are NOT in BYTES, but sizeof(whatever), so careful with double/int arrays
+    CTYStackArray16,
+    CTYStackArray32,
+    CTYStackArray64,
+    CTYStackArray128,
+    CTYStackArray256,
+    CTYStackArray512,
+    CTYStackArray1024,
+    CTYStackArray2048,
+    CTYStackArray4096, // really? you need any larger?
 };
 
 const char* CollectionType_nativeName(CollectionTypes coty)
@@ -501,6 +553,16 @@ const char* CollectionType_nativeName(CollectionTypes coty)
         return "_T";
     case CTYDataFrame:
         return "_F";
+    case CTYStackArray8: return "[8]";
+    case CTYStackArray16: return "[16]";
+    case CTYStackArray32: return "[32]";
+    case CTYStackArray64: return "[64]";
+    case CTYStackArray128: return "[128]";
+    case CTYStackArray256: return "[256]";
+    case CTYStackArray512: return "[512]";
+    case CTYStackArray1024: return "[1024]";
+    case CTYStackArray2048: return "[2048]";
+    case CTYStackArray4096: return "[4096]";
     }
 }
 
@@ -721,7 +783,7 @@ struct PtrList {
     }
 };
 template <class T>
-Pool<PtrList<T>> PtrList<T>::pool;
+Pool<PtrList<T> > PtrList<T>::pool;
 
 /*
 template <class T>
@@ -2075,6 +2137,27 @@ struct ASTScope {
     void gen(int level);
     void genc(int level);
 
+    size_t calcSizeUsage() {
+        size_t size=0, sum=0;
+        // all variables must be resolved before calling this, call it e.g. during cgen
+        foreach(stmt, stmts, this->stmts) {
+            switch(stmt->kind) {
+            case TKKeyword_if:
+            case TKKeyword_for:
+            case TKKeyword_while:
+                sum += stmt->body->calcSizeUsage();
+                break;
+            case TKVarAssign:
+//                if (stmt->var->typeSpec) // NO NO NO
+                assert(size = TypeType_nativeSizeForType(stmt->var->typeSpec->typeType));
+                sum += size;
+                break;
+            default:;
+            }
+        }
+        return sum;
+    }
+
     ASTVar* getVar(const char* name)
     {
         // stupid linear search, no dictionary yet
@@ -2299,6 +2382,17 @@ struct ASTFunc {
         uint8_t col; // not needed
     };
 
+    size_t calcSizeUsage() {
+        size_t size=0, sum=0;
+        foreach(arg, args, this->args) {
+            // means all variables must be resolved before calling this
+            assert(size = TypeType_nativeSizeForType(arg->typeSpec->typeType));
+            sum+= size;
+        }
+        if (body) sum += body->calcSizeUsage();
+        return sum;
+    }
+
     void gen(int level = 0)
     {
         printf("function %s(", name);
@@ -2339,10 +2433,10 @@ struct ASTFunc {
 
     void genc(int level = 0)
     {
-
         if (flags.isDeclare) return;
 
-        printf("\n// ------------------------ %s \n", name);
+        printf("\n// ------------------------ function: %s ", name);
+        printf("\n// ------------- approx. stack usage per call: %lu B \n", this->calcSizeUsage());
         printf(
             "#define DEFAULT_VALUE %s\n", getDefaultValueForType(returnType));
         if (!flags.exported) printf("static ");
@@ -3247,7 +3341,12 @@ public:
 
     void resolveFuncCall(ASTExpr* expr, ASTModule* mod)
     {
-        if (expr->kind == TKFunctionCallResolved) {
+        // TODO: what happens if you get a TKSubscriptResolved?
+        if (expr->kind == TKFunctionCallResolved ){} else if ( expr->kind==TKSubscriptResolved or expr->kind==TKSubscript) {
+            if (expr->left)
+                resolveFuncCall(
+                                expr->left, mod); // check nested func calls
+
         } else if (expr->kind == TKFunctionCall) {
             foreach (func, funcs, mod->funcs) {
                 if (!strncmp(expr->name, func->name, expr->strLength)
@@ -3307,7 +3406,11 @@ public:
             errorUnrecognizedVar(expr);
             //            printf("unresolved %s\n",expr->name);
         getout:
-            if (ret == TKSubscriptResolved) resolveVars(expr->left, scope);
+// TODO: there needs tobe a single resolve() function that does both vars and funcs,
+            // because subscripts and funcs can be nested indefinitely within each other.
+            // NO WAIT it seems to work as it is I think.
+
+            if (ret == TKSubscriptResolved) {resolveVars(expr->left, scope);/*resolveFuncCall(expr->left, mod)*/}
             // descend into the args of the subscript and resolve inner vars
         } else if (expr->kind == TKFunctionCall) {
             if (expr->left) resolveVars(expr->left, scope);
@@ -3681,7 +3784,13 @@ public:
         if (ignore(TKOneSpace) and ignore(TKKeyword_as)) {
             discard(TKOneSpace);
             var->typeSpec = parseTypeSpec();
+        } else {
+            var->typeSpec = new ASTTypeSpec;
+            var->typeSpec->line = token.line;
+            var->typeSpec->col = token.col;
+            var->typeSpec->name="Scalar";
         }
+
 
         ignore(TKOneSpace);
         if (ignore(TKOpAssign)) var->init = parseExpr();
@@ -4254,3 +4363,5 @@ int main(int argc, char* argv[])
 
     return 0;
 }
+
+#endif
