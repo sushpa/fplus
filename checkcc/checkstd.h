@@ -96,6 +96,7 @@ typedef int Scalar;
 typedef char** Strs;
 typedef char* String;
 #define DEFAULT_VALUE
+#define SArray(x) x[]
 
 // output funcs: print -> normal print, debug -> only prints (to stderr) in
 // debug mode, error -> print to stderr, fatal -> print to stderr and exit
