@@ -1,13 +1,13 @@
-all: release debug small
+all: checkc.bin
 
-CCFLAGS=-std=c++11 -nodefaultlibs -flto   -fno-rtti -fno-exceptions -fno-threadsafe-statics
-CPP=g++
+CCFLAGS=-std=c99
+CPP=gcc
 
-release: check.cc
-	$(CPP) -O3 $(CCFLAGS) check.cc -lc -o checkcc
+checkc.bin: main.c chstd.h cycle.h
+	$(CPP) -O0 $(CCFLAGS) $< -lc -o $@
 
-small: check.cc
-	$(CPP) -Os $(CCFLAGS) check.cc -lc -o checkcc-s
+checkc-s.bin: main.c chstd.h cycle.h
+	$(CPP) -Os $(CCFLAGS) $< -lc -o $@
 
-debug: check.cc
-	$(CPP) -g -O0 $(CCFLAGS) check.cc -lc -o checkcc-dbg
+checkc-d.bin: main.c chstd.h cycle.h
+	$(CPP) -g -O0 $(CCFLAGS) $< -lc -o $@

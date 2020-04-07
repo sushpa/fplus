@@ -1,0 +1,119 @@
+
+declare function check()
+
+var d = 3
+
+# mc = MyClass()
+function binfo()
+    var x = 7
+    x[:,8] = x[:,9]
+    x = func(x[x<5], y[x>10]) # nested for loops, tmp var, x = temp at end, y.size == x.size!
+    x = func(x[1:3], y[3:5]) # nested for loops, tmp var, x = tmp at end
+    m = all(x<5) or any(x<5) # both must short circuit
+end function
+# function mc.change(x,y) # YOU CANT DO THIS W/O FUNC PTRS!!
+# end function # NO FUNC PTRS PLS
+
+type Hello extends hello
+    var im = 3+7i
+
+    var mn = 2 + iM #!!
+    var mn = MyClass()
+
+    check(5+4+m < Im)
+
+    # checksas(4+3+bangor)
+    check(4+3-fdsu(x))
+    # checksdsadd(4+3+arr[3])
+
+    # g= 4 + anfb(b)
+
+    # event change(x, y)
+    # instead of handler x onchange, use function x.onchange
+    # dots arent allowed in normal funcs anyway, and Class.func means static
+    # # you can only define a.func() funcs if there is a var a and 
+    # # it has a func `func`, and `func` is marked as an event.
+    # function self.change(x, y)
+    #     print("default function for all instances of this type")
+    # end function
+
+    # function jy.change(x,y)
+    #     print("overrides change function for var jy only")
+    # end function
+
+    # event bang()
+    # no default function for bang: empty default will be generated
+    # so all events are guaranteed to have an empty function if not overridden.
+
+    # function wiz() 
+    #     m = 3
+    #     if m > 4
+    #         bang() # raise the event
+    #     end if
+    # end function
+
+end type
+
+# this means ec must be defined in the scope containing this function.
+# basically means functions must be defined INSIDE types, also handlers
+# or inside modules but that means mutable module-level vars.
+# function ec.change(x, y)
+#     print("hi")
+# end function
+
+# function basic(arg as String, n as String) returns MyClass 
+function basic(arg[] as String, n[:,:] as String) returns MyClass
+    var a = 0 #!
+    var x = 5 + 1 * 3 + (5+6) * arg 
+    print("Hello, world!" + x)
+    var c = 7
+    let enc = JSON("{hyyp: 67}")
+    var ebc = JSON.download("hyyp.ch")
+    var ec = JSON.read("hyyp.json")
+    # why separate YAML/JSON/TOML?
+    # separate XML & HTML because behaviours are diff ok.
+    # ec.change = ecChange
+
+    var j = x + y*1i
+    # let cj(x) = 7+x
+    var jj = 7 + j #!
+    # var function = c + test + m #r
+    if a == 5 #!
+        # var a = 6
+        x = 5 + a[3+c, 5+JSON.read(j)] #!notarr
+        var bg = func2(x, a) #!
+        x = bg[3, func(n, xyz(a+j), a[x, pang(a)])] #!u
+        c = 3
+        var big = 4 #!
+    end if
+
+    for a = 1:3 #!
+        var bg = 8
+    end for
+
+    return a #!typemis
+end function
+
+pang() := 7
+
+declare function func2(x as String) returns NoneType
+declare function xyz()
+declare function JSON.download()
+declare function JSON()
+declare function JSON.read()
+
+function func(m as String)
+end function
+
+declare function print()
+# end function
+
+# function fdsu()
+# end function
+
+# declare function fdsu()
+
+fdsu(x, y, z) := sqrt(x + y + z) + 5
+
+# let func2() = 0
+# let xyz() = 0

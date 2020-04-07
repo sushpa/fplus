@@ -1,4 +1,14 @@
 #!/bin/sh
-[ -f "$1" ] || exit 6
-./checkcc "$1" $2 > aout.c && gcc -O3 aout.c -o a.out &&  ./a.out 
+if [ "$1" == "d" ]
+then
+    DIAG="d"
+    FILE=$2
+else
+    DIAG=
+    FILE=$1
+fi 
+
+[ -f "$FILE" ] || exit 6
+TGT=${FILE%%.ch}$EXTN.bin
+make -s DIAG=$DIAG -f Makerunner $TGT && [ -f $TGT ] && ./$TGT $*
 

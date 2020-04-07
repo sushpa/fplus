@@ -9,6 +9,8 @@
 #include <math.h>
 #include <unistd.h> /* sysconf(3) */
 
+#include "chstd.h"
+
 #ifdef WINDOWS
 #include <windows.h>
 #endif
@@ -33,8 +35,6 @@ size_t sys_pageSize()
 #define MB *1024 KB
 #define KB *1024UL
 
-#define Array1D(x) Array1D
-
 #include <sys/resource.h>
 static size_t sys_stackSize()
 {
@@ -52,7 +52,7 @@ static size_t sys_stackSize()
 #define DEREF1(x, y) (x ? x->y : NULL)
 #define DEREF2(x, y, z) (x && x->y ? x->y->z : NULL)
 #define DEREF3(x, y, z, a) (x && x->y && x->y->z ? x->y->z->a : NULL)
-#define DEREF4(x, y, z, a, b)                                                  \
+#define DEREF4(x, y, z, a, b)                                              \
     (x && x->y && x->y->z && x->y->z->a ? x->y->z->a->b : NULL)
 
 #else
@@ -70,10 +70,10 @@ static size_t sys_stackSize()
 
 #define _btLimit_ 5
 #define ERROR_TRACE (char*)0xFFFFFFFFFFFFFFFF
-#define DOBACKTRACE                                                            \
-    {                                                                          \
-        _err_ = ERROR_TRACE;                                                   \
-        goto done;                                                             \
+#define DOBACKTRACE                                                        \
+    {                                                                      \
+        _err_ = ERROR_TRACE;                                               \
+        goto done;                                                         \
     }
 
 static size_t _scSize_; // size of stack
@@ -87,9 +87,9 @@ static int _scPrintAbove_ = 0; // used for truncating long backtraces
 #define STACKDEPTH_UP
 #define STACKDEPTH_DOWN
 #endif
-// what is the point of a separate NOSTACKCHECK option if release mode doesn't
-// track ANY info (stack depth, function name etc.) other than showing "stack
-// overflow" instead of "segmentation fault".
+// what is the point of a separate NOSTACKCHECK option if release mode
+// doesn't track ANY info (stack depth, function name etc.) other than
+// showing "stack overflow" instead of "segmentation fault".
 
 typedef int Int;
 typedef int Scalar;

@@ -1,4 +1,6 @@
 #!/bin/sh
-[ -f "$1" ] || exit 6
-./checkcc "$1" $2 > aout.c && gcc -O3 -DNOSTACKCHECK -DNOBOUNDSCHECK -DNONULLCHECK aout.c -o a.out &&  ./a.out 
+# [ -f "$1" ] || exit 6
+# TGT=${1%%.ch}-f.bin
+# make -s -f Makerunner $TGT && [ -f $TGT ] && ./$TGT
+EXTN=-f ./run $*
 
