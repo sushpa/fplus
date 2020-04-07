@@ -1,11 +1,11 @@
 image: ubuntu:latest
 
 before_script:
-  - apt-get update -qq 
+  - apt-get update -qq
   - apt-get install -qq g++ gcc
   - apt-get install -qq make
 
 build_job:
   stage: build
   script:
-  - "cd checkcc && make -B release"
+  - "cd checkcc && make"
