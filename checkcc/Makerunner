@@ -1,12 +1,12 @@
 # at some point checkc should output to a file not stdout
 DIAG=
 
-%.bin: %.ch
-	./comp $< $(DIAG) > $@.c && cc -O0 $@.c -o $@; rm $@.c
+%.bin: %.ch chstd.hpp checkstd.hpp
+	./comp $< $(DIAG) > $@.cc && c++ -O0 $@.cc -o $@; rm $@.cc
 	
-%-d.bin: %.ch
-	./comp $< $(DIAG) > $@.c && cc -O0 -g -DDEBUG $@.c -o $@; rm $@.c
+%-d.bin: %.ch chstd.hpp checkstd.hpp
+	./comp $< $(DIAG) > $@.cc && c++ -O0 -g -DDEBUG $@.cc -o $@; rm $@.cc
 	
-%-f.bin: %.ch
-	./comp $< $(DIAG) > $@.c &&cc -O3 -DNOSTACKCHECK -DNONULLCHECK -DNOBOUNDSCHECK $@.c -o $@; rm $@.c
+%-f.bin: %.ch chstd.hpp checkstd.hpp
+	./comp $< $(DIAG) > $@.cc &&cc -O3 -DNOSTACKCHECK -DNONULLCHECK -DNOBOUNDSCHECK $@.cc -o $@; rm $@.cc
 	

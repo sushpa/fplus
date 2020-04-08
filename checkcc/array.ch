@@ -1,11 +1,16 @@
-declare function push()
-declare function pop()
-declare function concat()
-declare function describe()
-declare function print()
+declare function push(arr as Any, item as Any)
+declare function pop(arr as Any)
+declare function concat(arr as Any, arr2 as Any)
+declare function describe(what as Any)
+declare function print(what as Any)
 declare type Strs
 # do declare type
 declare type Any
+
+type Something
+   var x = 4
+   var y = 2
+end type
 
 # implement op_div, op_mul etc. for arrays of numeric types.
 # BOTH inplace and non inplace versions!!
@@ -35,6 +40,7 @@ function start(a as Strs)
     push(arr, 4)
     arr = 3 + 4
     push(arr, m)
+     
     concat(arr, [5, 6, 7, 8]) # just a `Array_concat_cArray` call
     let arrd as Scalar[] = arr / 2 # asking for double
     describe(arr) # 4-element Array<Int>... [ 1, 2, 3, 5]
