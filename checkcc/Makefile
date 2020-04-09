@@ -11,3 +11,6 @@ checkc-s.bin: main.c chstd.h cycle.h
 
 checkc-d.bin: main.c chstd.h cycle.h
 	$(CPP) -g -O0 $(CCFLAGS) $< -lc -o $@
+
+clean:
+	rm -r a.out* *.bin.* *.bin aout.c

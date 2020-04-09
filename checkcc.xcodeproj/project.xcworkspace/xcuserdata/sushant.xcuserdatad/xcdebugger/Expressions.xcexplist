@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<VariablesViewState
+   version = "1.0">
+   <ContextStates>
+      <ContextState
+         contextName = "Parser::resolveFuncCall(ASTExpr*, ASTModule*):check.cc">
+      </ContextState>
+      <ContextState
+         contextName = "Parser::parseFunc(bool):check.cc">
+      </ContextState>
+      <ContextState
+         contextName = "ASTFunc::genc(int):check.cc">
+         <PersistentStrings>
+            <PersistentString
+               value = "(uint8_t)this-&gt;returnType-&gt;typeType">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "Parser::parseExpr():check.cc">
+      </ContextState>
+   </ContextStates>
+</VariablesViewState>

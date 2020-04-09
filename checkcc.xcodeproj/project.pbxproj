@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		85554441242911A90071EF5E /* Makefile in Sources */ = {isa = PBXBuildFile; fileRef = 85554440242911A90071EF5E /* Makefile */; };
+		85A899FA2437EDE500E8C61D /* checkc.c in Sources */ = {isa = PBXBuildFile; fileRef = 85A899F92437EDE500E8C61D /* checkc.c */; };
 		85C568572422855F00BEDE04 /* check.cc in Sources */ = {isa = PBXBuildFile; fileRef = 85C568562422855F00BEDE04 /* check.cc */; settings = {COMPILER_FLAGS = "-nodefaultlibs -fno-rtti -fno-exceptions -fno-threadsafe-statics"; }; };
 /* End PBXBuildFile section */
 
@@ -49,6 +50,7 @@
 		859CB3DD241BB49800C32B9E /* node.h */ = {isa = PBXFileReference; explicitFileType = text; fileEncoding = 4; path = node.h; sourceTree = "<group>"; };
 		859CB3DE241BB49800C32B9E /* context.h */ = {isa = PBXFileReference; explicitFileType = text; fileEncoding = 4; path = context.h; sourceTree = "<group>"; };
 		859CB3DF241BB49800C32B9E /* str.h */ = {isa = PBXFileReference; explicitFileType = text; fileEncoding = 4; path = str.h; sourceTree = "<group>"; };
+		85A899F92437EDE500E8C61D /* checkc.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = checkc.c; sourceTree = "<group>"; };
 		85C568562422855F00BEDE04 /* check.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = check.cc; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -83,6 +85,7 @@
 		859CB3D0241BB2D400C32B9E /* checkcc */ = {
 			isa = PBXGroup;
 			children = (
+				85A899F92437EDE500E8C61D /* checkc.c */,
 				85554440242911A90071EF5E /* Makefile */,
 				85C568562422855F00BEDE04 /* check.cc */,
 			);
@@ -131,7 +134,7 @@
 		859CB3C6241BB2D400C32B9E /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 1130;
+				LastUpgradeCheck = 1140;
 				ORGANIZATIONNAME = "Hypercode GmbH";
 				TargetAttributes = {
 					859CB3CD241BB2D400C32B9E = {
@@ -163,6 +166,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				85554441242911A90071EF5E /* Makefile in Sources */,
+				85A899FA2437EDE500E8C61D /* checkc.c in Sources */,
 				85C568572422855F00BEDE04 /* check.cc in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -290,6 +294,7 @@
 		859CB3D6241BB2D400C32B9E /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Automatic;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
@@ -298,6 +303,7 @@
 		859CB3D7241BB2D400C32B9E /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Automatic;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
