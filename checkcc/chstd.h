@@ -322,10 +322,10 @@ void PoolB_free(PoolB* this)
         free(this->ptrs.ref[i]);
 }
 
-PoolB globalPool;
+PoolB gPool;
 
 #define NEW(T)                                                             \
-    PoolB_alloc(&globalPool, sizeof(T));                                   \
+    PoolB_alloc(&gPool, sizeof(T));                                        \
     T##_allocTotal++;
 
 // This macro should be invoked on each struct defined.
@@ -348,6 +348,16 @@ PtrList* PtrList_with(void* item)
     PtrList* li = NEW(PtrList);
     li->item = item;
     return li;
+}
+
+int PtrList_count(PtrList* listPtr)
+{
+    int i = 0;
+    while (listPtr) {
+        listPtr = listPtr->next;
+        i++;
+    }
+    return i;
 }
 
 void PtrList_append(PtrList** selfp, void* item)
