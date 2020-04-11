@@ -1,0 +1,1 @@
+void checkTypeMismatch(Parser* self, ASTExpr* expr) {}
