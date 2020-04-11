@@ -52,8 +52,8 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-#include <string.h>
+//#include <sys/cdefs.h>
+//#include <string.h>
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)strcasecmp.c	8.1 (Berkeley) 6/4/93";
