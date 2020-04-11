@@ -293,11 +293,15 @@ void PtrList_append(PtrList** selfp, void* item)
 
 #pragma mark - String Functions
 
+#include "strcasecmp.h"
+
 #define str_endswith(str, lenstr, suffix, lensuffix)                       \
 !strncmp(str + lenstr - lensuffix, suffix, lensuffix)
 
 #define str_startswith(str, prefix, lenprefix)                             \
 !strncmp(str, prefix, lenprefix)
+
+// DO NOT USE strdup,strndup,strcasecmp,strncasecmp: OK reimplemented strcasecmp.
 
 char* pstrndup(char* str, size_t len) {
     char* ret = PoolB_alloc(&strPool,len+1);
@@ -369,7 +373,7 @@ void str_tr_ip(
 char* str_tr(char* str, const char oldc, const char newc)
 {
     size_t len = strlen(str);
-    char* s = strndup(str, len);
+    char* s = pstrndup(str, len);
     str_tr_ip(s, oldc, newc, len);
     return s;
 }
