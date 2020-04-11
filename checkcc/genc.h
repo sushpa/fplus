@@ -32,7 +32,7 @@ void ASTTypeSpec_genc(ASTTypeSpec* this, int level, bool isconst)
         printf("%s", this->name);
         break;
     default:
-        printf("%s", TypeType_nativeName(this->typeType));
+        printf("%s", TypeType_name(this->typeType));
         break;
     }
 
@@ -198,19 +198,19 @@ void ASTFunc_genc(ASTFunc* this, int level)
         "    if (_scStart_ - (char*)&a > _scSize_) {\n"
         "#ifdef DEBUG\n"
         "        _scPrintAbove_ = _scDepth_ - _btLimit_;\n"
-        "        printf(\"\\033[31mfatal: stack overflow at call depth "
+        "        printf(\"\\e[31mfatal: stack overflow at call depth "
         "%d.\\n   "
-        " in %s\\033[0m\\n\", _scDepth_, sig_);\n"
-        "        printf(\"\\033[90mBacktrace (innermost "
+        " in %s\\e[0m\\n\", _scDepth_, sig_);\n"
+        "        printf(\"\\e[90mBacktrace (innermost "
         "first):\\n\");\n"
         "        if (_scDepth_ > 2*_btLimit_)\n        "
         "printf(\"    limited to %d outer and %d inner entries.\\n\", "
         "_btLimit_, _btLimit_);\n"
         "        printf(\"[%d] "
-        "\\033[36m%s\\n\", _scDepth_, callsite_);\n"
+        "\\e[36m%s\\n\", _scDepth_, callsite_);\n"
         "#else\n"
-        "        printf(\"\\033[31mfatal: stack "
-        "overflow.\\033[0m\\n\");\n"
+        "        printf(\"\\e[31mfatal: stack "
+        "overflow.\\e[0m\\n\");\n"
         "#endif\n"
         "        DOBACKTRACE\n    }\n"
         "#endif\n");
@@ -228,10 +228,10 @@ void ASTFunc_genc(ASTFunc* this, int level)
 
          "    if (_scDepth_ <= _btLimit_ || "
          "_scDepth_ > _scPrintAbove_)\n"
-         "        printf(\"\\033[90m[%d] \\033[36m"
+         "        printf(\"\\e[90m[%d] \\e[36m"
          "%s\\n\", _scDepth_, callsite_);\n"
          "    else if (_scDepth_ == _scPrintAbove_)\n"
-         "        printf(\"\\033[90m... truncated ...\\033[0m\\n\");\n"
+         "        printf(\"\\e[90m... truncated ...\\e[0m\\n\");\n"
          "#endif\n"
          "done:\n"
          "#ifndef NOSTACKCHECK\n"
@@ -335,8 +335,16 @@ void ASTExpr_genc(ASTExpr* this, int level, bool spacing, bool inFuncArgs,
     case TKFunctionCall:
     case TKFunctionCallResolved: {
         char* tmp = (this->kind == TKFunctionCallResolved)
-            ? this->func->name
+            ? this->func->name // TODO: should be selector
             : this->name;
+        ASTExpr* leftMost = this->left; // find first argument
+
+        while (leftMost and leftMost->left and leftMost->kind == TKOpComma)
+            leftMost = leftMost->left;
+
+        // refactor the following into a func, much needed
+        if (leftMost) printf("%s_", ASTExpr_typeName(leftMost));
+
         str_tr_ip(tmp, '.', '_', 0); // this should have been done in a
                                      // previous stage prepc() or lower()
         printf("%s", tmp);
@@ -347,6 +355,11 @@ void ASTExpr_genc(ASTExpr* this, int level, bool spacing, bool inFuncArgs,
         // generate both a _init_arg1_arg2 function AND a corresponding
         // _new_arg1_arg2 func.
         if (this->left) ASTExpr_catarglabels(this->left);
+        // if (this->left) {
+        //     char buf[256];
+        //     ASTExpr_strarglabels(this->left, buf, 256);
+        //     printf("%s", buf);
+        // }
         str_tr_ip(tmp, '_', '.', 0);
         // this won't be needed, prepc will do the "mangling"
         printf("(");
@@ -358,7 +371,7 @@ void ASTExpr_genc(ASTExpr* this, int level, bool spacing, bool inFuncArgs,
             // more generally this IF is for those funcs that are
             // standard and dont need any instrumentation
             printf("\n#ifdef DEBUG\n"
-                   "      %c THISFILE \":%d:\\033[0m\\n     -> ",
+                   "      %c THISFILE \":%d:\\e[0m\\n     -> ",
                 this->left ? ',' : ' ', this->line);
             ASTExpr_gen(this, 0, false, true);
             printf("\"\n"

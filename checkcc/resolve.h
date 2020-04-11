@@ -6,7 +6,7 @@ void resolveTypeSpec(Parser* this, ASTTypeSpec* typeSpec, ASTModule* mod)
 
     // TODO: DO THIS IN PARSE... stuff!!
 
-    TypeTypes tyty = TypeType_TypeTypeforSpec(typeSpec->name);
+    TypeTypes tyty = TypeType_byName(typeSpec->name);
     if (tyty) { // can be member of ASTTypeSpec!
         typeSpec->typeType = tyty;
     } else {
@@ -49,19 +49,28 @@ void resolveFuncsAndTypes(Parser* this, ASTExpr* expr, ASTModule* mod)
         break;
 
     case TKFunctionCall: {
+        char buf[128];
+        char* bufp=buf;
+        if (expr->left) resolveFuncsAndTypes(this, expr->left, mod);
+
+        ASTExpr* arg1=expr->left;
+        while(arg1 and arg1->left and arg1->kind==TKOpComma) arg1=arg1->left;
+        if (arg1) {bufp+=sprintf(bufp, "%s_", ASTExpr_typeName(arg1));}
+        bufp+=sprintf(bufp, "%s",expr->name);
+        ASTExpr_strarglabels(expr->left, bufp, 128L-(bufp-buf));
+
         foreach (ASTFunc*, func, funcs, mod->funcs) {
-            if (not strncasecmp(expr->name, func->name, expr->strLen)
-                and func->name[expr->strLen] == '\0') {
+//            if (not strncasecmp(expr->name, func->name, expr->strLen)
+            if (not strcasecmp(buf, func->selector) ) {
                 expr->kind = TKFunctionCallResolved;
                 expr->func = func;
-                if (expr->left) resolveFuncsAndTypes(this, expr->left, mod);
+//                if (expr->left) resolveFuncsAndTypes(this, expr->left, mod);
                 resolveFuncsAndTypes(this, expr, mod);
                 return;
             }
         } // since it is known which module the func must be found in,
           // no need to scan others if function has not been found
         Parser_errorUnrecognizedFunc(this, expr);
-        if (expr->left) resolveFuncsAndTypes(this, expr->left, mod);
         // but still check nested func calls
     } break;
 
@@ -91,9 +100,19 @@ void resolveFuncsAndTypes(Parser* this, ASTExpr* expr, ASTModule* mod)
     }
 }
 
-void resolveVars(Parser* this, ASTExpr* expr, ASTScope* scope)
+void resolveVars(
+    Parser* this, ASTExpr* expr, ASTScope* scope, bool inFuncCall)
 { // TODO: this could be done on rpn in parseExpr, making it iterative
   // instead of recursive
+  // = behaves differently inside a func call: the ->left is not
+  // resolved to a var, but to an argument label of the called func.
+  // it would make sense to just skip checking it here for now, and
+  // let resolveFuncs use it to construct the func selector for lookup.
+  // At some point though it would be nice if the compiler could tell
+  // the user 'you missed the arg label "xyz"' for which the basename
+  // of the func could be used to get a list of all selectors having
+  // that basename as a prefix.
+
     if (not expr) return;
     switch (expr->kind) {
     case TKIdentifierResolved:
@@ -118,22 +137,32 @@ void resolveVars(Parser* this, ASTExpr* expr, ASTScope* scope)
         Parser_errorUnrecognizedVar(this, expr);
     getout:
         if (ret == TKSubscriptResolved) {
-            resolveVars(this, expr->left, scope);
+            resolveVars(this, expr->left, scope, inFuncCall);
             // check subscript argument count
-            if (ASTExpr_countCommaList(expr->left)
-                != expr->var->typeSpec->dims)
+            // recheck kind since the var may have failed resolution
+            if (expr->kind == TKSubscriptResolved
+                and ASTExpr_countCommaList(expr->left)
+                    != expr->var->typeSpec->dims)
                 Parser_errorIndexDimsMismatch(this, expr);
         }
         break;
     }
     case TKFunctionCall:
-        if (expr->left) resolveVars(this, expr->left, scope);
+        if (expr->left) resolveVars(this, expr->left, scope, true);
+        break;
+
+    case TKOpAssign:
+        // behaves differently inside a func call and otherwise
+        if (not inFuncCall)
+            resolveVars(this, expr->left, scope, inFuncCall);
+        resolveVars(this, expr->right, scope, inFuncCall);
         break;
 
     default:
         if (expr->opPrec) {
-            if (not expr->opIsUnary) resolveVars(this, expr->left, scope);
-            resolveVars(this, expr->right, scope);
+            if (not expr->opIsUnary)
+                resolveVars(this, expr->left, scope, inFuncCall);
+            resolveVars(this, expr->right, scope, inFuncCall);
         }
     }
 }

@@ -113,9 +113,6 @@ static const char* _err_ = NULL;
 
 int main(int argc, char* argv[])
 {
-    // const char* nul = NULL;
-    // const char* _err_ = NULL;
-
     ticks t0 = getticks();
 
     _scStart_ = (char*)&argc;
@@ -124,7 +121,7 @@ int main(int argc, char* argv[])
     start(NULL
 #ifdef DEBUG
         ,
-        "start\033[0m"
+        "start\e[0m"
 #endif
     );
 

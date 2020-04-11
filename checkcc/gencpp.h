@@ -133,21 +133,21 @@ void ASTFunc_gencpp(ASTFunc* this, int level)
     //     "    if (_scStart_ - (char*)&a > _scSize_) {\n"
     //     "#ifdef DEBUG\n"
     //     "        _scPrintAbove_ = _scDepth_ - _btLimit_;\n"
-    //     "        printf(\"\\033[31mfatal: stack overflow at call
+    //     "        printf(\"\\e[31mfatal: stack overflow at call
     //     depth "
     //     "%d.\\n   "
-    //     " in %s\\033[0m\\n\", _scDepth_, sig_);\n"
-    //     "        printf(\"\\033[90mBacktrace (innermost "
+    //     " in %s\\e[0m\\n\", _scDepth_, sig_);\n"
+    //     "        printf(\"\\e[90mBacktrace (innermost "
     //     "first):\\n\");\n"
     //     "        if (_scDepth_ > 2*_btLimit_)\n        "
     //     "printf(\"    limited to %d outer and %d inner entries.\\n\",
     //     "
     //     "_btLimit_, _btLimit_);\n"
     //     "        printf(\"[%d] "
-    //     "\\033[36m%s\\n\", _scDepth_, callsite_);\n"
+    //     "\\e[36m%s\\n\", _scDepth_, callsite_);\n"
     //     "#else\n"
-    //     "        printf(\"\\033[31mfatal: stack "
-    //     "overflow.\\033[0m\\n\");\n"
+    //     "        printf(\"\\e[31mfatal: stack "
+    //     "overflow.\\e[0m\\n\");\n"
     //     "#endif\n"
     //     "        DOBACKTRACE\n    }\n"
     //     "#endif\n");
@@ -165,11 +165,11 @@ void ASTFunc_gencpp(ASTFunc* this, int level)
 
     //      "    if (_scDepth_ <= _btLimit_ || "
     //      "_scDepth_ > _scPrintAbove_)\n"
-    //      "        printf(\"\\033[90m[%d] \\033[36m"
+    //      "        printf(\"\\e[90m[%d] \\e[36m"
     //      "%s\\n\", _scDepth_, callsite_);\n"
     //      "    else if (_scDepth_ == _scPrintAbove_)\n"
-    //      "        printf(\"\\033[90m... truncated
-    //      ...\\033[0m\\n\");\n"
+    //      "        printf(\"\\e[90m... truncated
+    //      ...\\e[0m\\n\");\n"
     //      "#endif\n"
     //      "done:\n"
     //      "#ifndef NOSTACKCHECK\n"
@@ -269,7 +269,7 @@ void ASTExpr_gencpp(ASTExpr* this, int level, bool spacing, bool inFuncArgs,
             // more generally this IF is for those funcs that are
             // standard and dont need any instrumentation
             printf("\n#ifdef DEBUG\n"
-                   "      %c THISFILE \":%d:\\033[0m\\n     -> ",
+                   "      %c THISFILE \":%d:\\e[0m\\n     -> ",
                 this->left ? ',' : ' ', this->line);
             ASTExpr_gen(this, 0, false, true);
             printf("\"\n#endif\n        ");

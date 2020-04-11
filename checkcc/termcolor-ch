@@ -11,7 +11,7 @@ var verb = "jumps over"
 "%s%s%s%s%s%s%s"
 
 # since we have to generate 2 strings anyway (tty/non-tty) it makes
-# sense to design the tags as you see fit, not encumbered by the 
+# sense to design the tags as you see fit, not encumbered by the
 # need to fit the ANSI codes in-situ.
 ^[40m
 {+hR}
@@ -39,18 +39,18 @@ var verb = "jumps over"
 ^[0m
 {--}
 
-# every {{ -> add the format spec of the variable's type 
+# every {{ -> add the format spec of the variable's type
 # very }} -> add %s
 # trample all {{ to ", and }} to ,"
 "The quick {bw/}brown{-} $animal1.name $verb the lazy $animal2."
 "The quick {bw/}brown{-} {{animal1}}:5.3f {{verb}} the lazy {{animal2}}."
 "The quick ",  "brown"," ",animal1," ",verb," the lazy ",animal2,"."
-"%s\033[91m\033[41m\033[7m%s\033[m%s%s%s%s%s"
+"%s\e[91m\e[41m\e[7m%s\e[m%s%s%s%s%s"
 
-define FGBLUE "\033[91m"
-... BGWHITE "\033[41m"
-... ITALIC "\033[7m"
-... RESET "\033[0m"
+define FGBLUE "\e[91m"
+... BGWHITE "\e[41m"
+... ITALIC "\e[7m"
+... RESET "\e[0m"
 print_str("The quick ")
 if (tty) print_str(FGBLUE BGWHITE ITALIC)
 print_str("brown")
@@ -65,7 +65,7 @@ print_str(animal2)
 print_str(".")
 
 # format str for format str. basically "%s" repeated.
-# send it to sprintf with ("%s","\033[41m","%s",...) -> format str.
+# send it to sprintf with ("%s","\e[41m","%s",...) -> format str.
 # why sprintf just printf it!
 # print format str. trample original str & print.
 var animal = "dog"

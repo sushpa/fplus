@@ -202,7 +202,7 @@ typedef enum TypeTypes {
 } TypeTypes;
 
 bool TypeType_isnum(TypeTypes tyty) { return tyty >= TYInt8; }
-
+/*
 const char* TypeType_nativeName(TypeTypes tyty)
 {
     switch (tyty) {
@@ -242,7 +242,7 @@ const char* TypeType_nativeName(TypeTypes tyty)
         return "double";
     }
 }
-
+*/
 const char* TypeType_name(TypeTypes tyty)
 {
     switch (tyty) {
@@ -270,9 +270,8 @@ const char* TypeType_name(TypeTypes tyty)
     }
 }
 
-// these are DEFAULTS, most likely more specific ones will be used
-// depending on context
-const char* TypeType_defaultFormatSpec(TypeTypes tyty)
+// these are DEFAULTS
+const char* TypeType_format(TypeTypes tyty)
 {
     switch (tyty) {
     case TYUnresolved:
@@ -314,7 +313,8 @@ const char* TypeType_defaultFormatSpec(TypeTypes tyty)
     }
 }
 
-unsigned int TypeType_nativeSizeForType(TypeTypes tyty)
+// needed to compute stack usage
+unsigned int TypeType_size(TypeTypes tyty)
 {
     switch (tyty) {
     case TYUnresolved:
@@ -358,7 +358,7 @@ unsigned int TypeType_nativeSizeForType(TypeTypes tyty)
 // according to that why not set the right TypeTypes directly in analysis?
 // but this is needed as long as there is ANY type annotation somewhere.
 // (e.g. func args)
-TypeTypes TypeType_TypeTypeforSpec(const char* spec)
+TypeTypes TypeType_byName(const char* spec)
 {
     // does NOT use strncmp!
     if (not spec) return TYUnresolved;
@@ -590,6 +590,7 @@ typedef struct ASTFunc {
     List(ASTVar) * args;
     ASTTypeSpec* returnType;
     char* name;
+    char* selector;
     struct {
         uint16_t line;
         struct {
@@ -652,12 +653,23 @@ void ASTTypeSpec_gen(ASTTypeSpec* this, int level)
         printf("%s", this->name);
         break;
     default:
-        printf("%s", TypeType_nativeName(this->typeType));
+        printf("%s", TypeType_name(this->typeType));
         break;
     }
     if (this->dims) printf("%s", "[]");
 }
-
+const char* ASTTypeSpec_name(ASTTypeSpec* this)
+{
+    switch (this->typeType) {
+    case TYUnresolved:
+        return this->name;
+    case TYObject:
+        return this->type->name;
+    default:
+        return TypeType_name(this->typeType);
+    }
+    // what about collectiontype???
+}
 const char* getDefaultValueForType(ASTTypeSpec* type)
 {
     if (not type) return ""; // for no type e.g. void
@@ -687,7 +699,7 @@ void expralloc_stat()
     thres = sum / 20;
     // eputs("-------------------------------------------------------");
 
-    eputs("\033[1mASTExpr allocation by kind \033[0m(those above 5% of "
+    eputs("\e[1mASTExpr allocation by kind \e[0m(those above 5% of "
           "total)\n  Kind    "
           "    # "
           "     %%\n");
@@ -800,7 +812,6 @@ void ASTVar_gen(ASTVar* this, int level)
     printf("%.*s%s%s", level, spaces,
         this->flags.isVar ? "var " : this->flags.isLet ? "let " : "",
         this->name);
-    // if (this->typeSpec) {
     if (not(this->init and this->init->kind == TKFunctionCall
             and !strcmp(this->init->name, this->typeSpec->name))) {
         printf(" as ");
@@ -842,8 +853,7 @@ size_t ASTScope_calcSizeUsage(ASTScope* this)
             sum += ASTScope_calcSizeUsage(stmt->body);
             break;
         case TKVarAssign:
-            assert(size = TypeType_nativeSizeForType(
-                       stmt->var->typeSpec->typeType));
+            assert(size = TypeType_size(stmt->var->typeSpec->typeType));
             sum += size;
             break;
         default:;
@@ -948,8 +958,8 @@ size_t ASTFunc_calcSizeUsage(ASTFunc* this)
 {
     size_t size = 0, sum = 0;
     foreach (ASTVar*, arg, args, this->args) {
-        // means all variables must be resolved before calling this
-        assert(size = TypeType_nativeSizeForType(arg->typeSpec->typeType));
+        // all variables must be resolved before calling this
+        size = TypeType_size(arg->typeSpec->typeType);
         sum += size;
     }
     if (this->body) sum += ASTScope_calcSizeUsage(this->body);
@@ -995,6 +1005,7 @@ void ASTExpr_gen(ASTExpr* this, int level, bool spacing, bool escapeStrings)
     case TKInline:
         printf("%.*s", this->strLen, this->value.string);
         break;
+
     case TKIdentifier:
     case TKIdentifierResolved: {
         char* tmp = (this->kind == TKIdentifierResolved) ? this->var->name
@@ -1134,6 +1145,50 @@ void ASTExpr_gen(ASTExpr* this, int level, bool spacing, bool escapeStrings)
     }
 }
 
+const char* ASTExpr_typeName(ASTExpr* this)
+{
+    if (not this) return "";
+    switch (this->kind) {
+    case TKNumber:
+    case TKPlus:
+    case TKMinus:
+    case TKPower:
+    case TKSlash:
+    case TKTimes:
+    case TKOpMod:
+        return "Scalar";
+    case TKString:
+        return "String";
+    case TKRegex:
+        return "RegEx";
+        // case TKFunctionCall: return this->name;
+    case TKFunctionCallResolved:
+        return this->func->returnType->type->name;
+        // NOO! TODO: get the name from the resolved type
+        // ^^ figure it out
+    case TKIdentifierResolved:
+    case TKSubscriptResolved:
+        return this->var->typeSpec->type->name; // same here as for resolved func
+    case TKOpEQ:
+    case TKOpNE:
+    case TKOpGE:
+    case TKOpGT:
+    case TKOpLE:
+    case TKOpLT:
+    case TKKeyword_and:
+    case TKKeyword_or:
+    case TKKeyword_not:
+        // TODO: literals yes and no
+        return "Logical";
+    case TKOpColon:
+        return "Range";
+        // TODO: what else???
+    default:
+        fprintf(stderr, "%s\n", TokenKind_repr(this->kind, false));
+        assert(0);
+    }
+}
+
 void ASTExpr_catarglabels(ASTExpr* this)
 {
     switch (this->kind) {
@@ -1148,15 +1203,32 @@ void ASTExpr_catarglabels(ASTExpr* this)
         break;
     }
 }
-
+int ASTExpr_strarglabels(ASTExpr* this, char* buf, int bufsize)
+{
+    int ret = 0;
+    switch (this->kind) {
+    case TKOpComma:
+        ret += ASTExpr_strarglabels(this->left, buf, bufsize);
+        ret += ASTExpr_strarglabels(this->right, buf + ret, bufsize - ret);
+        break;
+    case TKOpAssign:
+        ret += snprintf(buf, bufsize, "_%s", this->left->name);
+        break;
+    default:
+        break;
+    }
+    return ret;
+}
 int ASTExpr_countCommaList(ASTExpr* this)
 {
+    // whAT A MESS WITH BRANCHING
     if (not this) return 0;
     if (this->kind != TKOpComma) return 1;
     int i = 1;
     while (this->left) {
         this = this->left;
         i++;
+        if (this->kind != TKOpComma) break;
     }
     return i;
 }
@@ -1335,7 +1407,7 @@ Parser* Parser_fromFile(char* filename, bool skipws)
         ret->token.kind = TKUnknown;
         ret->token.line = 1;
         ret->token.col = 1;
-        ret->mode = PMGenCpp; // parse args to set this
+        ret->mode = PMGenC; // parse args to set this
         ret->errCount = 0;
         ret->warnCount = 0;
         ret->errLimit = 20;
@@ -1694,35 +1766,47 @@ error:
             and this->token.kind != TKLineComment))
         Token_advance(&this->token);
 
-    if (ops.used) printf("\n      ops: ");
-    for (int i = 0; i < ops.used; i++)
-        printf("%s ", TokenKind_repr(((ASTExpr*)ops.ref[i])->kind, false));
+    if (ops.used) {
+        printf("      ops: ");
+        for (int i = 0; i < ops.used; i++)
+            printf(
+                "%s ", TokenKind_repr(((ASTExpr*)ops.ref[i])->kind, false));
+        puts("");
+    }
 
-    if (rpn.used) printf("\n      rpn: ");
-    for (int i = 0; i < rpn.used; i++)
-        if (not rpn.ref[i])
-            printf("NUL ");
-        else {
-            ASTExpr* e = rpn.ref[i];
-            printf("%.*s ", e->opPrec ? 100 : e->strLen,
-                e->opPrec ? TokenKind_repr(e->kind, false) : e->name);
-        }
+    if (rpn.used) {
+        printf("      rpn: ");
+        for (int i = 0; i < rpn.used; i++)
+            if (not rpn.ref[i])
+                printf("NUL ");
+            else {
+                ASTExpr* e = rpn.ref[i];
+                printf("%.*s ", e->opPrec ? 100 : e->strLen,
+                    e->opPrec ? TokenKind_repr(e->kind, false) : e->name);
+            }
+        puts("");
+    }
 
-    if (result.used) printf("\n      rpn: ");
-    for (int i = 0; i < result.used; i++)
-        if (not result.ref[i])
-            printf("NUL ");
-        else {
-            ASTExpr* e = result.ref[i];
-            printf("%.*s ", e->opPrec ? 100 : e->strLen,
-                e->opPrec ? TokenKind_repr(e->kind, false) : e->name);
-        }
+    if (result.used) {
+        printf("      result: ");
+        for (int i = 0; i < result.used; i++)
+            if (not result.ref[i])
+                printf("NUL ");
+            else {
+                ASTExpr* e = result.ref[i];
+                printf("%.*s ", e->opPrec ? 100 : e->strLen,
+                    e->opPrec ? TokenKind_repr(e->kind, false) : e->name);
+            }
+        puts("");
+    }
 
-    if (p)
-        printf("\n      p: %.*s ", p->opPrec ? 100 : p->strLen,
+    if (p) {
+        printf("      p: %.*s ", p->opPrec ? 100 : p->strLen,
             p->opPrec ? TokenKind_repr(p->kind, false) : p->name);
+        puts("");
+    }
 
-    if (rpn.used or ops.used or result.used) puts("");
+    // if (rpn.used or ops.used or result.used) puts("");
 
     ops.used = 0; // "reset" stacks
     rpn.used = 0;
@@ -1752,7 +1836,6 @@ ASTTypeSpec* parseTypeSpec(Parser* this)
     }
 
     Parser_ignore(this, TKUnits);
-    // fixme: node->type = lookupType;
 
     assert(this->token.kind != TKUnits);
     assert(this->token.kind != TKArrayDims);
@@ -1774,7 +1857,8 @@ ASTVar* parseVar(Parser* this)
 
     if (memchr(this->token.pos, '_', this->token.matchlen))
         Parser_errorInvalidIdent(this);
-
+    if (*this->token.pos < 'a' or *this->token.pos > 'z')
+        Parser_errorInvalidIdent(this);
     var->name = parseIdent(this);
 
     if (Parser_ignore(this, TKOneSpace)
@@ -1842,7 +1926,7 @@ ASTScope* parseScope(Parser* this, ASTScope* parent, bool isTypeBody)
                 Parser_errorDuplicateVar(this, var, orig);
             if (var->init
                 and (var->init->opPrec or var->init->kind == TKIdentifier))
-                resolveVars(this, var->init, scope);
+                resolveVars(this, var->init, scope, false);
             // resolveType(var->typeSpec, scope);
             // resolve BEFORE it is added to the list! in
             // `var x = x + 1` x should not resolve
@@ -1873,9 +1957,9 @@ ASTScope* parseScope(Parser* this, ASTScope* parent, bool isTypeBody)
                 if (expr->left->kind != TKOpAssign)
                     eprintf("Invalid for-loop condition: %s\n",
                         TokenKind_repr(expr->left->kind, false));
-                resolveVars(this, expr->left->right, scope);
+                resolveVars(this, expr->left->right, scope, false);
             } else
-                resolveVars(this, expr->left, scope);
+                resolveVars(this, expr->left, scope, false);
             // TODO: `for` necessarily introduces a counter variable, so
             // check if that var name doesn't already exist in scope.
             // Also assert that the cond of a for expr has kind
@@ -1926,7 +2010,7 @@ ASTScope* parseScope(Parser* this, ASTScope* parent, bool isTypeBody)
             }
             if (not expr) break;
             PtrList_append(&scope->stmts, expr);
-            resolveVars(this, expr, scope);
+            resolveVars(this, expr, scope, false);
             break;
         }
     }
@@ -1965,13 +2049,17 @@ ASTFunc* parseFunc(Parser* this, bool shouldParseBody)
 
     if (memchr(this->token.pos, '_', this->token.matchlen))
         Parser_errorInvalidIdent(this);
-
+    if (*this->token.pos < 'a' or *this->token.pos > 'z')
+        Parser_errorInvalidIdent(this);
     func->name = parseIdent(this);
 
     func->flags.isDeclare = !shouldParseBody;
 
     func->args = parseArgs(this);
     func->argCount = PtrList_count(func->args);
+
+    // func->selector = PoolB_alloc(&strPool, getSelectorLength(func));
+    // getSelector(func);
 
     if (Parser_ignore(this, TKOneSpace)
         and Parser_ignore(this, TKKeyword_returns)) {
@@ -2003,7 +2091,8 @@ ASTFunc* parseStmtFunc(Parser* this)
 
     if (memchr(this->token.pos, '_', this->token.matchlen))
         Parser_errorInvalidIdent(this);
-
+    if (*this->token.pos < 'a' or *this->token.pos > 'z')
+        Parser_errorInvalidIdent(this);
     func->name = parseIdent(this);
 
     func->args = parseArgs(this);
@@ -2045,7 +2134,8 @@ ASTType* parseType(Parser* this, bool shouldParseBody)
 
     if (memchr(this->token.pos, '_', this->token.matchlen))
         Parser_errorInvalidIdent(this);
-
+    if (*this->token.pos < 'A' or *this->token.pos > 'Z')
+        Parser_errorInvalidIdent(this);
     type->name = parseIdent(this);
 
     if (Parser_ignore(this, TKOneSpace)
@@ -2105,6 +2195,41 @@ ASTImport* parseImport(Parser* this)
         this->token.kind != TKLineComment and this->token.kind != TKNewline)
         Token_advance(&this->token);
     return import;
+}
+void getSelector(ASTFunc* func)
+{
+    if (func->argCount) {
+        size_t selLen = 0;
+        int remain = 128, wrote = 0;
+        char buf[128];
+        buf[127] = 0;
+        char* bufp = buf;
+        ASTVar* arg1 = (ASTVar*)func->args->item;
+        wrote = snprintf(
+            bufp, remain, "%s_", ASTTypeSpec_name(arg1->typeSpec));
+        selLen += wrote;
+        bufp += wrote;
+        remain -= wrote;
+
+        wrote = snprintf(bufp, remain, "%s", func->name);
+        selLen += wrote;
+        bufp += wrote;
+        remain -= wrote;
+
+        foreach (ASTVar*, arg, args, func->args->next) {
+            wrote = snprintf(bufp, remain, "_%s", arg->name);
+            selLen += wrote;
+            bufp += wrote;
+            remain -= wrote;
+        }
+        func->selector = PoolB_alloc(&strPool, selLen + 1);
+//        eprintf("%p\n", func->selector);
+//        eprintf("%p\n", strPool.ref);
+//        eprintf("%p\n", gPool.ref);
+        strncpy(func->selector, buf, selLen + 1);
+    } else
+        func->selector = func->name;
+    eprintf("got func %s: %s\n", func->name, func->selector);
 }
 
 #pragma mark - PARSE MODULE
@@ -2179,13 +2304,13 @@ List(ASTModule) * parseModule(Parser* this)
         //     PtrList_append(testsTop, parseTest(this));
         //     if ((*testsTop)->next) testsTop = &(*testsTop)->next;
         //     break;
-        case TKKeyword_var:
-        case TKKeyword_let:
-            // TODO: add these to exprs
-            // PtrList_append(globalsTop, parseVar(this));
-            // if ((*globalsTop)->next) globalsTop =
-            // &(*globalsTop)->next;
-            break;
+        // case TKKeyword_var:
+        // case TKKeyword_let:
+        // TODO: add these to exprs
+        // PtrList_append(globalsTop, parseVar(this));
+        // if ((*globalsTop)->next) globalsTop =
+        // &(*globalsTop)->next;
+        // break;
         case TKNewline:
         case TKLineComment:
         // TODO: add line comment to module exprs
@@ -2223,16 +2348,20 @@ List(ASTModule) * parseModule(Parser* this)
     }
 
     foreach (ASTFunc*, func, funcs, root->funcs) {
-        if (not func->body) continue;
         foreach (ASTVar*, arg, args, func->args) {
             resolveTypeSpec(this, arg->typeSpec, root);
         }
         if (func->returnType) resolveTypeSpec(this, func->returnType, root);
-        foreach (ASTExpr*, stmt, stmts, func->body->stmts) {
-            resolveFuncsAndTypes(this, stmt, root);
-            // should be part of astmodule, and
-            // resolveVars should be part of astscope
-            // resolveTypeSpecs(this, stmt, root);
+        getSelector(func);
+    }
+    foreach (ASTFunc*, func, mfuncs, root->funcs) {
+        if (func->body) {
+            foreach (ASTExpr*, stmt, stmts, func->body->stmts) {
+                resolveFuncsAndTypes(this, stmt, root);
+                // should be part of astmodule, and
+                // resolveVars should be part of astscope
+                // resolveTypeSpecs(this, stmt, root);
+            }
         }
     }
 
@@ -2327,13 +2456,13 @@ int main(int argc, char* argv[])
 
     if (printDiagnostics) {
         // eprintf("file %lu B\n", parser->end - parser->data);
-        eputs("======================================================="
+        eputs("\n======================================================="
               "\n");
-        eputs("\033[1mPARSER STATISTICS\033[0m\n");
+        eputs("\e[1mPARSER STATISTICS\e[0m\n");
         eputs("-------------------------------------------------------"
               "\n");
 
-        eputs("\033[1mNode allocations:\033[0m\n");
+        eputs("\e[1mNode allocations:\e[0m\n");
         allocstat(ASTImport);
         allocstat(ASTExpr);
         allocstat(ASTVar);
@@ -2367,7 +2496,7 @@ int main(int argc, char* argv[])
             gPool.usedTotal * 1.0 / (parser->end - parser->data - 2));
         eputs("-------------------------------------------------------"
               "\n");
-        eputs("\033[1mMemory-related calls\033[0m\n");
+        eputs("\e[1mMemory-related calls\e[0m\n");
         eprintf("  calloc: %-7d | malloc: %-7d | realloc: %-7d\n",
             globalCallocCount, globalMallocCount, globalReallocCount);
         eprintf("  strlen: %-7d | strdup: %-7d |\n", globalStrlenCount,
@@ -2379,15 +2508,14 @@ int main(int argc, char* argv[])
     }
 
     if (printDiagnostics) {
-        eprintf("\033[1mTime elapsed:\033[0m %.1f ms (%.1f ms / 32kB)\n",
-            tms,
+        eprintf("\e[1mTime elapsed:\e[0m %.1f ms (%.1f ms / 32kB)\n", tms,
             tms * 32768.0
                 / (parser->end - parser->data - 2)); // sw.print();
     }
     if (parser->errCount)
-        eprintf("\033[31m*** %d errors\033[0m\n", parser->errCount);
+        eprintf("\n\e[31m*** %d errors\e[0m\n", parser->errCount);
     if (parser->warnCount)
         fprintf(
-            stderr, "\033[33m*** %d warnings\033[0m\n", parser->warnCount);
+            stderr, "\n\e[33m*** %d warnings\e[0m\n", parser->warnCount);
     return (parser->errCount or parser->warnCount);
 }

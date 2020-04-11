@@ -6,7 +6,8 @@ var d = 3
 # mc = MyClass()
 function binfo()
     var x = 7
-    x[:,8] = x[:,9]
+    x[2,8] = x[2,9]
+    x[8] = x[9]
     x = func(x[x<5], y[x>10]) # nested for loops, tmp var, x = temp at end, y.size == x.size!
     x = func(x[1:3], y[3:5]) # nested for loops, tmp var, x = tmp at end
     m = all(x<5) or any(x<5) # both must short circuit
@@ -31,7 +32,7 @@ type Hello extends hello
     # event change(x, y)
     # instead of handler x onchange, use function x.onchange
     # dots arent allowed in normal funcs anyway, and Class.func means static
-    # # you can only define a.func() funcs if there is a var a and 
+    # # you can only define a.func() funcs if there is a var a and
     # # it has a func `func`, and `func` is marked as an event.
     # function self.change(x, y)
     #     print("default function for all instances of this type")
@@ -45,7 +46,7 @@ type Hello extends hello
     # no default function for bang: empty default will be generated
     # so all events are guaranteed to have an empty function if not overridden.
 
-    # function wiz() 
+    # function wiz()
     #     m = 3
     #     if m > 4
     #         bang() # raise the event
@@ -61,10 +62,10 @@ end type
 #     print("hi")
 # end function
 
-# function basic(arg as String, n as String) returns MyClass 
+# function basic(arg as String, n as String) returns MyClass
 function basic(arg[] as String, n[:,:] as String) returns MyClass
     var a = 0 #!
-    var x = 5 + 1 * 3 + (5+6) * arg 
+    var x = 5 + 1 * 3 + (5+6) * arg
     print("Hello, world!" + x)
     var c = 7
     let enc = JSON("{hyyp: 67}")

@@ -261,11 +261,11 @@ typedef void* voidptr;
 
 MAKE_Array(voidptr);
 MAKE_Array(uint32_t);
-MAKE_Array(uint64_t);
-MAKE_Array(int64_t);
-MAKE_Array(int32_t);
+// MAKE_Array(uint64_t);
+// MAKE_Array(int64_t);
+// MAKE_Array(int32_t);
 MAKE_Array(double);
-MAKE_Array(float);
+// MAKE_Array(float);
 // make array for strings etc later
 
 // Array_top(T) is only defined for value types to keep the number
@@ -323,6 +323,7 @@ void PoolB_free(PoolB* this)
 }
 
 PoolB gPool;
+PoolB strPool;
 
 #define NEW(T)                                                             \
     PoolB_alloc(&gPool, sizeof(T));                                        \

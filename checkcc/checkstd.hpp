@@ -126,7 +126,7 @@ int main(int argc, char* argv[])
     start(NULL
 #ifdef DEBUG
         ,
-        "start\033[0m"
+        "start\e[0m"
 #endif
     );
 
