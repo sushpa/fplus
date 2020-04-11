@@ -1389,7 +1389,11 @@ Parser* Parser_fromFile(char* filename, bool skipws)
     if (size < FILE_SIZE_MAX) {
         ret->data = (char*)malloc(size);
         fseek(file, 0, SEEK_SET);
-        fread(ret->data, size, 1, file);
+        if (fread(ret->data, size-2, 1, file) != 1) {
+            eprintf("F+: the whole file '%s' could not be read.\n", filename);
+            return NULL;
+            // would leak if ret was malloc'd directly, but we have a pool
+        }
         ret->data[size - 1] = 0;
         ret->data[size - 2] = 0;
         ret->moduleName = str_tr(ret->noext, '/', '.');
