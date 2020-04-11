@@ -6,13 +6,13 @@ declare function print(num as String, filt as Scalar)
 declare function print(num as Strs, filter as Scalar)
 # need an ASTFunc_makeSelector method!
 # and a string pool!!!
-# TODO disallow duplicate func defs/decls (with same 1st arg type & arg labels)
+# TODO disallow duplicate func defs/decls (with same 1st arg type  & arg labels)
 
 
 function start(args as Strs)
     var x as Strs = 5
     # var b = print(9, filter = 43)
-    var b = print(x, filter = 43 )
+    var b = print(x, filtr = 43 )
     b = 4
 end function
 

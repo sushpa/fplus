@@ -33,96 +33,6 @@ static int globalStrlenCount = 0;
     strlen(s);                                                             \
     globalStrlenCount++;
 
-#pragma mark - String Functions
-
-#define str_endswith(str, lenstr, suffix, lensuffix)                       \
-    !strncmp(str + lenstr - lensuffix, suffix, lensuffix)
-
-#define str_startswith(str, prefix, lenprefix)                             \
-    !strncmp(str, prefix, lenprefix)
-
-char* str_noext(char* str)
-{
-    char* s = strdup(str);
-    const size_t len = strlen(s);
-    char* sc = s + len;
-    while (sc > s and *sc != '.')
-        sc--;
-    if (sc >= s) *sc = '\0';
-    return s;
-}
-
-char* str_base(char* str, char sep, size_t slen)
-{
-    if (!slen)
-        return str; // you should pass in the len. len 0 is actually valid
-                    // since basename for 'mod' is 'mod' itself, and this
-                    // would have caused a call to strlen below. so len 0
-                    // now means really just return what came in.
-    char* s = str;
-    char* sc = s + slen;
-    while (sc > s and sc[-1] != sep)
-        sc--;
-    if (sc >= s) s = sc;
-    return s;
-}
-
-char* str_dir(char* str)
-{
-    char* s = strdup(str);
-    const size_t len = strlen(s);
-    char* sc = s + len;
-    while (sc > s and *sc != '/')
-        sc--;
-    if (sc >= s) *sc = '\0';
-    return s;
-}
-
-char* str_upper(char* str)
-{
-    char* s = strdup(str);
-    char* sc = s - 1;
-    while (*++sc)
-        if (*sc >= 'a' and *sc <= 'z') *sc -= 32;
-    return s;
-}
-
-// in place
-void str_tr_ip(
-    char* str, const char oldc, const char newc, const size_t length)
-{
-    char* sc = str - 1;
-    char* end = length ? str + length : (char*)0xFFFFFFFFFFFFFFFF;
-    while (*++sc && sc < end)
-        if (*sc == oldc) *sc = newc;
-}
-
-char* str_tr(char* str, const char oldc, const char newc)
-{
-    size_t len = strlen(str);
-    char* s = strndup(str, len);
-    str_tr_ip(s, oldc, newc, len);
-    return s;
-}
-
-char* str_nthField(char* str, int len, char sep, int nth) { return NULL; }
-
-int str_countFields(char* str, int len, char sep) { return 0; }
-
-// caller sends target as stack array or NULL
-char** str_getAllOccurences(char* str, int len, char sep, int* count)
-{
-    // result will be malloced & realloced
-    return 0;
-}
-
-int str_getSomeOccurences(
-    char* str, int len, char sep, char** result, int limit)
-{
-    // result buf is expected from caller
-    return 0;
-}
-
 #pragma mark - Bool type
 typedef char bool;
 #define true 1
@@ -380,3 +290,105 @@ void PtrList_append(PtrList** selfp, void* item)
              listp = listp->next)
 
 #endif /* chstd_h */
+
+#pragma mark - String Functions
+
+#define str_endswith(str, lenstr, suffix, lensuffix)                       \
+!strncmp(str + lenstr - lensuffix, suffix, lensuffix)
+
+#define str_startswith(str, prefix, lenprefix)                             \
+!strncmp(str, prefix, lenprefix)
+
+char* pstrndup(char* str, size_t len) {
+    char* ret = PoolB_alloc(&strPool,len+1);
+    memcpy(ret,str,len); // strPool uses calloc, so no need to zero last
+    return ret;
+}
+
+char* pstrdup(char* str) {
+    const size_t len = strlen(str);
+    return pstrndup(str, len);
+}
+
+char* str_noext(char* str)
+{
+    const size_t len = strlen(str);
+    char* s = pstrndup(str, len);
+    char* sc = s + len;
+    while (sc > s and *sc != '.')
+        sc--;
+    if (sc >= s) *sc = '\0';
+    return s;
+}
+
+char* str_base(char* str, char sep, size_t slen)
+{
+    if (!slen)
+        return str; // you should pass in the len. len 0 is actually valid
+                    // since basename for 'mod' is 'mod' itself, and this
+                    // would have caused a call to strlen below. so len 0
+                    // now means really just return what came in.
+    char* s = str;
+    char* sc = s + slen;
+    while (sc > s and sc[-1] != sep)
+        sc--;
+    if (sc >= s) s = sc;
+    return s;
+}
+
+char* str_dir(char* str)
+{
+    const size_t len = strlen(str);
+    char* s = pstrndup(str,len);
+    char* sc = s + len;
+    while (sc > s and *sc != '/')
+        sc--;
+    if (sc >= s) *sc = '\0';
+    return s;
+}
+
+char* str_upper(char* str)
+{
+    char* s = pstrdup(str);
+    char* sc = s - 1;
+    while (*++sc)
+        if (*sc >= 'a' and *sc <= 'z') *sc -= 32;
+    return s;
+}
+
+// in place
+void str_tr_ip(
+               char* str, const char oldc, const char newc, const size_t length)
+{
+    char* sc = str - 1;
+    char* end = length ? str + length : (char*)0xFFFFFFFFFFFFFFFF;
+    while (*++sc && sc < end)
+        if (*sc == oldc) *sc = newc;
+}
+
+char* str_tr(char* str, const char oldc, const char newc)
+{
+    size_t len = strlen(str);
+    char* s = strndup(str, len);
+    str_tr_ip(s, oldc, newc, len);
+    return s;
+}
+
+char* str_nthField(char* str, int len, char sep, int nth) { return NULL; }
+
+int str_countFields(char* str, int len, char sep) { return 0; }
+
+// caller sends target as stack array or NULL
+char** str_getAllOccurences(char* str, int len, char sep, int* count)
+{
+    // result will be malloced & realloced
+    return 0;
+}
+
+int str_getSomeOccurences(
+                          char* str, int len, char sep, char** result, int limit)
+{
+    // result buf is expected from caller
+    return 0;
+}
+

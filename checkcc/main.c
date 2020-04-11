@@ -1343,10 +1343,8 @@ void Parser_fini(Parser* this)
     free(this->moduleName);
     free(this->mangledName);
     free(this->capsMangledName);
-    // free(this->dirname);
-}
-// ~Parser() { fini(); }
-#define FILE_SIZE_MAX 1 << 24
+ }
+ #define FILE_SIZE_MAX 1 << 24
 
 Parser* Parser_fromFile(char* filename, bool skipws)
 {
@@ -1355,7 +1353,7 @@ Parser* Parser_fromFile(char* filename, bool skipws)
 
     // Error: the file might not end in .ch
     if (not str_endswith(filename, flen, ".ch", 3)) {
-        eprintf("checkcc: file '%s' invalid: name must end in '.ch'.\n",
+        eprintf("F+: file '%s' invalid: name must end in '.ch'.\n",
             filename);
         return NULL;
     }
@@ -1364,16 +1362,16 @@ Parser* Parser_fromFile(char* filename, bool skipws)
 
     // Error: the file might not exist
     if (stat(filename, &sb) != 0) {
-        eprintf("checkcc: file '%s' not found.\n", filename);
+        eprintf("F+: file '%s' not found.\n", filename);
         return NULL;
     } else if (S_ISDIR(sb.st_mode)) {
         // Error: the "file" might really be a folder
-        eprintf("checkcc: '%s' is a folder; only files are accepted.\n",
+        eprintf("F+: '%s' is a folder; only files are accepted.\n",
             filename);
         return NULL;
     } else if (access(filename, R_OK) == -1) {
         // Error: the user might not have read permissions for the file
-        eprintf("checkcc: no permission to read file '%s'.\n", filename);
+        eprintf("F+: no permission to read file '%s'.\n", filename);
         return NULL;
     }
 
@@ -1412,7 +1410,7 @@ Parser* Parser_fromFile(char* filename, bool skipws)
         ret->warnCount = 0;
         ret->errLimit = 20;
     } else {
-        eputs("Source files larger than 24MB are not allowed.\n");
+        eputs("Source files larger than 16MB are not allowed.\n");
     }
 
     fclose(file);
@@ -2223,9 +2221,6 @@ void getSelector(ASTFunc* func)
             remain -= wrote;
         }
         func->selector = PoolB_alloc(&strPool, selLen + 1);
-//        eprintf("%p\n", func->selector);
-//        eprintf("%p\n", strPool.ref);
-//        eprintf("%p\n", gPool.ref);
         strncpy(func->selector, buf, selLen + 1);
     } else
         func->selector = func->name;
@@ -2401,16 +2396,16 @@ ASTTypeSpec* standardTypeSpecs[16][16];
 int main(int argc, char* argv[])
 {
     if (argc == 1) {
-        eputs("checkcc: no input files.\n");
+        eputs("F+: no input files.\n");
         return 1;
     }
     bool printDiagnostics = (argc > 2 && *argv[2] == 'd') or false;
 
-    for (int i = 2; i < 16; i++) // first 2 are unresolved and object resp.
-        for (int j = 2; j < 18; j++)
-            standardTypeSpecs[i][j]
-                = ASTTypeSpec_new((TypeTypes)i, (CollectionTypes)j);
-    // new sets typeType and name, sets collectionType to none
+//    for (int i = 2; i < 16; i++) // first 2 are unresolved and object resp.
+//        for (int j = 2; j < 18; j++)
+//            standardTypeSpecs[i][j-2]
+//                = ASTTypeSpec_new((TypeTypes)i, (CollectionTypes)j);
+//    // new sets typeType and name, sets collectionType to none
 
     ticks t0 = getticks();
 
@@ -2455,8 +2450,7 @@ int main(int argc, char* argv[])
     double tms = elapsed(getticks(), t0) / 1e6;
 
     if (printDiagnostics) {
-        // eprintf("file %lu B\n", parser->end - parser->data);
-        eputs("\n======================================================="
+         eputs("\n======================================================="
               "\n");
         eputs("\e[1mPARSER STATISTICS\e[0m\n");
         eputs("-------------------------------------------------------"
@@ -2494,6 +2488,14 @@ int main(int argc, char* argv[])
             parser->end - parser->data - 2);
         eprintf("*** Node size to file size ratio            = %7.2f x\n",
             gPool.usedTotal * 1.0 / (parser->end - parser->data - 2));
+        eputs("-------------------------------------------------------"
+              "\n");
+        eprintf("*** Space used for strings                  = %7u B\n",
+                strPool.usedTotal);
+        eprintf("*** Allocated for strings                   = %7u B\n",
+                strPool.capTotal);
+        eprintf("*** Space utilisation                       = %7.2f %%\n",
+                strPool.usedTotal*100.0/strPool.capTotal);
         eputs("-------------------------------------------------------"
               "\n");
         eputs("\e[1mMemory-related calls\e[0m\n");
