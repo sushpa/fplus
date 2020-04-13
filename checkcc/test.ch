@@ -12,8 +12,15 @@ declare function print(num as Strs, filter as Scalar)
 function start(args as Strs)
     var x as Strs = 5
     # var b = print(9, filter = 43)
-    var b = print(x, filter = 43 )
+    var b = print(x, filter = print(x, filter = "loi23") )
     b = 4
+    if b + print(x, filter = 12 )
+        var q = b + 3
+    end if
+    if b * b
+        var c = b + 3
+        var m = 0
+    end if
 end function
 
 # type matching : func checkArgTypes

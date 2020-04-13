@@ -844,7 +844,7 @@ void ASTVar_gen(ASTVar* this, int level)
 
 size_t ASTScope_calcSizeUsage(ASTScope* this)
 {
-    size_t size = 0, sum = 0;
+    size_t size = 0, sum = 0, subsize = 0, maxsubsize = 0;
     // all variables must be resolved before calling this, call it e.g.
     // during cgen
     foreach (ASTExpr*, stmt, stmts, this->stmts) {
@@ -852,15 +852,23 @@ size_t ASTScope_calcSizeUsage(ASTScope* this)
         case TKKeyword_if:
         case TKKeyword_for:
         case TKKeyword_while:
-            sum += ASTScope_calcSizeUsage(stmt->body);
+            subsize = ASTScope_calcSizeUsage(stmt->body);
+            if (subsize > maxsubsize) maxsubsize = subsize;
             break;
-        case TKVarAssign:
-            assert(size = TypeType_size(stmt->var->typeSpec->typeType));
-            sum += size;
-            break;
+        // case TKVarAssign:
+        //     assert(size = TypeType_size(stmt->var->typeSpec->typeType));
+        //     sum += size;
+        //     break;
         default:;
         }
     }
+    // some vars are not assigned, esp. temporaries _1 _2 etc.
+    foreach (ASTVar*, var, vars, this->locals) {
+        assert(size = TypeType_size(var->typeSpec->typeType));
+        sum += size;
+    }
+    // add the largest size among the sizes of the sub-scopes
+    sum += maxsubsize;
     return sum;
 }
 

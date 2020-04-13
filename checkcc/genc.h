@@ -67,12 +67,15 @@ void ASTVar_genc(ASTVar* this, int level, bool isconst)
 }
 
 // Functions like Array_any_filter, Array_count_filter etc.
-// are macros and don't return a value but set one. For these
+// are macros and don't return a value but may set one. For these
 // and other such funcs, the call must be moved to before the
 // containing statement, and in place of the original call you
-// should place a temporary holding the value "returned".
+// should place a temporary holding the value that would have been
+// "returned".
 bool mustPromote(const char* name)
 {
+    // TODO: at some point these should go into a dict or trie or MPH
+    // whatever
     if (not strcmp(name, "Array_any_filter")) return true;
     if (not strcmp(name, "Array_all_filter")) return true;
     if (not strcmp(name, "Array_count_filter")) return true;
@@ -88,10 +91,13 @@ ASTExpr* ASTExpr_promotionCandidate(ASTExpr* this)
     ASTExpr* ret;
 
     // what about func args?
-    if (this->kind == TKFunctionCallResolved
-        and mustPromote(this->func->selector))
-        return this;
-    else if (this->kind == TKKeyword_if or this->kind == TKKeyword_for
+    if (this->kind == TKFunctionCallResolved) {
+        // promote innermost first, so check args
+        if ((ret = ASTExpr_promotionCandidate(this->left)))
+            return ret;
+        else if (mustPromote(this->func->selector))
+            return this;
+    } else if (this->kind == TKKeyword_if or this->kind == TKKeyword_for
         or this->kind == TKKeyword_while)
         return ASTExpr_promotionCandidate(this->left);
     // body will be handled by parent scope
@@ -121,24 +127,17 @@ void ASTScope_promoteCandidates(ASTScope* this)
     ASTExpr* pc = NULL;
     List(ASTExpr)* prev = this->stmts;
     foreach (ASTExpr*, stmt, stmts, this->stmts) {
-
-        if (stmt->kind == TKKeyword_if or stmt->kind == TKKeyword_for
-            or stmt->kind == TKKeyword_while) {
-            // TODO: figure out how to process stmt->left in this case
-            // ASTScope_promoteCandidates(stmt->left);
-            if (stmt->body) ASTScope_promoteCandidates(stmt->body);
-            prev = stmts;
-            continue;
-        }
+    startloop:
         if (not(pc = ASTExpr_promotionCandidate(stmt))) { // most likely
             prev = stmts;
             continue;
         }
         if (pc == stmt) {
             // possible, less likely: stmt already at toplevel.
+            // TODO: in this case, you still have to add the extra arg.
             prev = stmts;
             continue;
-        } // already at toplevel
+        }
 
         ASTExpr* pcClone = NEW(ASTExpr);
         *pcClone = *pc;
@@ -147,11 +146,13 @@ void ASTScope_promoteCandidates(ASTScope* this)
         ASTVar* tmpvar = NEW(ASTVar);
         tmpvar->name = ASTScope_newTmpVarName(this);
         tmpvar->typeSpec = NEW(ASTTypeSpec);
+        tmpvar->typeSpec->typeType = TYReal64; // FIXME
         // TODO: setup tmpvar->typeSpec
         PtrList_append(&this->locals, tmpvar);
 
         // 2. change the original to an ident
         pc->kind = TKIdentifierResolved;
+        pc->opPrec = 0;
         pc->var = tmpvar;
 
         // 3. insert the tmp var as an additional argument into the call
@@ -183,10 +184,19 @@ void ASTScope_promoteCandidates(ASTScope* this)
 
         // 4. insert the promoted expr BEFORE the current stmt
         //        PtrList_append(prev ? &prev : &this->stmts, pcClone);
+        //        PtrList* tmp = prev->next;
         prev->next = PtrList_with(pcClone);
         prev->next->next = stmts;
+        prev = prev->next;
+        goto startloop; // it will continue if no more promotions are needed
 
         prev = stmts;
+
+        if (stmt->kind == TKKeyword_if //
+            or stmt->kind == TKKeyword_for //
+            or stmt->kind == TKKeyword_while //
+                and stmt->body)
+            ASTScope_promoteCandidates(stmt->body);
     }
 }
 
