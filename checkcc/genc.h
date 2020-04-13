@@ -1,3 +1,5 @@
+#define genLineNumbers 0
+
 void ASTImport_genc(ASTImport* this, int level)
 {
     str_tr_ip(this->importFile, '.', '_', 0);
@@ -64,13 +66,139 @@ void ASTVar_genc(ASTVar* this, int level, bool isconst)
     printf(" %s", this->name);
 }
 
-#define genLineNumbers 0
+// Functions like Array_any_filter, Array_count_filter etc.
+// are macros and don't return a value but set one. For these
+// and other such funcs, the call must be moved to before the
+// containing statement, and in place of the original call you
+// should place a temporary holding the value "returned".
+bool mustPromote(const char* name)
+{
+    if (not strcmp(name, "Array_any_filter")) return true;
+    if (not strcmp(name, "Array_all_filter")) return true;
+    if (not strcmp(name, "Array_count_filter")) return true;
+    if (not strcmp(name, "Array_write_filter")) return true;
+    if (not strcmp(name, "Strs_print_filter")) return true;
+    return false;
+}
+
+// Promotion scan & promotion happens AFTER resolving functions!
+ASTExpr* ASTExpr_promotionCandidate(ASTExpr* this)
+{
+    assert(this);        ASTExpr* ret;
+
+    // what about func args?
+    if (this->kind == TKFunctionCallResolved
+        and mustPromote(this->func->selector))
+        return this;
+    else if (this->kind == TKKeyword_if or this->kind == TKKeyword_for
+        or this->kind == TKKeyword_while)
+        return ASTExpr_promotionCandidate(this->left);
+    // body will be handled by parent scope
+    else if (this->kind == TKVarAssign)
+{
+    if ((ret = ASTExpr_promotionCandidate(this->var->init))) return ret;
+}
+    else if (this->kind==TKFunctionCall)  { // unresolved
+        if ((ret = ASTExpr_promotionCandidate(this->left))) return ret;
+    }
+    else if (this->opPrec) {
+        if ((ret = ASTExpr_promotionCandidate(this->right))) return ret;
+        if (this->opIsRightAssociative)
+            if ((ret = ASTExpr_promotionCandidate(this->left))) return ret;
+    }
+    return NULL;
+    // BUT HOW WILL YOU fit a temp var in the original place?
+    // CLONE the expr and promote it, MUTATE THE ORIGINAL to a TKIdentifier
+}
+
+char* ASTScope_newTmpVarName(ASTScope* this)
+{
+    char buf[8];
+    int l = snprintf(buf, 8, "_%d", ++this->tmpCount);
+    return pstrndup(buf, l);
+}
+
+void ASTScope_promoteCandidates(ASTScope* this)
+{
+    ASTExpr* pc = NULL;
+    List(ASTExpr)* prev = this->stmts;
+    foreach (ASTExpr*, stmt, stmts, this->stmts) {
+
+        if (stmt->kind == TKKeyword_if or stmt->kind == TKKeyword_for
+            or stmt->kind == TKKeyword_while) {
+            // TODO: figure out how to process stmt->left in this case
+            // ASTScope_promoteCandidates(stmt->left);
+            if (stmt->body) ASTScope_promoteCandidates(stmt->body);
+            prev = stmts;
+            continue;
+        }
+        if (not(pc = ASTExpr_promotionCandidate(stmt))) { // most likely
+            prev = stmts;
+            continue;
+        }
+        if (pc
+            == stmt) {
+            // possible, less likely: stmt already at toplevel.
+            prev = stmts;
+            continue;
+        } // already at toplevel
+
+        ASTExpr* pcClone = NEW(ASTExpr);
+        *pcClone = *pc;
+
+        // 1. add a temp var to the scope
+        ASTVar* tmpvar = NEW(ASTVar);
+        tmpvar->name = ASTScope_newTmpVarName(this);
+        tmpvar->typeSpec = NEW(ASTTypeSpec);
+        // TODO: setup tmpvar->typeSpec
+        PtrList_append(&this->locals, tmpvar);
+
+        // 2. change the original to an ident
+        pc->kind = TKIdentifierResolved;
+        pc->var = tmpvar;
+
+        // 3. insert the tmp var as an additional argument into the call
+
+        if (not pcClone->left)
+            pcClone->left = pc;
+        else if (pcClone->left->kind != TKOpComma) {
+            // single arg
+            ASTExpr* com = NEW(ASTExpr);
+            // TODO: really should have an astexpr ctor
+            com->opPrec = TokenKind_getPrecedence(TKOpComma);
+            com->kind = TKOpComma;
+            com->left = pcClone->left;
+            com->right = pc;
+            pcClone->left = com;
+        } else {
+            ASTExpr* argn = pcClone->left;
+            while (
+                argn->kind == TKOpComma and argn->right->kind == TKOpComma)
+                argn = argn->right;
+            ASTExpr* com = NEW(ASTExpr);
+            // TODO: really should have an astexpr ctor
+            com->opPrec = TokenKind_getPrecedence(TKOpComma);
+            com->kind = TKOpComma;
+            com->left = argn->right;
+            com->right = pc;
+            argn->right = com;
+        }
+
+        // 4. insert the promoted expr BEFORE the current stmt
+//        PtrList_append(prev ? &prev : &this->stmts, pcClone);
+        prev->next = PtrList_with(pcClone);
+        prev->next->next = stmts;
+
+        prev = stmts;
+    }
+}
+
 void ASTScope_genc(ASTScope* this, int level)
 {
-    // foreach (ASTVar*, local, locals, this->locals) {
-    //     ASTVar_genc(local, level, false);
-    //     puts(";");
-    // } // these will be declared at top and defined within the expr list
+     foreach (ASTVar*, local, locals, this->locals) {
+         ASTVar_genc(local, level, false);
+         puts(";");
+     } // these will be declared at top and defined within the expr list
     foreach (ASTExpr*, stmt, stmts, this->stmts) {
         if (stmt->kind == TKLineComment) continue;
         if (genLineNumbers) printf("#line %d\n", stmt->line);
@@ -434,9 +562,9 @@ void ASTExpr_genc(ASTExpr* this, int level, bool spacing, bool inFuncArgs,
                       // var
         // var x as XYZ = abc... -> becomes an ASTVar and an
         // ASTExpr (to keep location). Send it to ASTVar::gen.
-        ASTVar_genc(this->var, 0, false);
+//        ASTVar_genc(this->var, 0, false);
         if (this->var->init != NULL) {
-            printf(" = "); //, this->var->name);
+            printf("%s = ", this->var->name);
             ASTExpr_genc(
                 this->var->init, 0, true, inFuncArgs, escapeStrings);
         }

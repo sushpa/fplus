@@ -575,6 +575,8 @@ typedef struct ASTScope {
     List(ASTExpr) * stmts;
     List(ASTVar) * locals;
     struct ASTScope* parent;
+    uint16_t tmpCount;
+    // still space left
 } ASTScope;
 
 typedef struct ASTType {
@@ -1168,7 +1170,8 @@ const char* ASTExpr_typeName(ASTExpr* this)
         // ^^ figure it out
     case TKIdentifierResolved:
     case TKSubscriptResolved:
-        return this->var->typeSpec->type->name; // same here as for resolved func
+        return this->var->typeSpec->type
+            ->name; // same here as for resolved func
     case TKOpEQ:
     case TKOpNE:
     case TKOpGE:
@@ -1343,8 +1346,8 @@ void Parser_fini(Parser* this)
     free(this->moduleName);
     free(this->mangledName);
     free(this->capsMangledName);
- }
- #define FILE_SIZE_MAX 1 << 24
+}
+#define FILE_SIZE_MAX 1 << 24
 
 Parser* Parser_fromFile(char* filename, bool skipws)
 {
@@ -1353,8 +1356,8 @@ Parser* Parser_fromFile(char* filename, bool skipws)
 
     // Error: the file might not end in .ch
     if (not str_endswith(filename, flen, ".ch", 3)) {
-        eprintf("F+: file '%s' invalid: name must end in '.ch'.\n",
-            filename);
+        eprintf(
+            "F+: file '%s' invalid: name must end in '.ch'.\n", filename);
         return NULL;
     }
 
@@ -1366,8 +1369,8 @@ Parser* Parser_fromFile(char* filename, bool skipws)
         return NULL;
     } else if (S_ISDIR(sb.st_mode)) {
         // Error: the "file" might really be a folder
-        eprintf("F+: '%s' is a folder; only files are accepted.\n",
-            filename);
+        eprintf(
+            "F+: '%s' is a folder; only files are accepted.\n", filename);
         return NULL;
     } else if (access(filename, R_OK) == -1) {
         // Error: the user might not have read permissions for the file
@@ -1389,8 +1392,9 @@ Parser* Parser_fromFile(char* filename, bool skipws)
     if (size < FILE_SIZE_MAX) {
         ret->data = (char*)malloc(size);
         fseek(file, 0, SEEK_SET);
-        if (fread(ret->data, size-2, 1, file) != 1) {
-            eprintf("F+: the whole file '%s' could not be read.\n", filename);
+        if (fread(ret->data, size - 2, 1, file) != 1) {
+            eprintf(
+                "F+: the whole file '%s' could not be read.\n", filename);
             fclose(file);
             return NULL;
             // would leak if ret was malloc'd directly, but we have a pool
@@ -2362,6 +2366,7 @@ List(ASTModule) * parseModule(Parser* this)
                 // resolveVars should be part of astscope
                 // resolveTypeSpecs(this, stmt, root);
             }
+            ASTScope_promoteCandidates(func->body);
         }
     }
 
@@ -2406,11 +2411,12 @@ int main(int argc, char* argv[])
     }
     bool printDiagnostics = (argc > 2 && *argv[2] == 'd') or false;
 
-//    for (int i = 2; i < 16; i++) // first 2 are unresolved and object resp.
-//        for (int j = 2; j < 18; j++)
-//            standardTypeSpecs[i][j-2]
-//                = ASTTypeSpec_new((TypeTypes)i, (CollectionTypes)j);
-//    // new sets typeType and name, sets collectionType to none
+    //    for (int i = 2; i < 16; i++) // first 2 are unresolved and object
+    //    resp.
+    //        for (int j = 2; j < 18; j++)
+    //            standardTypeSpecs[i][j-2]
+    //                = ASTTypeSpec_new((TypeTypes)i, (CollectionTypes)j);
+    //    // new sets typeType and name, sets collectionType to none
 
     ticks t0 = getticks();
 
@@ -2455,7 +2461,7 @@ int main(int argc, char* argv[])
     double tms = elapsed(getticks(), t0) / 1e6;
 
     if (printDiagnostics) {
-         eputs("\n======================================================="
+        eputs("\n======================================================="
               "\n");
         eputs("\e[1mPARSER STATISTICS\e[0m\n");
         eputs("-------------------------------------------------------"
@@ -2496,11 +2502,11 @@ int main(int argc, char* argv[])
         eputs("-------------------------------------------------------"
               "\n");
         eprintf("*** Space used for strings                  = %7u B\n",
-                strPool.usedTotal);
+            strPool.usedTotal);
         eprintf("*** Allocated for strings                   = %7u B\n",
-                strPool.capTotal);
+            strPool.capTotal);
         eprintf("*** Space utilisation                       = %7.2f %%\n",
-                strPool.usedTotal*100.0/strPool.capTotal);
+            strPool.usedTotal * 100.0 / strPool.capTotal);
         eputs("-------------------------------------------------------"
               "\n");
         eputs("\e[1mMemory-related calls\e[0m\n");

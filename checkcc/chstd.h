@@ -50,14 +50,14 @@ union Value {
 
 #pragma mark - Array
 
-#define DEFAULT0(T) DEFAULT0_##T
-#define DEFAULT0_double 0.0
-#define DEFAULT0_float 0.0
-#define DEFAULT0_uint64_t 0
-#define DEFAULT0_uint32_t 0
-#define DEFAULT0_int32_t 0
-#define DEFAULT0_int64_t 0
-#define DEFAULT0_voidptr NULL
+//#define DEFAULT0(T) DEFAULT0_##T
+//#define DEFAULT0_double 0.0
+//#define DEFAULT0_float 0.0
+//#define DEFAULT0_uint64_t 0
+//#define DEFAULT0_uint32_t 0
+//#define DEFAULT0_int32_t 0
+//#define DEFAULT0_int64_t 0
+//#define DEFAULT0_voidptr NULL
 
 typedef void* voidptr;
 
@@ -159,13 +159,12 @@ typedef void* voidptr;
     }                                                                      \
     T Array_pop(T)(Array(T) * this)                                        \
     {                                                                      \
-        if (this->used) return this->ref[--this->used];                    \
-        fprintf(stderr, "error: pop from empty list\n");                   \
-        return DEFAULT0(T);                                                \
+        assert(this->used > 0);                                            \
+        return this->ref[--this->used];                                    \
     }                                                                      \
     T Array_top(T)(Array(T) * this)                                        \
     {                                                                      \
-        return this->used ? this->ref[this->used - 1] : DEFAULT0(T);       \
+        return this->used ? this->ref[this->used - 1] : 0;                 \
     }                                                                      \
     bool Array_empty(T)(Array(T) * this) { return this->used == 0; }
 
@@ -296,20 +295,23 @@ void PtrList_append(PtrList** selfp, void* item)
 #include "strcasecmp.h"
 
 #define str_endswith(str, lenstr, suffix, lensuffix)                       \
-!strncmp(str + lenstr - lensuffix, suffix, lensuffix)
+    !strncmp(str + lenstr - lensuffix, suffix, lensuffix)
 
 #define str_startswith(str, prefix, lenprefix)                             \
-!strncmp(str, prefix, lenprefix)
+    !strncmp(str, prefix, lenprefix)
 
-// DO NOT USE strdup,strndup,strcasecmp,strncasecmp: OK reimplemented strcasecmp.
+// DO NOT USE strdup,strndup,strcasecmp,strncasecmp: OK reimplemented
+// strcasecmp.
 
-char* pstrndup(char* str, size_t len) {
-    char* ret = PoolB_alloc(&strPool,len+1);
-    memcpy(ret,str,len); // strPool uses calloc, so no need to zero last
+char* pstrndup(char* str, size_t len)
+{
+    char* ret = PoolB_alloc(&strPool, len + 1);
+    memcpy(ret, str, len); // strPool uses calloc, so no need to zero last
     return ret;
 }
 
-char* pstrdup(char* str) {
+char* pstrdup(char* str)
+{
     const size_t len = strlen(str);
     return pstrndup(str, len);
 }
@@ -343,7 +345,7 @@ char* str_base(char* str, char sep, size_t slen)
 char* str_dir(char* str)
 {
     const size_t len = strlen(str);
-    char* s = pstrndup(str,len);
+    char* s = pstrndup(str, len);
     char* sc = s + len;
     while (sc > s and *sc != '/')
         sc--;
@@ -362,7 +364,7 @@ char* str_upper(char* str)
 
 // in place
 void str_tr_ip(
-               char* str, const char oldc, const char newc, const size_t length)
+    char* str, const char oldc, const char newc, const size_t length)
 {
     char* sc = str - 1;
     char* end = length ? str + length : (char*)0xFFFFFFFFFFFFFFFF;
@@ -390,9 +392,8 @@ char** str_getAllOccurences(char* str, int len, char sep, int* count)
 }
 
 int str_getSomeOccurences(
-                          char* str, int len, char sep, char** result, int limit)
+    char* str, int len, char sep, char** result, int limit)
 {
     // result buf is expected from caller
     return 0;
 }
-

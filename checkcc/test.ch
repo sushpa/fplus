@@ -12,7 +12,7 @@ declare function print(num as Strs, filter as Scalar)
 function start(args as Strs)
     var x as Strs = 5
     # var b = print(9, filter = 43)
-    var b = print(x, filtr = 43 )
+    var b = print(x, filter = 43 )
     b = 4
 end function
 
