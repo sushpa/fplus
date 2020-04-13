@@ -54,7 +54,8 @@ void resolveFuncsAndTypes(Parser* this, ASTExpr* expr, ASTModule* mod)
         if (expr->left) resolveFuncsAndTypes(this, expr->left, mod);
 
         ASTExpr* arg1=expr->left;
-        while(arg1 and arg1->left and arg1->kind==TKOpComma) arg1=arg1->left;
+        //while(arg1 and arg1->left and arg1->kind==TKOpComma) arg1=arg1->left;
+        if (arg1 and arg1->kind==TKOpComma) arg1=arg1->left;
         if (arg1) {bufp+=sprintf(bufp, "%s_", ASTExpr_typeName(arg1));}
         bufp+=sprintf(bufp, "%s",expr->name);
         ASTExpr_strarglabels(expr->left, bufp, 128-((int)(bufp-buf)));

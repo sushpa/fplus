@@ -1225,8 +1225,8 @@ int ASTExpr_countCommaList(ASTExpr* this)
     if (not this) return 0;
     if (this->kind != TKOpComma) return 1;
     int i = 1;
-    while (this->left) {
-        this = this->left;
+    while (this->right) {
+        this = this->right;
         i++;
         if (this->kind != TKOpComma) break;
     }
@@ -1391,6 +1391,7 @@ Parser* Parser_fromFile(char* filename, bool skipws)
         fseek(file, 0, SEEK_SET);
         if (fread(ret->data, size-2, 1, file) != 1) {
             eprintf("F+: the whole file '%s' could not be read.\n", filename);
+            fclose(file);
             return NULL;
             // would leak if ret was malloc'd directly, but we have a pool
         }
@@ -2225,7 +2226,7 @@ void getSelector(ASTFunc* func)
             remain -= wrote;
         }
         func->selector = PoolB_alloc(&strPool, selLen + 1);
-        strncpy(func->selector, buf, selLen + 1);
+        memcpy(func->selector, buf, selLen + 1);
     } else
         func->selector = func->name;
     eprintf("got func %s: %s\n", func->name, func->selector);

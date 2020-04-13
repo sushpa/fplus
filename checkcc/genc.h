@@ -337,13 +337,12 @@ void ASTExpr_genc(ASTExpr* this, int level, bool spacing, bool inFuncArgs,
         char* tmp = (this->kind == TKFunctionCallResolved)
             ? this->func->name // TODO: should be selector
             : this->name;
-        ASTExpr* leftMost = this->left; // find first argument
+        ASTExpr* firstArg = this->left; // find first argument
 
-        while (leftMost and leftMost->left and leftMost->kind == TKOpComma)
-            leftMost = leftMost->left;
+        if (firstArg->kind == TKOpComma) firstArg = firstArg->left;
 
         // refactor the following into a func, much needed
-        if (leftMost) printf("%s_", ASTExpr_typeName(leftMost));
+        if (firstArg) printf("%s_", ASTExpr_typeName(firstArg));
 
         str_tr_ip(tmp, '.', '_', 0); // this should have been done in a
                                      // previous stage prepc() or lower()

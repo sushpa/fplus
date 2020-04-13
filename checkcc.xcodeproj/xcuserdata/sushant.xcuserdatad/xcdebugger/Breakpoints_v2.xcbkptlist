@@ -1054,8 +1054,8 @@
             filePath = "checkcc/resolve.h"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "64"
-            endingLineNumber = "64"
+            startingLineNumber = "65"
+            endingLineNumber = "65"
             landmarkName = "resolveFuncsAndTypes(, expr, mod)"
             landmarkType = "9">
          </BreakpointContent>
@@ -1089,6 +1089,22 @@
             startingLineNumber = "1393"
             endingLineNumber = "1393"
             landmarkName = "Parser_fromFile(filename, skipws)"
+            landmarkType = "9">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "423F9D50-0D20-43F7-A920-053658568EEB"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "checkcc/resolve.h"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "59"
+            endingLineNumber = "59"
+            landmarkName = "resolveFuncsAndTypes(, expr, mod)"
             landmarkType = "9">
          </BreakpointContent>
       </BreakpointProxy>

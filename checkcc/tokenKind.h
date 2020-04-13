@@ -370,7 +370,7 @@ bool TokenKind_isUnary(TokenKind kind)
 
 bool TokenKind_isRightAssociative(TokenKind kind)
 {
-    return kind == TKPeriod or kind == TKPower;
+    return kind == TKPeriod or kind == TKPower or kind == TKOpComma;
 }
 
 uint8_t TokenKind_getPrecedence(TokenKind kind)

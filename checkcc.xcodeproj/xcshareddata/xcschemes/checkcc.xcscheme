@@ -54,16 +54,12 @@
       </BuildableProductRunnable>
       <CommandLineArguments>
          <CommandLineArgument
+            argument = "/Users/Sushant/Dropbox/xcode-checkcc/checkcc/checkcc/array.ch"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
             argument = "/Users/Sushant/Dropbox/xcode-checkcc/checkcc/checkcc/test.ch"
             isEnabled = "YES">
-         </CommandLineArgument>
-         <CommandLineArgument
-            argument = "/Users/sushant/Desktop/test.ch"
-            isEnabled = "NO">
-         </CommandLineArgument>
-         <CommandLineArgument
-            argument = "/Users/sushant/Dropbox/chc-boot/test2.ch"
-            isEnabled = "NO">
          </CommandLineArgument>
       </CommandLineArguments>
    </LaunchAction>

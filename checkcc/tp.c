@@ -19,6 +19,9 @@ void printarrd(int* x, int n)
         printf("%d, ", x[i]);
     printf("%d]\n", x[n]);
 }
+
+// int funca()[3] { return (int[]) { 1, 2, 3 }; }
+
 // struct SA {int count;double x[6];};
 int main()
 {
