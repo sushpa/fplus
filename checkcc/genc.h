@@ -84,7 +84,8 @@ bool mustPromote(const char* name)
 // Promotion scan & promotion happens AFTER resolving functions!
 ASTExpr* ASTExpr_promotionCandidate(ASTExpr* this)
 {
-    assert(this);        ASTExpr* ret;
+    assert(this);
+    ASTExpr* ret;
 
     // what about func args?
     if (this->kind == TKFunctionCallResolved
@@ -94,14 +95,11 @@ ASTExpr* ASTExpr_promotionCandidate(ASTExpr* this)
         or this->kind == TKKeyword_while)
         return ASTExpr_promotionCandidate(this->left);
     // body will be handled by parent scope
-    else if (this->kind == TKVarAssign)
-{
-    if ((ret = ASTExpr_promotionCandidate(this->var->init))) return ret;
-}
-    else if (this->kind==TKFunctionCall)  { // unresolved
+    else if (this->kind == TKVarAssign) {
+        if ((ret = ASTExpr_promotionCandidate(this->var->init))) return ret;
+    } else if (this->kind == TKFunctionCall) { // unresolved
         if ((ret = ASTExpr_promotionCandidate(this->left))) return ret;
-    }
-    else if (this->opPrec) {
+    } else if (this->opPrec) {
         if ((ret = ASTExpr_promotionCandidate(this->right))) return ret;
         if (this->opIsRightAssociative)
             if ((ret = ASTExpr_promotionCandidate(this->left))) return ret;
@@ -136,8 +134,7 @@ void ASTScope_promoteCandidates(ASTScope* this)
             prev = stmts;
             continue;
         }
-        if (pc
-            == stmt) {
+        if (pc == stmt) {
             // possible, less likely: stmt already at toplevel.
             prev = stmts;
             continue;
@@ -185,7 +182,7 @@ void ASTScope_promoteCandidates(ASTScope* this)
         }
 
         // 4. insert the promoted expr BEFORE the current stmt
-//        PtrList_append(prev ? &prev : &this->stmts, pcClone);
+        //        PtrList_append(prev ? &prev : &this->stmts, pcClone);
         prev->next = PtrList_with(pcClone);
         prev->next->next = stmts;
 
@@ -195,10 +192,10 @@ void ASTScope_promoteCandidates(ASTScope* this)
 
 void ASTScope_genc(ASTScope* this, int level)
 {
-     foreach (ASTVar*, local, locals, this->locals) {
-         ASTVar_genc(local, level, false);
-         puts(";");
-     } // these will be declared at top and defined within the expr list
+    foreach (ASTVar*, local, locals, this->locals) {
+        ASTVar_genc(local, level, false);
+        puts(";");
+    } // these will be declared at top and defined within the expr list
     foreach (ASTExpr*, stmt, stmts, this->stmts) {
         if (stmt->kind == TKLineComment) continue;
         if (genLineNumbers) printf("#line %d\n", stmt->line);
@@ -562,7 +559,7 @@ void ASTExpr_genc(ASTExpr* this, int level, bool spacing, bool inFuncArgs,
                       // var
         // var x as XYZ = abc... -> becomes an ASTVar and an
         // ASTExpr (to keep location). Send it to ASTVar::gen.
-//        ASTVar_genc(this->var, 0, false);
+        //        ASTVar_genc(this->var, 0, false);
         if (this->var->init != NULL) {
             printf("%s = ", this->var->name);
             ASTExpr_genc(
