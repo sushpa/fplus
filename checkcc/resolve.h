@@ -50,28 +50,28 @@ void resolveFuncsAndTypes(Parser* this, ASTExpr* expr, ASTModule* mod)
 
     case TKFunctionCall: {
         char buf[128];
-        char* bufp=buf;
+        char* bufp = buf;
         if (expr->left) resolveFuncsAndTypes(this, expr->left, mod);
 
-        ASTExpr* arg1=expr->left;
-        //while(arg1 and arg1->left and arg1->kind==TKOpComma) arg1=arg1->left;
-        if (arg1 and arg1->kind==TKOpComma) arg1=arg1->left;
-        if (arg1) {bufp+=sprintf(bufp, "%s_", ASTExpr_typeName(arg1));}
-        bufp+=sprintf(bufp, "%s",expr->name);
-        ASTExpr_strarglabels(expr->left, bufp, 128-((int)(bufp-buf)));
+        ASTExpr* arg1 = expr->left;
+
+        if (arg1 and arg1->kind == TKOpComma) arg1 = arg1->left;
+        if (arg1) {
+            bufp += sprintf(bufp, "%s_", ASTExpr_typeName(arg1));
+        }
+        bufp += sprintf(bufp, "%s", expr->name);
+        ASTExpr_strarglabels(expr->left, bufp, 128 - ((int)(bufp - buf)));
 
         foreach (ASTFunc*, func, funcs, mod->funcs) {
-//            if (not strncasecmp(expr->name, func->name, expr->strLen)
-            if (not strcasecmp(buf, func->selector) ) {
+            if (not strcasecmp(buf, func->selector)) {
                 expr->kind = TKFunctionCallResolved;
                 expr->func = func;
-//                if (expr->left) resolveFuncsAndTypes(this, expr->left, mod);
                 resolveFuncsAndTypes(this, expr, mod);
                 return;
             }
         } // since it is known which module the func must be found in,
           // no need to scan others if function has not been found
-        Parser_errorUnrecognizedFunc(this, expr);
+        Parser_errorUnrecognizedFunc(this, expr, buf);
         // but still check nested func calls
     } break;
 
@@ -84,10 +84,11 @@ void resolveFuncsAndTypes(Parser* this, ASTExpr* expr, ASTModule* mod)
         }
         break;
 
+    case TKKeyword_else:
     case TKKeyword_if:
     case TKKeyword_for:
     case TKKeyword_while: {
-        resolveFuncsAndTypes(this, expr->left, mod);
+        if (expr->left) resolveFuncsAndTypes(this, expr->left, mod);
         foreach (ASTExpr*, stmt, stmts, expr->body->stmts)
             resolveFuncsAndTypes(this, stmt, mod);
     } break;

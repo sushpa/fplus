@@ -8,7 +8,10 @@
 
 #define min(a, b) ((a) < (b)) ? (a) : (b)
 #define max(a, b) ((a) > (b)) ? (a) : (b)
-#define KB *1024
+#define KB *1024UL
+
+#define eprintf(fmt, ...) fprintf(stderr, fmt, __VA_ARGS__)
+#define eputs(str) fputs(str, stderr)
 
 #pragma mark - Heap allocation stuff
 
@@ -59,7 +62,11 @@ union Value {
 //#define DEFAULT0_int64_t 0
 //#define DEFAULT0_voidptr NULL
 
-typedef void* voidptr;
+typedef void* Ptr;
+typedef uint32_t UInt32;
+typedef uint64_t UInt64;
+typedef const char* CString;
+typedef double Real64;
 
 #define Array(T) Array_##T
 #define Array_free(T) Array_free_##T
@@ -76,19 +83,19 @@ typedef void* voidptr;
 #define Array_empty(T) Array_empty_##T
 
 // convenience for manual writing
-#define PtrArray Array(voidptr)
-// #define PtrArray_free Array_free(voidptr)
-// #define PtrArray_growTo Array_growTo(voidptr)
-// #define PtrArray_concat_cArray Array_concat_cArray(voidptr)
-// #define PtrArray_concat_otherArray Array_concat_otherArray(voidptr)
-// #define PtrArray_grow Array_grow(voidptr)
-#define PtrArray_push Array_push(voidptr)
-// #define PtrArray_clear Array_clear(voidptr)
-// #define PtrArray_initWithCArray Array_initWithCArray(voidptr)
-// #define PtrArray_justPush Array_justPush(voidptr)
-#define PtrArray_pop Array_pop(voidptr)
-#define PtrArray_top Array_top(voidptr)
-#define PtrArray_empty Array_empty(voidptr)
+#define PtrArray Array(Ptr)
+// #define PtrArray_free Array_free(Ptr)
+// #define PtrArray_growTo Array_growTo(Ptr)
+// #define PtrArray_concat_cArray Array_concat_cArray(Ptr)
+// #define PtrArray_concat_otherArray Array_concat_otherArray(Ptr)
+// #define PtrArray_grow Array_grow(Ptr)
+#define PtrArray_push Array_push(Ptr)
+// #define PtrArray_clear Array_clear(Ptr)
+// #define PtrArray_initWithCArray Array_initWithCArray(Ptr)
+// #define PtrArray_justPush Array_justPush(Ptr)
+#define PtrArray_pop Array_pop(Ptr)
+#define PtrArray_top Array_top(Ptr)
+#define PtrArray_empty Array_empty(Ptr)
 #define PtrArray_topAs(T, this) ((T)PtrArray_top(this))
 
 // #define PtrArray_topAs(T, this) Array_topAs(T, this)
@@ -110,15 +117,15 @@ typedef void* voidptr;
     typedef struct Array(T)                                                \
     {                                                                      \
         T* ref;                                                            \
-        uint32_t used;                                                     \
-        uint32_t cap;                                                      \
+        UInt32 used;                                                       \
+        UInt32 cap;                                                        \
     }                                                                      \
     Array(T);                                                              \
     void Array_free(T)(Array(T) * this)                                    \
     {                                                                      \
         if (this->cap) free(this->ref);                                    \
     }                                                                      \
-    void Array_growTo(T)(Array(T) * this, uint32_t size)                   \
+    void Array_growTo(T)(Array(T) * this, UInt32 size)                     \
     {                                                                      \
         this->cap = roundUp32(size);                                       \
         this->ref = realloc(this->ref, sizeof(T) * this->cap);             \
@@ -127,7 +134,7 @@ typedef void* voidptr;
     }                                                                      \
     void Array_concat_cArray(T)(Array(T) * this, T * cArray, int count)    \
     {                                                                      \
-        const uint32_t reqd = this->used + count;                          \
+        const UInt32 reqd = this->used + count;                            \
         if (reqd >= this->cap) Array_growTo(T)(this, reqd);                \
         memcpy(this->ref + this->used, cArray, count * sizeof(T));         \
     }                                                                      \
@@ -168,8 +175,8 @@ typedef void* voidptr;
     }                                                                      \
     bool Array_empty(T)(Array(T) * this) { return this->used == 0; }
 
-MAKE_Array(voidptr);
-MAKE_Array(uint32_t);
+MAKE_Array(Ptr);
+MAKE_Array(UInt32);
 // MAKE_Array(uint64_t);
 // MAKE_Array(int64_t);
 // MAKE_Array(int32_t);
@@ -197,9 +204,9 @@ MAKE_Array(double);
 
 typedef struct PoolB {
     void* ref;
-    uint32_t cap, capTotal; // BYTES
-    Array(voidptr) ptrs;
-    uint32_t used, usedTotal; // used BYTES, unlike in Array!
+    UInt32 cap, capTotal; // BYTES
+    Array(Ptr) ptrs;
+    UInt32 used, usedTotal; // used BYTES, unlike in Array!
 } PoolB;
 
 void* PoolB_alloc(PoolB* this, size_t reqd)
@@ -210,7 +217,7 @@ void* PoolB_alloc(PoolB* this, size_t reqd)
     // dont ask for a big fat chunk larger than 16KB (or up to 256KB
     // depending on how much is already there) all at one time.
     if (this->used + reqd > this->cap) {
-        if (this->ref) Array_push(voidptr)(&this->ptrs, this->ref);
+        if (this->ref) Array_push(Ptr)(&this->ptrs, this->ref);
         this->cap = (this->cap > 64 KB ? 256 KB : 4 KB);
         this->capTotal += this->cap;
         this->ref = calloc(1, this->cap);

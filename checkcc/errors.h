@@ -65,25 +65,27 @@ void Parser_errorDuplicateVar(Parser* this, ASTVar* var, ASTVar* orig)
             "\e[34m%s\e[0m at "
             "%s%s:%d:%d\n   "
             "          already declared at %s%s:%d:%d\n",
-        this->errCount + 1, var->name, RELF(this->filename),
-        var->init->line, 9, RELF(this->filename), orig->init->line,
-        9); // every var has init!! and every var is indented 4 spc ;-)
+        this->errCount + 1, var->name, RELF(this->filename), var->line,
+        var->col, RELF(this->filename), orig->line,
+        orig->col); // every var has init!! and every var is indented 4 spc
+                    // ;-)
     Parser_errorIncrement(this);
 }
 
-void Parser_errorUnrecognizedFunc(Parser* this, ASTExpr* expr)
+void Parser_errorUnrecognizedFunc(
+    Parser* this, ASTExpr* expr, const char* selector)
 {
-    eprintf("\n(%d) \e[31merror:\e[0m can't resolve function "
-            "\e[34m%.*s\e[0m at "
-            "%s%s:%d:%d\n",
+    eprintf("\n(%d) \e[31merror:\e[0m can't resolve call to "
+            "\e[34m%.*s\e[0m at %s%s:%d:%d\n"
+            "        selector is \e[34m%s\e[0m\n",
         this->errCount + 1, expr->strLen, expr->value.string,
-        RELF(this->filename), expr->line, expr->col);
+        RELF(this->filename), expr->line, expr->col, selector);
     Parser_errorIncrement(this);
 }
 void Parser_errorArgsCountMismatch(Parser* this, ASTExpr* expr)
 {
     assert(expr->kind == TKFunctionCallResolved);
-    eprintf("\n(%d) \e[31merror:\e[0m args count mismatch for "
+    eprintf("\n(%d) \e[31merror:\e[0m arg count mismatch for "
             "\e[34m%s\e[0m at %s%s:%d:%d\n"
             "          have %d args, need %d, func defined at %s%s:%d\n",
         this->errCount + 1, expr->func->name, RELF(this->filename),

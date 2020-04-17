@@ -63,6 +63,7 @@ typedef enum TokenKind {
     TKOpLE,
     TKOpLT,
     TKOpMod,
+    TKOpModEq,
     TKOpResults,
     TKOpNotResults,
     TKParenClose,
@@ -88,6 +89,7 @@ typedef enum TokenKind {
     TKUnaryMinus,
     TKTimes,
     TKPower,
+    TKPowerEq,
     TKTilde,
     TKDollar,
     TKUnits,
@@ -174,6 +176,8 @@ const char* TokenKind_repr(const TokenKind kind, bool spacing)
         return "1";
     case TKPower:
         return "^";
+    case TKPowerEq:
+        return spacing ? " ^= " : "^=";
     case TKUnits:
         return "|kg";
     case TKAlphabet:
@@ -213,6 +217,8 @@ const char* TokenKind_repr(const TokenKind kind, bool spacing)
         return spacing ? " < " : "<";
     case TKOpMod:
         return spacing ? " % " : "%";
+    case TKOpModEq:
+        return spacing ? " %= " : "%=";
     case TKOpResults:
         return " => ";
     case TKOpNotResults:
@@ -366,11 +372,14 @@ bool TokenKind_isUnary(TokenKind kind)
 {
     return kind == TKKeyword_not or kind == TKUnaryMinus
         or kind == TKKeyword_return or kind == TKArrayOpen;
+    // TKArrayOpen is "unary" because it's EXPR is unary i.e.
+    // it has one field `->right`, a list/dict literal expr
 }
 
 bool TokenKind_isRightAssociative(TokenKind kind)
 {
-    return kind == TKPeriod or kind == TKPower or kind == TKOpComma;
+    return kind == TKPeriod or kind == TKPower or kind == TKOpComma
+        or kind == TKOpSemiColon;
 }
 
 uint8_t TokenKind_getPrecedence(TokenKind kind)
@@ -419,9 +428,9 @@ uint8_t TokenKind_getPrecedence(TokenKind kind)
     case TKTimesEq:
     case TKSlashEq:
         return 20;
-    case TKOpComma:
+    case TKOpComma: // list separator
         return 10;
-    case TKOpSemiColon:
+    case TKOpSemiColon: // 2-D array / matrix row separator
         return 9;
     case TKKeyword_do:
         return 5;

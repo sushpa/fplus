@@ -68,9 +68,6 @@
 
 #define STEP 4
 
-#define eprintf(fmt, ...) fprintf(stderr, fmt, __VA_ARGS__)
-#define eputs(str) fputs(str, stderr)
-
 #include "chstd.h"
 
 #pragma mark - Heap Allocation Extras
@@ -188,7 +185,7 @@ typedef enum TypeTypes {
     TYBool,
     // above this, ie. > 4 or >= TYInt8, all may have units |kg.m/s etc.
     TYInt8,
-    TYUInt8,
+    TYUInt8, //
     TYInt16,
     TYUInt16,
     TYInt32,
@@ -365,7 +362,7 @@ TypeTypes TypeType_byName(const char* spec)
     if (not strcmp(spec, "Scalar"))
         return TYReal64; // this is default, analysis might change it to
                          // more specific
-    if (not strcmp(spec, "String")) return TYReal64;
+    if (not strcmp(spec, "String")) return TYString;
     if (not strcmp(spec, "Logical")) return TYBool;
     // note that Vector, Matrix, etc. are actually types, so they should
     // resolve to TYObject.
@@ -527,9 +524,11 @@ typedef struct ASTVar {
     ASTTypeSpec* typeSpec;
     struct ASTExpr* init;
     char* name;
+    uint16_t line;
+    uint8_t col;
     struct {
         bool unused : 1, //
-            unset : 1, //
+            unchanged : 1, //
             isLet : 1, //
             isVar : 1, //
             isTarget : 1, //
@@ -537,16 +536,15 @@ typedef struct ASTVar {
                              // (returned etc.)
         /* x = f(x,y) */ //
     } flags;
-
 } ASTVar;
 
 typedef struct ASTExpr {
-    // this should have at least a TypeTypes if not an ASTType*
     struct {
         uint16_t line;
         union {
             struct {
-                bool opIsUnary, opIsRightAssociative;
+                uint16_t typeType : 7, opIsUnary : 1, collectionType : 7,
+                    opIsRightAssociative : 1;
             };
             uint16_t strLen;
         }; // for literals, the string length
@@ -554,7 +552,7 @@ typedef struct ASTExpr {
         uint8_t col;
         TokenKind kind : 8;
     };
-    struct ASTTypeSpec* typeSpec;
+    // struct ASTTypeSpec* typeSpec;
     struct ASTExpr* left;
     union {
         union {
@@ -569,18 +567,21 @@ typedef struct ASTExpr {
         struct ASTScope* body; // for if/for/while
         struct ASTExpr* right;
     };
+    // canThrow:1, mayNeedPromotion:1
+    // TODO: the code motion routine should skip over exprs with
+    // mayNeedPromotion=false this is set for exprs with func calls or array
+    // filtering etc...
 } ASTExpr;
 
 typedef struct ASTScope {
     List(ASTExpr) * stmts;
     List(ASTVar) * locals;
     struct ASTScope* parent;
-    uint16_t tmpCount;
+    // uint16_t tmpCount;
     // still space left
 } ASTScope;
 
 typedef struct ASTType {
-    // List(ASTVar) * vars;
     ASTTypeSpec* super;
     char* name;
     // TODO: flags: hasUserInit : whether user has defined Type() ctor
@@ -609,9 +610,9 @@ typedef struct ASTModule {
     List(ASTFunc) * funcs;
     List(ASTExpr) * exprs;
     List(ASTType) * types;
-    // List(ASTVar) * globals;
+    List(ASTVar) * globals;
     List(ASTImport) * imports;
-    // List(ASTFunc) * tests;
+    List(ASTFunc) * tests;
     char* name;
     char* moduleName; // mod.submod.xyz.mycode
     // char* mangledName; // mod_submod_xyz_mycode
@@ -850,6 +851,7 @@ size_t ASTScope_calcSizeUsage(ASTScope* this)
     foreach (ASTExpr*, stmt, stmts, this->stmts) {
         switch (stmt->kind) {
         case TKKeyword_if:
+        case TKKeyword_else:
         case TKKeyword_for:
         case TKKeyword_while:
             subsize = ASTScope_calcSizeUsage(stmt->body);
@@ -1172,14 +1174,26 @@ const char* ASTExpr_typeName(ASTExpr* this)
     case TKRegex:
         return "RegEx";
         // case TKFunctionCall: return this->name;
-    case TKFunctionCallResolved:
-        return this->func->returnType->type->name;
+    case TKFunctionCallResolved: {
+        const char* name = TypeType_name(this->func->returnType->typeType);
+        if (!*name) name = this->func->returnType->type->name;
+        return name;
+    }
+
+        //        return this->func->returnType->type->name;
         // NOO! TODO: get the name from the resolved type
         // ^^ figure it out
     case TKIdentifierResolved:
     case TKSubscriptResolved:
-        return this->var->typeSpec->type
-            ->name; // same here as for resolved func
+        // object: typetype_name will give "", then return ->type->name
+        // unresolved: should not happen at this stage!
+        // other: get it from typeType
+        {
+            const char* name = TypeType_name(this->var->typeSpec->typeType);
+            if (!*name) name = this->var->typeSpec->type->name;
+            return name;
+        }
+        // same here as for resolved func
     case TKOpEQ:
     case TKOpNE:
     case TKOpGE:
@@ -1870,6 +1884,9 @@ ASTVar* parseVar(Parser* this)
     if (var->flags.isLet) discard(this, TKKeyword_let);
     if (var->flags.isVar or var->flags.isLet) discard(this, TKOneSpace);
 
+    var->line = this->token.line;
+    var->col = this->token.col;
+
     if (memchr(this->token.pos, '_', this->token.matchlen))
         Parser_errorInvalidIdent(this);
     if (*this->token.pos < 'a' or *this->token.pos > 'z')
@@ -1915,7 +1932,8 @@ List(ASTVar) * parseArgs(Parser* this)
 }
 
 #pragma mark - PARSE SCOPE
-ASTScope* parseScope(Parser* this, ASTScope* parent, bool isTypeBody)
+ASTScope* parseScope(
+    Parser* this, ASTScope* parent, bool isTypeBody, bool isIfBlock)
 {
     ASTScope* scope = NEW(ASTScope);
 
@@ -1924,7 +1942,10 @@ ASTScope* parseScope(Parser* this, ASTScope* parent, bool isTypeBody)
     TokenKind tt = TKUnknown;
 
     scope->parent = parent;
-
+    //    while (this->token.kind == TKNewline or this->token.kind ==
+    //    TKOneSpace)
+    //        Token_advance(&this->token);
+    bool startedElse = false; //(this->token.kind == TKKeyword_else);
     while (this->token.kind != TKKeyword_end) {
 
         switch (this->token.kind) {
@@ -1959,13 +1980,18 @@ ASTScope* parseScope(Parser* this, ASTScope* parent, bool isTypeBody)
             PtrList_append(&scope->stmts, expr);
             break;
 
+        case TKKeyword_else:
+            if (not startedElse) goto exitloop;
+            //            else
+            //                startedElse = false; // so that it
+            // fallthrough
         case TKKeyword_if:
         case TKKeyword_for:
         case TKKeyword_while:
             if (isTypeBody) Parser_errorInvalidTypeMember(this);
             tt = this->token.kind;
             expr = match(this, tt); // will advance
-            expr->left = parseExpr(this);
+            expr->left = tt != TKKeyword_else ? parseExpr(this) : NULL;
 
             if (tt == TKKeyword_for) {
                 // TODO: new Parser_error
@@ -1973,14 +1999,15 @@ ASTScope* parseScope(Parser* this, ASTScope* parent, bool isTypeBody)
                     eprintf("Invalid for-loop condition: %s\n",
                         TokenKind_repr(expr->left->kind, false));
                 resolveVars(this, expr->left->right, scope, false);
-            } else
+            } else if (expr->left) {
                 resolveVars(this, expr->left, scope, false);
-            // TODO: `for` necessarily introduces a counter variable, so
+            } // TODO: `for` necessarily introduces a counter variable, so
             // check if that var name doesn't already exist in scope.
             // Also assert that the cond of a for expr has kind
             // TKOpAssign.
-
-            expr->body = parseScope(this, scope, false);
+            // insert a temp scope holding the var that for declares
+            expr->body
+                = parseScope(this, scope, false, (tt == TKKeyword_if));
             if (tt == TKKeyword_for) {
                 // TODO: here it is too late to add the variable,
                 // because parseScope will call resolveVars.
@@ -1992,9 +2019,14 @@ ASTScope* parseScope(Parser* this, ASTScope* parent, bool isTypeBody)
                 PtrList_append(&expr->body->locals, var);
             }
 
-            discard(this, TKKeyword_end);
-            discard(this, TKOneSpace);
-            discard(this, tt);
+            if (matches(this, TKKeyword_else)) {
+                startedElse = true;
+                //                 discard(this, TKKeyword_else);
+            } else {
+                discard(this, TKKeyword_end);
+                discard(this, TKOneSpace);
+                discard(this, tt == TKKeyword_else ? TKKeyword_if : tt);
+            }
             PtrList_append(&scope->stmts, expr);
             break;
 
@@ -2047,7 +2079,6 @@ List(ASTVar) * parseParams(Parser* this)
         if (Parser_ignore(this, TKOpAssign)) param->init = parseExpr(this);
         PtrList_append(&params, param);
     } while (Parser_ignore(this, TKOpComma));
-
     discard(this, TKOpGT);
     return params;
 }
@@ -2087,7 +2118,7 @@ ASTFunc* parseFunc(Parser* this, bool shouldParseBody)
 
         ASTScope* funcScope = NEW(ASTScope);
         funcScope->locals = func->args;
-        func->body = parseScope(this, funcScope, false);
+        func->body = parseScope(this, funcScope, false, false);
 
         discard(this, TKKeyword_end);
         discard(this, TKOneSpace);
@@ -2161,7 +2192,7 @@ ASTType* parseType(Parser* this, bool shouldParseBody)
 
     type->body = NULL; // this means type is declare
     if (not shouldParseBody) return type;
-    type->body = parseScope(this, NULL, true);
+    type->body = parseScope(this, NULL, true, false);
 
     discard(this, TKKeyword_end);
     discard(this, TKOneSpace);
@@ -2241,7 +2272,7 @@ void getSelector(ASTFunc* func)
         memcpy(func->selector, buf, selLen + 1);
     } else
         func->selector = func->name;
-    eprintf("got func %s: %s\n", func->name, func->selector);
+    printf("// got func %s: %s\n", func->name, func->selector);
 }
 
 #pragma mark - PARSE MODULE

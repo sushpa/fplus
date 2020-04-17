@@ -77,32 +77,46 @@ static size_t sys_stackSize()
     }
 
 static size_t _scSize_; // size of stack
-static const char* _scStart_; // start of stack, set in main()
-static int _scDepth_ = 0; // current depth, updated in each function
-static int _scPrintAbove_ = 0; // used for truncating long backtraces
-#ifdef DEBUG
-#define STACKDEPTH_UP _scDepth_++;
-#define STACKDEPTH_DOWN _scDepth_--;
-#else
-#define STACKDEPTH_UP
-#define STACKDEPTH_DOWN
-#endif
+// static const char* _scStart_; // start of stack, set in main()
+static size_t _scDepth_ = 0; // current depth, updated in each function
+static size_t _scUsage_ = 0; // current depth, updated in each function
+static size_t _scPrintAbove_ = 0; // used for truncating long backtraces
+// #ifdef DEBUG
+// define these unconditionally, they are needed for both debug and release
+// for fast mode, NOSTACKCHECK is defined globally, so these will not be
+// used.
+#define STACKDEPTH_UP                                                      \
+    {                                                                      \
+        _scDepth_++;                                                       \
+        _scUsage_ += MYSTACKUSAGE;                                         \
+    }
+#define STACKDEPTH_DOWN                                                    \
+    {                                                                      \
+        _scDepth_--;                                                       \
+        _scUsage_ -= MYSTACKUSAGE;                                         \
+    }
+// #else
+// #define STACKDEPTH_UP(s)
+// #define STACKDEPTH_DOWN(s)
+// #endif
 // what is the point of a separate NOSTACKCHECK option if release mode
 // doesn't track ANY info (stack depth, function name etc.) other than
 // showing "stack overflow" instead of "segmentation fault".
 
 typedef int Int;
 typedef int Scalar;
-typedef char** Strs;
+typedef char** Strings;
 typedef char* String;
-#define DEFAULT_VALUE
+// #define DEFAULT_VALUE
 #define SArray(x) x[]
 
 // output funcs: print -> normal print, debug -> only prints (to stderr) in
 // debug mode, error -> print to stderr, fatal -> print to stderr and exit
 #define print printf
+#define String_print puts
+#define Scalar_print(x) printf("%d\n", x)
 
-static void start(const Strs args
+static Scalar Strings_main(const Strings a
 #ifdef DEBUG
     ,
     const char* callsite_
@@ -115,10 +129,21 @@ int main(int argc, char* argv[])
 {
     ticks t0 = getticks();
 
-    _scStart_ = (char*)&argc;
-    _scSize_ = sys_stackSize() - 8192;
-
-    start(NULL
+    // _scStart_ = (char*)&argc;
+    _scSize_ = sys_stackSize() - 1024; //- 8192;
+    // the difference is because you don't know what the stack size of
+    // the last called function is going to be. the stack overflows *when*
+    // you call a function that needs more than the available space, not
+    // AFTER the func has been entered into. But you check only after the
+    // function has been entered into. So the stack check is effectively
+    // in the *penultimate* function called before the stack blows.
+    // Along these lines, the difference above should be the maximum func
+    // stack size allowed, excess vars should go on the heap.
+    // OR -----
+    // just minimise use of stack and don't bother checking, esp. if
+    // you can statically disallow unrestrained recursive or mutually
+    // recursive funcs.
+    Strings_main(NULL
 #ifdef DEBUG
         ,
         "start\e[0m"
@@ -132,7 +157,7 @@ int main(int argc, char* argv[])
         printf("(run in debug mode to see a backtrace)\n");
 #endif
     } else if (_err_ == NULL) {
-        printf("[%.3fs] Completed successfully.\n", dt);
+        ; //   printf("[%.3fs] Completed successfully.\n", dt);
     }
 
     return _err_ ? 1 : 0;

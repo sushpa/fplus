@@ -228,6 +228,42 @@ TokenKind Token_getType(Token* this, const size_t offset)
         default:
             return TKOpAssign;
         }
+    case '+':
+        switch (cn) {
+        case '=':
+            return TKPlusEq;
+        }
+        return TKPlus;
+    case '-':
+        switch (cn) {
+        case '=':
+            return TKMinusEq;
+        }
+        return TKMinus;
+    case '*':
+        switch (cn) {
+        case '=':
+            return TKTimesEq;
+        }
+        return TKTimes;
+    case '/':
+        switch (cn) {
+        case '=':
+            return TKSlashEq;
+        }
+        return TKSlash;
+    case '^':
+        switch (cn) {
+        case '=':
+            return TKPowerEq;
+        }
+        return TKPower;
+    case '%':
+        switch (cn) {
+        case '=':
+            return TKOpModEq;
+        }
+        return TKOpMod;
     case '!':
         switch (cn) {
         case '=':
@@ -450,6 +486,13 @@ void Token_detect(Token* this)
     case TKOpResults:
     case TKBackslash:
     case TKColEq:
+    case TKPlusEq:
+    case TKMinusEq:
+    case TKTimesEq:
+    case TKSlashEq:
+    case TKPowerEq:
+    case TKOpModEq:
+
         // 2-char tokens
         this->pos++;
     default:

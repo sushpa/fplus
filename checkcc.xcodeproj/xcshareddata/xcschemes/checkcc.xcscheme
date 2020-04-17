@@ -58,7 +58,7 @@
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "/Users/Sushant/Dropbox/xcode-checkcc/checkcc/checkcc/test.ch"
+            argument = "/Users/Sushant/Dropbox/xcode-checkcc/checkcc/checkcc/simptest2.ch"
             isEnabled = "YES">
          </CommandLineArgument>
       </CommandLineArguments>

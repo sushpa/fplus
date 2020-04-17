@@ -90,44 +90,74 @@ ASTExpr* ASTExpr_promotionCandidate(ASTExpr* this)
     assert(this);
     ASTExpr* ret;
 
+    // TODO: make this a switch after all
     // what about func args?
-    if (this->kind == TKFunctionCallResolved) {
+    switch (this->kind) {
+    case TKFunctionCallResolved:
         // promote innermost first, so check args
         if ((ret = ASTExpr_promotionCandidate(this->left)))
             return ret;
         else if (mustPromote(this->func->selector))
             return this;
-    } else if (this->kind == TKKeyword_if or this->kind == TKKeyword_for
-        or this->kind == TKKeyword_while)
+        break;
+
+    case TKSubscriptResolved:
+        // TODO: here see if the subscript itself needs to be promoted up
         return ASTExpr_promotionCandidate(this->left);
-    // body will be handled by parent scope
-    else if (this->kind == TKVarAssign) {
+
+    case TKSubscript:
+        return ASTExpr_promotionCandidate(this->left);
+
+    case TKKeyword_if:
+    case TKKeyword_for:
+    case TKKeyword_while:
+        return ASTExpr_promotionCandidate(this->left);
+        // body will be handled by parent scope
+
+    case TKVarAssign:
         if ((ret = ASTExpr_promotionCandidate(this->var->init))) return ret;
-    } else if (this->kind == TKFunctionCall) { // unresolved
+        break;
+
+    case TKFunctionCall: // unresolved
+        assert(0);
         if ((ret = ASTExpr_promotionCandidate(this->left))) return ret;
-    } else if (this->opPrec) {
-        if ((ret = ASTExpr_promotionCandidate(this->right))) return ret;
-        if (this->opIsRightAssociative)
-            if ((ret = ASTExpr_promotionCandidate(this->left))) return ret;
+        break;
+
+    default:
+        if (this->opPrec) {
+            if ((ret = ASTExpr_promotionCandidate(this->right))) return ret;
+            if (not this->opIsUnary)
+                if ((ret = ASTExpr_promotionCandidate(this->left)))
+                    return ret;
+        }
     }
     return NULL;
-    // BUT HOW WILL YOU fit a temp var in the original place?
-    // CLONE the expr and promote it, MUTATE THE ORIGINAL to a TKIdentifier
 }
 
-char* ASTScope_newTmpVarName(ASTScope* this)
+char* ASTScope_newTmpVarName(ASTScope* this, int num)
 {
     char buf[8];
-    int l = snprintf(buf, 8, "_%d", ++this->tmpCount);
+    int l = snprintf(buf, 8, "_%d", num);
     return pstrndup(buf, l);
 }
 
 void ASTScope_promoteCandidates(ASTScope* this)
 {
+    int tmpCount = 0;
     ASTExpr* pc = NULL;
-    List(ASTExpr)* prev = this->stmts;
+    List(ASTExpr)* prev = NULL; // this->stmts;
     foreach (ASTExpr*, stmt, stmts, this->stmts) {
+        // TODO:
+        // if (not stmt->flags.mayNeedPromotion) {prev=stmts;continue;}
+
+        if (stmt->kind == TKKeyword_if or stmt->kind == TKKeyword_for
+            or stmt->kind == TKKeyword_while
+            or stmt->kind == TKKeyword_else and stmt->body) {
+            ASTScope_promoteCandidates(stmt->body);
+        }
+
     startloop:
+
         if (not(pc = ASTExpr_promotionCandidate(stmt))) { // most likely
             prev = stmts;
             continue;
@@ -144,7 +174,7 @@ void ASTScope_promoteCandidates(ASTScope* this)
 
         // 1. add a temp var to the scope
         ASTVar* tmpvar = NEW(ASTVar);
-        tmpvar->name = ASTScope_newTmpVarName(this);
+        tmpvar->name = ASTScope_newTmpVarName(this, ++tmpCount);
         tmpvar->typeSpec = NEW(ASTTypeSpec);
         tmpvar->typeSpec->typeType = TYReal64; // FIXME
         // TODO: setup tmpvar->typeSpec
@@ -185,18 +215,21 @@ void ASTScope_promoteCandidates(ASTScope* this)
         // 4. insert the promoted expr BEFORE the current stmt
         //        PtrList_append(prev ? &prev : &this->stmts, pcClone);
         //        PtrList* tmp = prev->next;
-        prev->next = PtrList_with(pcClone);
-        prev->next->next = stmts;
-        prev = prev->next;
+        // THIS SHOULD BE in PtrList as insertAfter method
+        if (!prev) {
+            this->stmts = PtrList_with(pcClone);
+            this->stmts->next = stmts;
+            prev = this->stmts;
+        } else {
+            prev->next = PtrList_with(pcClone);
+            prev->next->next = stmts;
+            prev = prev->next;
+        } // List(ASTExpr)* insertionPos = prev ? prev->next : this->stmts;
+          //  insertionPos
+        //  = insertionPos;
         goto startloop; // it will continue if no more promotions are needed
 
         prev = stmts;
-
-        if (stmt->kind == TKKeyword_if //
-            or stmt->kind == TKKeyword_for //
-            or stmt->kind == TKKeyword_while //
-                and stmt->body)
-            ASTScope_promoteCandidates(stmt->body);
     }
 }
 
@@ -210,7 +243,14 @@ void ASTScope_genc(ASTScope* this, int level)
         if (stmt->kind == TKLineComment) continue;
         if (genLineNumbers) printf("#line %d\n", stmt->line);
         ASTExpr_genc(stmt, level, true, false, false);
-        puts(";");
+        if (stmt->kind != TKKeyword_else and stmt->kind != TKKeyword_if
+            and stmt->kind != TKKeyword_for
+            and stmt->kind != TKKeyword_while
+            and stmt->kind != TKKeyword_return)
+            puts(";");
+        else
+            puts("");
+        // convert this into a flag which is set in the resolution pass
         if (ASTExpr_canThrow(stmt))
             puts("    if (_err_ == ERROR_TRACE) goto backtrace;");
     }
@@ -278,28 +318,38 @@ void ASTType_genh(ASTType* this, int level)
 void ASTFunc_genc(ASTFunc* this, int level)
 {
     if (this->flags.isDeclare) return;
+    size_t stackUsage = ASTFunc_calcSizeUsage(this);
 
     printf("\n// ------------------------ function: %s ", this->name);
     printf("\n// ------------- approx. stack usage per call: %lu B \n",
-        ASTFunc_calcSizeUsage(this));
+        stackUsage);
+        // it seems that actual stack usage is higher due to stack protection, frame bookkeeping whatever
+        // and in debug mode callsite needs sizeof(char*) more
+        // the magic number 32 may change on 32-bit systems or diff arch
+    printf("#ifdef DEBUG\n"
+    "#define MYSTACKUSAGE (%lu + 4*sizeof(void*) + sizeof(char*))\n"
+    "#else\n"
+    "#define MYSTACKUSAGE (%lu + 4*sizeof(void*))\n"
+    "#endif\n", stackUsage,stackUsage);
+
     printf("#define DEFAULT_VALUE %s\n",
         getDefaultValueForType(this->returnType));
     if (not this->flags.isExported) printf("static ");
     if (this->returnType) {
         ASTTypeSpec_genc(this->returnType, level, false);
-    } else
+    } else {
         printf("void");
-    str_tr_ip(this->name, '.', '_', 0);
-    printf(" %s", this->name);
-    str_tr_ip(this->name, '_', '.', 0);
+    } // str_tr_ip(this->selector, '.', '_', 0);
+    printf(" %s", this->selector);
+    // str_tr_ip(this->selector, '_', '.', 0);
     // TODO: here add the type of the first arg, unless it is a method
     // of a type
-    if (this->args and this->args->next) { // means at least 2 args
-        foreach (ASTVar*, arg, nargs, (this->args->next)) {
-            // start from the 2nd
-            printf("_%s", arg->name);
-        }
-    }
+    // if (this->args and this->args->next) { // means at least 2 args
+    //     foreach (ASTVar*, arg, nargs, (this->args->next)) {
+    //         // start from the 2nd
+    //         printf("_%s", arg->name);
+    //     }
+    // }
     printf("(");
     foreach (ASTVar*, arg, args, this->args) {
         ASTVar_genc(arg, level, true);
@@ -330,22 +380,22 @@ void ASTFunc_genc(ASTFunc* this, int level)
     printf("%s",
         "#ifndef NOSTACKCHECK\n"
         "    STACKDEPTH_UP\n"
-        "    if (_scStart_ - (char*)&a > _scSize_) {\n"
+        "//printf(\"%8lu %8lu\\n\",_scUsage_, _scSize_);\n"
+        "    if (_scUsage_ >= _scSize_) {\n"
         "#ifdef DEBUG\n"
         "        _scPrintAbove_ = _scDepth_ - _btLimit_;\n"
         "        printf(\"\\e[31mfatal: stack overflow at call depth "
-        "%d.\\n   "
+        "%lu.\\n   "
         " in %s\\e[0m\\n\", _scDepth_, sig_);\n"
-        "        printf(\"\\e[90mBacktrace (innermost "
-        "first):\\n\");\n"
+        "        printf(\"\\e[90mBacktrace (innermost first):\\n\");\n"
         "        if (_scDepth_ > 2*_btLimit_)\n        "
         "printf(\"    limited to %d outer and %d inner entries.\\n\", "
         "_btLimit_, _btLimit_);\n"
-        "        printf(\"[%d] "
+        "        printf(\"[%lu] "
         "\\e[36m%s\\n\", _scDepth_, callsite_);\n"
         "#else\n"
         "        printf(\"\\e[31mfatal: stack "
-        "overflow.\\e[0m\\n\");\n"
+        "overflow at call depth %lu.\\e[0m\\n\",_scDepth_);\n"
         "#endif\n"
         "        DOBACKTRACE\n    }\n"
         "#endif\n");
@@ -363,7 +413,7 @@ void ASTFunc_genc(ASTFunc* this, int level)
 
          "    if (_scDepth_ <= _btLimit_ || "
          "_scDepth_ > _scPrintAbove_)\n"
-         "        printf(\"\\e[90m[%d] \\e[36m"
+         "        printf(\"\\e[90m[%lu] \\e[36m"
          "%s\\n\", _scDepth_, callsite_);\n"
          "    else if (_scDepth_ == _scPrintAbove_)\n"
          "        printf(\"\\e[90m... truncated ...\\e[0m\\n\");\n"
@@ -374,6 +424,7 @@ void ASTFunc_genc(ASTFunc* this, int level)
          "#endif\n"
          "    return DEFAULT_VALUE;");
     puts("}\n#undef DEFAULT_VALUE");
+    puts("#undef MYSTACKUSAGE");
 }
 
 void ASTFunc_genh(ASTFunc* this, int level)
@@ -382,16 +433,16 @@ void ASTFunc_genh(ASTFunc* this, int level)
     if (not this->flags.isExported) printf("static ");
     if (this->returnType) {
         ASTTypeSpec_genc(this->returnType, level, false);
-    } else
+    } else {
         printf("void");
-    str_tr_ip(this->name, '.', '_', 0);
-    printf(" %s", this->name);
-    str_tr_ip(this->name, '_', '.', 0);
-    if (this->args and this->args->next) { // means at least 2 args
-        foreach (ASTVar*, arg, nargs, this->args->next) {
-            printf("_%s", arg->name);
-        }
-    }
+    } // str_tr_ip(this->name, '.', '_', 0);
+    printf(" %s", this->selector);
+    // str_tr_ip(this->name, '_', '.', 0);
+    // if (this->args and this->args->next) { // means at least 2 args
+    //     foreach (ASTVar*, arg, nargs, this->args->next) {
+    //         printf("_%s", arg->name);
+    //     }
+    // }
     printf("(");
 
     foreach (ASTVar*, arg, args, this->args) {
@@ -577,6 +628,12 @@ void ASTExpr_genc(ASTExpr* this, int level, bool spacing, bool inFuncArgs,
         }
         break;
 
+    case TKKeyword_else:
+        puts("else {");
+        if (this->body) ASTScope_genc(this->body, level + STEP);
+        printf("%.*s}", level, spaces);
+        break;
+
     case TKKeyword_for:
     case TKKeyword_if:
     case TKKeyword_while:
@@ -602,7 +659,7 @@ void ASTExpr_genc(ASTExpr* this, int level, bool spacing, bool inFuncArgs,
         break;
 
     case TKKeyword_return:
-        printf("{_err_ = NULL; _scDepth_--; return ");
+        printf("{_err_ = NULL; \n#ifndef NOSTACKCHECK\n    STACKDEPTH_DOWN\n#endif\nreturn ");
         ASTExpr_genc(this->right, 0, spacing, inFuncArgs, escapeStrings);
         printf(";}\n");
         break;

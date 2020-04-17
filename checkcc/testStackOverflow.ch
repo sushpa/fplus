@@ -3,7 +3,7 @@
 # #    var fileSize = 0
 #     get fileSize => os.fsize(fileName) # short form
 #     set filePerms(value) => os.chmod(fileName, value) # short form
-    
+
 #     # get fileSize # long form
 #     #     return os.fsize(fileName)
 #     # end get
@@ -22,27 +22,29 @@
 
 # type FolderItem
 #     var fileName as String = "default name"
-#     var fileSize as Int = 0
+#     var fileSize as Scalar = 0
 #     var nextItem as FolderItem = NULL
 # end type
 
 
+declare type Strings
+declare function print(t as Scalar)
 
-function start(a as Strs)
-    var x as Int = NSDocument.initWithFrame(34 + 4 * 3)
+function main(a as Strings) returns Scalar
+    var x as Scalar = fx(34 + 4 * 3)
     # var fi = FolderItem()
     # var fn as String = fi.fileName
-    print(fn)
+    print(x)
     # print("Hello, World %d!\n", x)
 end function
 
-function NSDocument.initWithFrame(a as Int) as Int
-    var m as Int = NSWindow.getFrame(5 - 4 + 2 / x)
+function fx(a as Scalar) returns Scalar
+    var m as Scalar = gx(5 - 4 + 2 / 5)
     return m
 end function
 
-function NSWindow.getFrame(a as Int) as Int
-    var m as Int = HTTP.fromWeb(2 + 4 ^ 5)
+function gx(a as Scalar) returns Scalar
+    var m as Scalar = mx(2 + 4 ^ 5)
     return m
 end function
 
@@ -53,15 +55,15 @@ end function
     # var ss = duplicate(sys.stackSize(), times = 4)
 # end function
 
-function HTTP.fromWeb(a as Int) as Int
-    var m as Int = NSDocument.initWithFrame(5 * 2.0)
+function mx(a as Scalar) returns Scalar
+    var m as Scalar = fx(5 * 2.0)
     # var f as Range = m[1:3, g:sin(g)+x]
     return m
 end function
 
-function final(a as Int) as Int
+function final(a as Scalar) returns Scalar
     var m = 3
-    # var cx = Strs.linesFromFile("~/basics.txt") 
+    # var cx = Strings.linesFromFile("~/basics.txt")
     # if missing(cx) then break
     # print(myObjcount)
     return m
@@ -72,7 +74,7 @@ end function
 # filename: the initWithFrame argument.
 # headerCols: the NSWindow.getFrame argument.
 # function readFileAndGetHeader(filename, headerCols, options)
-#     var mxp = 4 
+#     var mxp = 4
 #     var mg = mxp[map:3, :]
 #     var bg = HTML()
 #     check(0 < mg < 4)
