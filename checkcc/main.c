@@ -179,8 +179,12 @@ typedef enum TypeTypes {
                       // serialise, identify, reflect, etc.
     TYObject, // resolved to an ASTType
               // primitives that can be printed or represented with no fuss
+    TYErrorType, // use this to poison an expr which has a type error
+                 // and the error has been reported, to avoid
+                 // reporting the same error for all parents, as the
+                 // error-checking routine unwinds.
     TYSize, // this is actually uintptr_t, since actual ptrs are
-            // TYObjects. maybe rename it
+    // TYObjects. maybe rename it
     TYString, // need to distinguish String and char*?
     TYBool,
     // above this, ie. > 4 or >= TYInt8, all may have units |kg.m/s etc.
@@ -192,7 +196,7 @@ typedef enum TypeTypes {
     TYUInt32,
     TYInt64, // for loop indices start out as size_t by default
     TYUInt64,
-    TYReal16,
+    //  TYReal16,
     TYReal32,
     TYReal64, // Numbers start out with Real64 by default
               // conplex, duals, intervals,etc.??
@@ -245,6 +249,8 @@ const char* TypeType_name(TypeTypes tyty)
     switch (tyty) {
     case TYUnresolved:
         return NULL;
+    case TYErrorType:
+        return "<invalid>";
     case TYString:
         return "String";
     case TYBool:
@@ -260,7 +266,7 @@ const char* TypeType_name(TypeTypes tyty)
     case TYUInt32:
     case TYInt64:
     case TYUInt64:
-    case TYReal16:
+    // case TYReal16:
     case TYReal32:
     case TYReal64:
         return "Scalar";
@@ -272,6 +278,8 @@ const char* TypeType_format(TypeTypes tyty)
 {
     switch (tyty) {
     case TYUnresolved:
+        return NULL;
+    case TYErrorType:
         return NULL;
     case TYObject:
         return "%p";
@@ -301,8 +309,8 @@ const char* TypeType_format(TypeTypes tyty)
         return "%d";
     case TYUInt64:
         return "%u";
-    case TYReal16:
-        return "%g";
+    // case TYReal16:
+    // return "%g";
     case TYReal32:
         return "%g";
     case TYReal64: // Numbers start out with Real64 by default
@@ -315,6 +323,7 @@ unsigned int TypeType_size(TypeTypes tyty)
 {
     switch (tyty) {
     case TYUnresolved:
+    case TYErrorType:
         return 0;
     case TYObject:
         return sizeof(void*);
@@ -340,8 +349,8 @@ unsigned int TypeType_size(TypeTypes tyty)
         return 8;
     case TYUInt64:
         return 8;
-    case TYReal16:
-        return 2;
+    // case TYReal16:
+    // return 2;
     case TYReal32:
         return 4;
     case TYReal64:
@@ -2022,7 +2031,7 @@ ASTScope* parseScope(
             if (matches(this, TKKeyword_else)) {
                 startedElse = true;
                 //                 discard(this, TKKeyword_else);
-            } else {
+            } else { // if (matches(this, TKKeyword_end)) {
                 discard(this, TKKeyword_end);
                 discard(this, TKOneSpace);
                 discard(this, tt == TKKeyword_else ? TKKeyword_if : tt);
@@ -2275,6 +2284,8 @@ void getSelector(ASTFunc* func)
     printf("// got func %s: %s\n", func->name, func->selector);
 }
 
+#include "typecheck.h"
+
 #pragma mark - PARSE MODULE
 List(ASTModule) * parseModule(Parser* this)
 {
@@ -2384,16 +2395,13 @@ List(ASTModule) * parseModule(Parser* this)
     foreach (ASTType*, type, types, root->types) {
         if (type->super) resolveTypeSpec(this, type->super, root);
         if (not type->body) continue;
-        foreach (ASTExpr*, stmt, stmts, type->body->stmts) {
+        foreach (ASTExpr*, stmt, stmts, type->body->stmts)
             resolveFuncsAndTypes(this, stmt, root);
-            // resolveTypeSpecs(this, stmt, root);
-        }
     }
 
     foreach (ASTFunc*, func, funcs, root->funcs) {
-        foreach (ASTVar*, arg, args, func->args) {
+        foreach (ASTVar*, arg, args, func->args)
             resolveTypeSpec(this, arg->typeSpec, root);
-        }
         if (func->returnType) resolveTypeSpec(this, func->returnType, root);
         getSelector(func);
     }
@@ -2401,11 +2409,13 @@ List(ASTModule) * parseModule(Parser* this)
         if (func->body) {
             foreach (ASTExpr*, stmt, stmts, func->body->stmts) {
                 resolveFuncsAndTypes(this, stmt, root);
-                // should be part of astmodule, and
-                // resolveVars should be part of astscope
-                // resolveTypeSpecs(this, stmt, root);
-            }
-            ASTScope_promoteCandidates(func->body);
+                setExprTypeInfo(this, stmt);
+            } // should be part of astmodule, and
+              // resolveVars should be part of astscope
+              // resolveTypeSpecs(this, stmt, root);
+
+            if (not this->errCount) ASTScope_promoteCandidates(func->body);
+            // no point doing code motion if there were errors
         }
     }
 

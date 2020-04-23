@@ -103,18 +103,19 @@ static size_t _scPrintAbove_ = 0; // used for truncating long backtraces
 // doesn't track ANY info (stack depth, function name etc.) other than
 // showing "stack overflow" instead of "segmentation fault".
 
-typedef int Int;
-typedef int Scalar;
-typedef char** Strings;
-typedef char* String;
+// FIXME: String will be a proper String type whereas normal C strings are
+// CString. For now ignoring
+typedef CString String;
+typedef CStrings Strings;
+
 // #define DEFAULT_VALUE
-#define SArray(x) x[]
+// #define SArray(x) x[]
 
 // output funcs: print -> normal print, debug -> only prints (to stderr) in
 // debug mode, error -> print to stderr, fatal -> print to stderr and exit
 #define print printf
 #define String_print puts
-#define Scalar_print(x) printf("%d\n", x)
+#define Scalar_print(x) printf("%g\n", x)
 
 static Scalar Strings_main(const Strings a
 #ifdef DEBUG

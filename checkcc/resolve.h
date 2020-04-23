@@ -56,9 +56,7 @@ void resolveFuncsAndTypes(Parser* this, ASTExpr* expr, ASTModule* mod)
         ASTExpr* arg1 = expr->left;
 
         if (arg1 and arg1->kind == TKOpComma) arg1 = arg1->left;
-        if (arg1) {
-            bufp += sprintf(bufp, "%s_", ASTExpr_typeName(arg1));
-        }
+        if (arg1) bufp += sprintf(bufp, "%s_", ASTExpr_typeName(arg1));
         bufp += sprintf(bufp, "%s", expr->name);
         ASTExpr_strarglabels(expr->left, bufp, 128 - ((int)(bufp - buf)));
 

@@ -135,6 +135,34 @@ void Parser_errorUnrecognizedType(Parser* this, ASTTypeSpec* typeSpec)
     Parser_errorIncrement(this);
 }
 
+void Parser_errorTypeMismatchBinOp(Parser* this, ASTExpr* expr)
+{
+    eprintf("\n(%d) \e[31merror:\e[0m type mismatch for operands of '"
+            "\e[34m%s\e[0m' at %s%s:%d:%d\n",
+        this->errCount + 1, TokenKind_repr(expr->kind, false),
+        RELF(this->filename), expr->line, expr->col);
+    Parser_errorIncrement(this);
+}
+
+void Parser_errorInvalidTypeForOp(Parser* this, ASTExpr* expr)
+{
+    eprintf("\n(%d) \e[31merror:\e[0m invalid types for operator '"
+            "\e[34m%s\e[0m' at %s%s:%d:%d\n",
+        this->errCount + 1, TokenKind_repr(expr->kind, false),
+        RELF(this->filename), expr->line, expr->col);
+    Parser_errorIncrement(this);
+}
+void Parser_errorArgTypeMismatch(Parser* this, ASTExpr* expr, ASTVar* var)
+{
+    eprintf("\n(%d) \e[31merror:\e[0m type mismatch for argument '"
+            "\e[34m%s\e[0m' at %s%s:%d:%d\n",
+        this->errCount + 1, var->name, RELF(this->filename), expr->line,
+        expr->col);
+    Parser_errorIncrement(this);
+}
+void Parser_errorTypeMismatch(
+    Parser* this, ASTExpr* expr, ASTTypeSpec* expected);
+
 void Parser_errorUnexpectedToken(Parser* this)
 {
     eprintf("\n(%d) \e[31merror:\e[0m at %s%s:%d:%d\n      unexpected "

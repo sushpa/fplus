@@ -36,10 +36,13 @@ static int globalStrlenCount = 0;
     strlen(s);                                                             \
     globalStrlenCount++;
 
-#pragma mark - Bool type
+#pragma mark - Custom types
 typedef char bool;
 #define true 1
 #define false 0
+typedef int Int;
+typedef double Scalar;
+typedef char** CStrings;
 
 #pragma mark - Variant
 
@@ -70,6 +73,7 @@ typedef double Real64;
 
 #define Array(T) Array_##T
 #define Array_free(T) Array_free_##T
+#define Array_get(T) Array_get_##T
 #define Array_growTo(T) Array_growTo_##T
 #define Array_concat_cArray(T) Array_concat_cArray_##T
 #define Array_concat_otherArray(T) Array_concat_otherArray_##T
@@ -132,6 +136,10 @@ typedef double Real64;
         memset(this->ref + this->used, 0,                                  \
             sizeof(T) * (this->cap - this->used));                         \
     }                                                                      \
+    T Array_get(T)(Array(T) * this, UInt32 index)                          \
+    {                                                                      \
+        return this->ref[index];                                           \
+    }                                                                      \
     void Array_concat_cArray(T)(Array(T) * this, T * cArray, int count)    \
     {                                                                      \
         const UInt32 reqd = this->used + count;                            \
@@ -180,7 +188,7 @@ MAKE_Array(UInt32);
 // MAKE_Array(uint64_t);
 // MAKE_Array(int64_t);
 // MAKE_Array(int32_t);
-MAKE_Array(double);
+MAKE_Array(Scalar);
 // MAKE_Array(float);
 // make array for strings etc later
 
