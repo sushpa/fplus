@@ -1969,6 +1969,7 @@ ASTScope* parseScope(
             if (not var) continue;
             if ((orig = ASTScope_getVar(scope, var->name)))
                 Parser_errorDuplicateVar(this, var, orig);
+            // TODO: why only idents and binops for resolveVars??
             if (var->init
                 and (var->init->opPrec or var->init->kind == TKIdentifier))
                 resolveVars(this, var->init, scope, false);
@@ -1982,8 +1983,8 @@ ASTScope* parseScope(
             // missing
             expr = NEW(ASTExpr);
             expr->kind = TKVarAssign;
-            expr->line = this->token.line;
-            expr->col = this->token.col;
+            expr->line = var->init->line; // this->token.line;
+            expr->col = var->init->col;
             expr->opPrec = TokenKind_getPrecedence(TKOpAssign);
             expr->var = var;
             PtrList_append(&scope->stmts, expr);
@@ -2409,7 +2410,7 @@ List(ASTModule) * parseModule(Parser* this)
         if (func->body) {
             foreach (ASTExpr*, stmt, stmts, func->body->stmts) {
                 resolveFuncsAndTypes(this, stmt, root);
-                setExprTypeInfo(this, stmt);
+                setExprTypeInfo(this, stmt, false);
             } // should be part of astmodule, and
               // resolveVars should be part of astscope
               // resolveTypeSpecs(this, stmt, root);

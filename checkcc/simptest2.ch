@@ -23,12 +23,13 @@ function start(args as Strings) returns Scalar
         mx[3] = 36 # btw cgen will treat unchanged vars as const
         mx["3"] /= 36 # btw cgen will treat unchanged vars as const
         var gh = mx[mx<=2] # btw cgen will treat unchanged vars as const
-        gh = mx[3:5] # btw cgen will treat unchanged vars as const
+        gh = mx[3:mx] # btw cgen will treat unchanged vars as const
         gh = mx[3] # btw cgen will treat unchanged vars as const
         gh = mx["3"] # btw cgen will treat unchanged vars as const
     else
         if print(args, filter = 2) == 5
             mx = 5
+            # print(args, filter = ["first" = "not", "second" = "and"])
         else
             mx = 3
         end if
