@@ -7,7 +7,7 @@ declare function print(what as Scalar)
 function main(a as Strings) returns Scalar
     let name as String = "Bhabru"
     print(name)
-    let x = 3 + 5
+    let x = 3 + 5 + 4
     x = x + 2
     print(x)
     let y = 3-x * 2 ^ x

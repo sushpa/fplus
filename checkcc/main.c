@@ -2015,7 +2015,8 @@ ASTScope* parseScope(
             // check if that var name doesn't already exist in scope.
             // Also assert that the cond of a for expr has kind
             // TKOpAssign.
-            // insert a temp scope holding the var that for declares
+            // insert a temp scope holding the var that for declares, then
+            // later move that var to the parsed scope
             expr->body
                 = parseScope(this, scope, false, (tt == TKKeyword_if));
             if (tt == TKKeyword_for) {
