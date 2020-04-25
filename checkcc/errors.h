@@ -54,7 +54,7 @@ void Parser_errorUnrecognizedVar(Parser* this, ASTExpr* expr)
     eprintf("\n(%d) \e[31merror:\e[0m unknown variable "
             "\e[34m%.*s\e[0m at "
             "%s%s:%d:%d\n",
-        this->errCount + 1, expr->strLen, expr->value.string,
+        this->errCount + 1, expr->strLen, expr->string,
         RELF(this->filename), expr->line, expr->col);
     Parser_errorIncrement(this);
 }
@@ -78,7 +78,7 @@ void Parser_errorUnrecognizedFunc(
     eprintf("\n(%d) \e[31merror:\e[0m can't resolve call to "
             "\e[34m%.*s\e[0m at %s%s:%d:%d\n"
             "        selector is \e[34m%s\e[0m\n",
-        this->errCount + 1, expr->strLen, expr->value.string,
+        this->errCount + 1, expr->strLen, expr->string,
         RELF(this->filename), expr->line, expr->col, selector);
     Parser_errorIncrement(this);
 }

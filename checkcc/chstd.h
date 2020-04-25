@@ -412,3 +412,15 @@ int str_getSomeOccurences(
     // result buf is expected from caller
     return 0;
 }
+
+// val should be evaluated every time since it could be a func with side
+// effects e.g. random(). BUt if it is not, then it should be cached.
+#define Slice2D_set1_IJ(arr, ri, rj, val)                                  \
+    for (uint32_t ri_ = ri.start; ri_ <= ri.stop; ri_ += ri.step)          \
+        for (uint32_t rj_ = rj.start; ri_ <= rj.stop; ri_ += rj.step)      \
+    Array2D_setAt(arr, ri_, rj_, val)
+
+#define Slice2D_set_IJ(arr, ri, rj, arr2, r2i, r2j)                        \
+    for (uint32_t ri_ = ri.start; ri_ <= ri.stop; ri_ += ri.step)          \
+        for (uint32_t rj_ = rj.start; ri_ <= rj.stop; ri_ += rj.step)      \
+    Array2D_setAt(arr, ri_, rj_, Array2D_getAt(arr2, r2i_, r2j_))

@@ -462,7 +462,7 @@ void Token_detect(Token* this)
 
         switch (tt_lastNonSpace) {
         case TKParenClose:
-        case TKIdentifier: // keywords too?
+        case TKIdentifier: // TODO: keywords too?
         case TKNumber:
         case TKArrayClose:
         case TKArrayDims:

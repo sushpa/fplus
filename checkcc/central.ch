@@ -1,16 +1,16 @@
-# finding central diff of a 2d array along ONE of its axis 
+# finding central diff of a 2d array along ONE of its axis
 # (it's not a 2D central diff but 1D diff of a 2D array)
 # axis has to be specified
 
 function central2d(Q as Matrix, by as Vector, axis as Scalar) returns (dQ as Matrix)
     check axis == 1 or axis == 2
-    check(size(Q, along=axis) == size(by))
+    check size(Q, along = axis) == size(by)
 
     dQ = zeros(shape(Q))
     let nonaxis = 2 + (1-axis)
 
     for j = 1:Q.shape[nonaxis]
-        if axis == 1 
+        if axis == 1
             dQ[:,j] = central1d(Q[:,j], by = by)
             # funcs that take arrays generally have element-level deps within
             # the array. Funcs that are elementwise ops on arrays are reducible
@@ -36,7 +36,7 @@ function central1d(Q as Vector, by as Vector) returns (dQ as Vector)
 # var has a ASTVar* dimsFrom[8or16] field showing if one or more dims are the same
 # as another var
 # returns are local vars, not args in C
-    check(Q.size == by.size)
+    check Q.size == by.size
     dQ = zeros(Q.size) # this may or may not require an alloc
     # generates to setzeros(Q.size, &dQ); if dQ is NULL does a malloc else uses dQ
     # #define setzeros(ns, target) \
@@ -45,7 +45,7 @@ function central1d(Q as Vector, by as Vector) returns (dQ as Vector)
     # maybe a copy, or zeros, or whatever, and certainly may be Q itself.
     # the caller has sent in either Q if it is not needed later, or a clone.
     # it means the return target IS q in either case!!!
-    for i = 2:Q.size-1
+    for i = [2:Q.size-1]
         dQ[i] = (Q[i+1] - Q[i-1]) / (by[i+1] - by[i-1])
         # since you have a dependence on the array that dQ "comes from",
         # dQ REQUIRES an alloc; it cannot be the same as Q
@@ -78,11 +78,11 @@ function boundary2d(q as Matrix, zero as Logical) returns (qnew as Matrix)
     # disallow list of exprs and list of ranges for indexing
 
     # for the callee, the return target is q when it sees copy(q) or
-    # zeros(q.shape) or similar, unless the callee's work really needs a 
+    # zeros(q.shape) or similar, unless the callee's work really needs a
     # copy of the array anyway (ie. there is no inplacing possible because
     # of an index dependency etc.)
     # the caller, unless it doesnt use the var that is the callee's return
-    # target, should clone the var before sending it in. when possible, that 
+    # target, should clone the var before sending it in. when possible, that
     # clone can be on the callers stack frame etc.
     if not zero
         qnew[1, :] = qnew[2, :] # this causes qnew to be same as q since no dep
@@ -95,9 +95,9 @@ function boundary2d(q as Matrix, zero as Logical) returns (qnew as Matrix)
         qnew[:, -1] = q[:, -2]
     else
         qnew[1, :] = 0  # again no dep of Qnew pn Q
-        qnew[:, 1] = 0 
-        qnew[-1, :] = 0 
-        qnew[:, -1] = 0 
+        qnew[:, 1] = 0
+        qnew[-1, :] = 0
+        qnew[:, -1] = 0
     end if
 
     # return qnew

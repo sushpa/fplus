@@ -552,7 +552,8 @@ typedef struct ASTExpr {
         uint16_t line;
         union {
             struct {
-                uint16_t typeType : 7, opIsUnary : 1, collectionType : 7,
+                uint16_t typeType : 6, canThrow : 1, opIsUnary : 1,
+                    collectionType : 6, mayNeedPromotion : 1,
                     opIsRightAssociative : 1;
             };
             uint16_t strLen;
@@ -564,15 +565,15 @@ typedef struct ASTExpr {
     // struct ASTTypeSpec* typeSpec;
     struct ASTExpr* left;
     union {
-        union {
-            char* string;
-            double real;
-            int64_t integer;
-            uint64_t uinteger;
-        } value; // for terminals
+        // union {
+        char* string;
+        double real;
+        int64_t integer;
+        uint64_t uinteger;
+        //} value; // for terminals
         char* name; // for idents or unresolved call or subscript
         struct ASTFunc* func; // for functioncall
-        ASTVar* var; // for array subscript, or a TKVarAssign
+        struct ASTVar* var; // for array subscript, or a TKVarAssign
         struct ASTScope* body; // for if/for/while
         struct ASTExpr* right;
     };
@@ -748,17 +749,17 @@ ASTExpr* ASTExpr_fromToken(const Token* this)
     case TKMultiDotNumber:
     case TKLineComment: // Comments go in the AST like regular stmts
         ret->strLen = (uint16_t)this->matchlen;
-        ret->value.string = this->pos;
+        ret->string = this->pos;
         break;
     default:;
     }
     // the '!' will be trampled
-    if (ret->kind == TKLineComment) ret->value.string++;
+    if (ret->kind == TKLineComment) ret->string++;
     // turn all 1.0234[DdE]+01 into 1.0234e+01.
     if (ret->kind == TKNumber) {
-        str_tr_ip(ret->value.string, 'd', 'e', ret->strLen);
-        str_tr_ip(ret->value.string, 'D', 'e', ret->strLen);
-        str_tr_ip(ret->value.string, 'E', 'e', ret->strLen);
+        str_tr_ip(ret->string, 'd', 'e', ret->strLen);
+        str_tr_ip(ret->string, 'D', 'e', ret->strLen);
+        str_tr_ip(ret->string, 'E', 'e', ret->strLen);
     }
     return ret;
 }
@@ -1024,7 +1025,7 @@ void ASTExpr_gen(ASTExpr* this, int level, bool spacing, bool escapeStrings)
     case TKMultiDotNumber:
     case TKRegex:
     case TKInline:
-        printf("%.*s", this->strLen, this->value.string);
+        printf("%.*s", this->strLen, this->string);
         break;
 
     case TKIdentifier:
@@ -1036,13 +1037,13 @@ void ASTExpr_gen(ASTExpr* this, int level, bool spacing, bool escapeStrings)
 
     case TKString:
         printf(escapeStrings ? "\\%.*s\\\"" : "%.*s\"", this->strLen - 1,
-            this->value.string);
+            this->string);
         break;
 
     case TKLineComment:
         printf("%s%.*s",
-            TokenKind_repr(TKLineComment, *this->value.string != ' '),
-            this->strLen, this->value.string);
+            TokenKind_repr(TKLineComment, *this->string != ' '),
+            this->strLen, this->string);
         break;
 
     case TKFunctionCall:

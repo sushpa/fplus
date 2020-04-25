@@ -1118,9 +1118,9 @@
             filePath = "checkcc/genc.h"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "137"
-            endingLineNumber = "137"
-            landmarkName = "ASTExpr_promotionCandidate()"
+            startingLineNumber = "136"
+            endingLineNumber = "136"
+            landmarkName = "ASTExpr_promotionCandidate(expr)"
             landmarkType = "9">
          </BreakpointContent>
       </BreakpointProxy>
@@ -1136,7 +1136,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "847"
             endingLineNumber = "847"
-            landmarkName = "ASTScope_calcSizeUsage(this)"
+            landmarkName = "ASTVar_gen(this, level)"
             landmarkType = "9">
          </BreakpointContent>
       </BreakpointProxy>
@@ -1150,9 +1150,9 @@
             filePath = "checkcc/genc.h"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "162"
-            endingLineNumber = "162"
-            landmarkName = "ASTScope_promoteCandidates()"
+            startingLineNumber = "161"
+            endingLineNumber = "161"
+            landmarkName = "ASTScope_promoteCandidates(scope)"
             landmarkType = "9">
          </BreakpointContent>
       </BreakpointProxy>
@@ -1230,9 +1230,9 @@
             filePath = "checkcc/genc.h"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "114"
-            endingLineNumber = "114"
-            landmarkName = "ASTExpr_promotionCandidate()"
+            startingLineNumber = "113"
+            endingLineNumber = "113"
+            landmarkName = "ASTExpr_promotionCandidate(expr)"
             landmarkType = "9">
          </BreakpointContent>
       </BreakpointProxy>
@@ -1246,9 +1246,9 @@
             filePath = "checkcc/genc.h"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "225"
-            endingLineNumber = "225"
-            landmarkName = "ASTScope_promoteCandidates()"
+            startingLineNumber = "224"
+            endingLineNumber = "224"
+            landmarkName = "ASTScope_promoteCandidates(scope)"
             landmarkType = "9">
          </BreakpointContent>
       </BreakpointProxy>
@@ -1262,9 +1262,9 @@
             filePath = "checkcc/genc.h"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "153"
-            endingLineNumber = "153"
-            landmarkName = "ASTScope_promoteCandidates()"
+            startingLineNumber = "152"
+            endingLineNumber = "152"
+            landmarkName = "ASTScope_promoteCandidates(scope)"
             landmarkType = "9">
          </BreakpointContent>
       </BreakpointProxy>
@@ -1278,9 +1278,9 @@
             filePath = "checkcc/genc.h"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "123"
-            endingLineNumber = "123"
-            landmarkName = "ASTExpr_promotionCandidate()"
+            startingLineNumber = "122"
+            endingLineNumber = "122"
+            landmarkName = "ASTExpr_promotionCandidate(expr)"
             landmarkType = "9">
          </BreakpointContent>
       </BreakpointProxy>
@@ -1294,9 +1294,9 @@
             filePath = "checkcc/genc.h"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "115"
-            endingLineNumber = "115"
-            landmarkName = "ASTExpr_promotionCandidate()"
+            startingLineNumber = "114"
+            endingLineNumber = "114"
+            landmarkName = "ASTExpr_promotionCandidate(expr)"
             landmarkType = "9">
          </BreakpointContent>
       </BreakpointProxy>
@@ -1310,9 +1310,9 @@
             filePath = "checkcc/genc.h"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "169"
-            endingLineNumber = "169"
-            landmarkName = "ASTScope_promoteCandidates()"
+            startingLineNumber = "168"
+            endingLineNumber = "168"
+            landmarkName = "ASTScope_promoteCandidates(scope)"
             landmarkType = "9">
          </BreakpointContent>
       </BreakpointProxy>
@@ -1328,7 +1328,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "4"
             endingLineNumber = "4"
-            landmarkName = "setExprTypeInfo(self, expr)"
+            landmarkName = "setExprTypeInfo(ctx, expr, inFuncArgs)"
             landmarkType = "9">
          </BreakpointContent>
       </BreakpointProxy>
@@ -1344,7 +1344,23 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "17"
             endingLineNumber = "17"
-            landmarkName = "setExprTypeInfo(self, expr)"
+            landmarkName = "setExprTypeInfo(ctx, expr, inFuncArgs)"
+            landmarkType = "9">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "8794C953-BA37-41A5-97CD-7867DCBC058B"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "checkcc/genc.h"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "460"
+            endingLineNumber = "460"
+            landmarkName = "ASTExpr_genc(expr, level, spacing, inFuncArgs, escStrings)"
             landmarkType = "9">
          </BreakpointContent>
       </BreakpointProxy>

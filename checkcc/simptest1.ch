@@ -14,6 +14,12 @@ function main(a as Strings) returns Scalar
     print(y)
 end function
 
+# function xyz(nam as String) returns Scalar
+#     var arr[] as String = ["Nest", "Hoouj", "Goog"]
+#     var arr as String[] = ["Nest", "Hoouj", "Goog"]
+
+# end function
+
 # how about a disp function that prints the name of the var and the var
 # actually this is the describe function
 # x <Scalar> = 8

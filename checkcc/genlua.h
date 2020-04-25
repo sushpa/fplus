@@ -63,7 +63,7 @@ void ASTExpr_genlua(
     case TKMultiDotNumber:
     case TKRegex:
     case TKInline:
-        printf("%.*s", this->strLen, this->value.string);
+        printf("%.*s", this->strLen, this->string);
         break;
     case TKIdentifier:
     case TKIdentifierResolved: {
@@ -74,11 +74,11 @@ void ASTExpr_genlua(
 
     case TKString:
         printf(escapeStrings ? "\\%.*s\\\"" : "%.*s\"", this->strLen - 1,
-            this->value.string);
+            this->string);
         break;
 
     case TKLineComment:
-        printf("-- %.*s", this->strLen, this->value.string);
+        printf("-- %.*s", this->strLen, this->string);
         break;
 
     case TKFunctionCall:

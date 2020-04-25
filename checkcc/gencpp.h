@@ -189,12 +189,12 @@ void ASTExpr_gencpp(ASTExpr* this, int level, bool spacing, bool inFuncArgs,
     switch (this->kind) {
     case TKNumber:
     case TKMultiDotNumber:
-        printf("%.*s", this->strLen, this->value.string);
+        printf("%.*s", this->strLen, this->string);
         break;
 
     case TKString:
         printf(escapeStrings ? "\\%.*s\\\"" : "%.*s\"", this->strLen - 1,
-            this->value.string);
+            this->string);
         break;
 
     case TKIdentifier:
@@ -222,24 +222,24 @@ void ASTExpr_gencpp(ASTExpr* this, int level, bool spacing, bool inFuncArgs,
         break;
 
     case TKRegex:
-        this->value.string[0] = '"';
-        this->value.string[this->strLen - 1] = '"';
-        printf("%.*s", this->strLen, this->value.string);
-        this->value.string[0] = '\'';
-        this->value.string[this->strLen - 1] = '\'';
+        this->string[0] = '"';
+        this->string[this->strLen - 1] = '"';
+        printf("%.*s", this->strLen, this->string);
+        this->string[0] = '\'';
+        this->string[this->strLen - 1] = '\'';
         break;
 
     case TKInline:
-        this->value.string[0] = '"';
-        this->value.string[this->strLen - 1] = '"';
-        printf("mkRe_(%.*s)", this->strLen, this->value.string);
-        this->value.string[0] = '`';
-        this->value.string[this->strLen - 1] = '`';
+        this->string[0] = '"';
+        this->string[this->strLen - 1] = '"';
+        printf("mkRe_(%.*s)", this->strLen, this->string);
+        this->string[0] = '`';
+        this->string[this->strLen - 1] = '`';
         break;
 
     case TKLineComment:
         // TODO: skip  comments in generated code
-        printf("// %.*s", this->strLen, this->value.string);
+        printf("// %.*s", this->strLen, this->string);
         break;
 
     case TKFunctionCall:
