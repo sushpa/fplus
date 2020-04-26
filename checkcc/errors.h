@@ -6,13 +6,13 @@
         exit(1);                                                           \
     }
 
-void Parser_errorIncrement(Parser* this)
+static void Parser_errorIncrement(Parser* this)
 {
     if (++this->errCount >= this->errLimit)
         fatal("\ntoo many errors (%d), quitting\n", this->errLimit);
 }
 
-void Parser_errorExpectedToken(Parser* this, TokenKind expected)
+static void Parser_errorExpectedToken(Parser* this, TokenKind expected)
 {
     eprintf("\n(%d) \e[31merror:\e[0m at %s%s:%d:%d\n"
             "      expected '%s' found '%s'\n",
@@ -22,7 +22,7 @@ void Parser_errorExpectedToken(Parser* this, TokenKind expected)
     Parser_errorIncrement(this);
 }
 
-void Parser_errorParsingExpr(Parser* this)
+static void Parser_errorParsingExpr(Parser* this)
 {
     // fputs(dashes, stderr);
     eprintf("\n(%d) \e[31merror:\e[0m at %s%s:%d/%d\n"
@@ -33,7 +33,7 @@ void Parser_errorParsingExpr(Parser* this)
     Parser_errorIncrement(this);
 }
 
-void Parser_errorInvalidIdent(Parser* this)
+static void Parser_errorInvalidIdent(Parser* this)
 {
     eprintf("\n(%d) \e[31merror:\e[0m invalid name '%.*s' at "
             "%s%s:%d:%d\n",
@@ -42,14 +42,14 @@ void Parser_errorInvalidIdent(Parser* this)
     Parser_errorIncrement(this);
 }
 
-void Parser_errorInvalidTypeMember(Parser* this)
+static void Parser_errorInvalidTypeMember(Parser* this)
 {
     eprintf("\n(%d) \e[31merror:\e[0m invalid member at %s%s:%d\n",
         this->errCount + 1, RELF(this->filename), this->token.line - 1);
     Parser_errorIncrement(this);
 }
 
-void Parser_errorUnrecognizedVar(Parser* this, ASTExpr* expr)
+static void Parser_errorUnrecognizedVar(Parser* this, ASTExpr* expr)
 {
     eprintf("\n(%d) \e[31merror:\e[0m unknown variable "
             "\e[34m%.*s\e[0m at "
@@ -59,7 +59,8 @@ void Parser_errorUnrecognizedVar(Parser* this, ASTExpr* expr)
     Parser_errorIncrement(this);
 }
 
-void Parser_errorDuplicateVar(Parser* this, ASTVar* var, ASTVar* orig)
+static void Parser_errorDuplicateVar(
+    Parser* this, ASTVar* var, ASTVar* orig)
 {
     eprintf("\n(%d) \e[31merror:\e[0m duplicate variable "
             "\e[34m%s\e[0m at "
@@ -72,7 +73,7 @@ void Parser_errorDuplicateVar(Parser* this, ASTVar* var, ASTVar* orig)
     Parser_errorIncrement(this);
 }
 
-void Parser_errorUnrecognizedFunc(
+static void Parser_errorUnrecognizedFunc(
     Parser* this, ASTExpr* expr, const char* selector)
 {
     eprintf("\n(%d) \e[31merror:\e[0m can't resolve call to "
@@ -82,7 +83,7 @@ void Parser_errorUnrecognizedFunc(
         RELF(this->filename), expr->line, expr->col, selector);
     Parser_errorIncrement(this);
 }
-void Parser_errorArgsCountMismatch(Parser* this, ASTExpr* expr)
+static void Parser_errorArgsCountMismatch(Parser* this, ASTExpr* expr)
 {
     assert(expr->kind == TKFunctionCallResolved);
     eprintf("\n(%d) \e[31merror:\e[0m arg count mismatch for "
@@ -93,7 +94,7 @@ void Parser_errorArgsCountMismatch(Parser* this, ASTExpr* expr)
         expr->func->argCount, RELF(this->filename), expr->func->line);
     Parser_errorIncrement(this);
 }
-void Parser_errorIndexDimsMismatch(Parser* this, ASTExpr* expr)
+static void Parser_errorIndexDimsMismatch(Parser* this, ASTExpr* expr)
 {
     assert(expr->kind == TKSubscriptResolved);
     int reqdDims = expr->var->typeSpec->dims;
@@ -115,7 +116,7 @@ void Parser_errorIndexDimsMismatch(Parser* this, ASTExpr* expr)
             reqdDims, RELF(this->filename), expr->var->typeSpec->line);
     Parser_errorIncrement(this);
 }
-void Parser_errorMissingInit(Parser* this, ASTExpr* expr)
+static void Parser_errorMissingInit(Parser* this, ASTExpr* expr)
 {
     assert(expr->kind == TKVarAssign);
     eprintf("\n(%d) \e[31merror:\e[0m missing initializer for "
@@ -126,7 +127,8 @@ void Parser_errorMissingInit(Parser* this, ASTExpr* expr)
     Parser_errorIncrement(this);
 }
 
-void Parser_errorUnrecognizedType(Parser* this, ASTTypeSpec* typeSpec)
+static void Parser_errorUnrecognizedType(
+    Parser* this, ASTTypeSpec* typeSpec)
 {
     eprintf("\n(%d) \e[31merror:\e[0m unknown typespec \e[33m%s\e[0m "
             "at %s%s:%d:%d\n",
@@ -135,7 +137,7 @@ void Parser_errorUnrecognizedType(Parser* this, ASTTypeSpec* typeSpec)
     Parser_errorIncrement(this);
 }
 
-void Parser_errorTypeMismatchBinOp(Parser* this, ASTExpr* expr)
+static void Parser_errorTypeMismatchBinOp(Parser* this, ASTExpr* expr)
 {
     eprintf("\n(%d) \e[31merror:\e[0m type mismatch for operands of '"
             "\e[34m%s\e[0m' at %s%s:%d:%d\n",
@@ -144,7 +146,7 @@ void Parser_errorTypeMismatchBinOp(Parser* this, ASTExpr* expr)
     Parser_errorIncrement(this);
 }
 
-void Parser_errorInvalidTypeForOp(Parser* this, ASTExpr* expr)
+static void Parser_errorInvalidTypeForOp(Parser* this, ASTExpr* expr)
 {
     eprintf("\n(%d) \e[31merror:\e[0m invalid types for operator '"
             "\e[34m%s\e[0m' at %s%s:%d:%d\n",
@@ -152,7 +154,8 @@ void Parser_errorInvalidTypeForOp(Parser* this, ASTExpr* expr)
         RELF(this->filename), expr->line, expr->col);
     Parser_errorIncrement(this);
 }
-void Parser_errorArgTypeMismatch(Parser* this, ASTExpr* expr, ASTVar* var)
+static void Parser_errorArgTypeMismatch(
+    Parser* this, ASTExpr* expr, ASTVar* var)
 {
     eprintf("\n(%d) \e[31merror:\e[0m type mismatch for argument '"
             "\e[34m%s\e[0m' at %s%s:%d:%d\n",
@@ -160,10 +163,10 @@ void Parser_errorArgTypeMismatch(Parser* this, ASTExpr* expr, ASTVar* var)
         expr->col);
     Parser_errorIncrement(this);
 }
-void Parser_errorTypeMismatch(
+static void Parser_errorTypeMismatch(
     Parser* this, ASTExpr* expr, ASTTypeSpec* expected);
 
-void Parser_errorUnexpectedToken(Parser* this)
+static void Parser_errorUnexpectedToken(Parser* this)
 {
     eprintf("\n(%d) \e[31merror:\e[0m at %s%s:%d:%d\n      unexpected "
             "token "
@@ -173,7 +176,7 @@ void Parser_errorUnexpectedToken(Parser* this)
     Parser_errorIncrement(this);
 }
 
-void Parser_errorUnexpectedExpr(Parser* this, const ASTExpr* expr)
+static void Parser_errorUnexpectedExpr(Parser* this, const ASTExpr* expr)
 {
     eprintf("\n(%d) \e[31merror:\e[0m at %s%s:%d:%d\n"
             "      unexpected expr '%.*s'",

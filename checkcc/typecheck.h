@@ -1,6 +1,6 @@
-void checkBinOpTypeMismatch(Parser* self, ASTExpr* expr) {}
+static void checkBinOpTypeMismatch(Parser* self, ASTExpr* expr) {}
 
-void setExprTypeInfo(Parser* self, ASTExpr* expr, bool inFuncArgs)
+static void setExprTypeInfo(Parser* self, ASTExpr* expr, bool inFuncArgs)
 {
     switch (expr->kind) {
     case TKIdentifierResolved:

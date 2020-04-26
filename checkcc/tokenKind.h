@@ -103,7 +103,7 @@ typedef enum TokenKind {
 } TokenKind;
 
 // Return the repr of a this->token kind (for debug)
-const char* TokenKind_repr(const TokenKind kind, bool spacing)
+static const char* TokenKind_repr(const TokenKind kind, bool spacing)
 {
     switch (kind) {
     case TKNullChar:
@@ -301,7 +301,7 @@ const char* TokenKind_repr(const TokenKind kind, bool spacing)
 }
 
 // Return the repr of a this->token kind (for debug)
-const char* TokenKind_defaultType(const TokenKind kind)
+static const char* TokenKind_defaultType(const TokenKind kind)
 {
     switch (kind) {
     case TKKeyword_not:
@@ -368,7 +368,7 @@ const char* TokenKind_defaultType(const TokenKind kind)
     //    printf("unknown kind: %d\n", kind);
 }
 
-bool TokenKind_isUnary(TokenKind kind)
+static bool TokenKind_isUnary(TokenKind kind)
 {
     return kind == TKKeyword_not or kind == TKUnaryMinus
         or kind == TKKeyword_return or kind == TKArrayOpen;
@@ -376,13 +376,13 @@ bool TokenKind_isUnary(TokenKind kind)
     // it has one field `->right`, a list/dict literal expr
 }
 
-bool TokenKind_isRightAssociative(TokenKind kind)
+static bool TokenKind_isRightAssociative(TokenKind kind)
 {
     return kind == TKPeriod or kind == TKPower or kind == TKOpComma
         or kind == TKOpSemiColon;
 }
 
-uint8_t TokenKind_getPrecedence(TokenKind kind)
+static uint8_t TokenKind_getPrecedence(TokenKind kind)
 { // if templateStr then precedence of < and > should be 0
     switch (kind) {
     case TKUnaryMinus:
@@ -441,7 +441,7 @@ uint8_t TokenKind_getPrecedence(TokenKind kind)
     }
 }
 
-TokenKind TokenKind_reverseBracket(TokenKind kind)
+static TokenKind TokenKind_reverseBracket(TokenKind kind)
 {
     switch (kind) {
     case TKArrayOpen:

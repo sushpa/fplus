@@ -1,5 +1,5 @@
 
-const uint8_t TokenKindTable[256] = {
+static const uint8_t TokenKindTable[256] = {
     /* 0 */ TKNullChar, /* 1 */ TKUnknown, /* 2 */ TKUnknown,
     /* 3 */ TKUnknown, /* 4 */ TKUnknown, /* 5 */ TKUnknown,
     /* 6 */ TKUnknown, /* 7 */ TKUnknown, /* 8 */ TKUnknown,
@@ -93,7 +93,7 @@ const uint8_t TokenKindTable[256] = {
 #define Token_matchesKeyword(tok)                                          \
     if (sizeof(#tok) - 1 == l and not strncmp(#tok, s, l)) return true;
 
-bool doesKeywordMatch(const char* s, const int l)
+static bool doesKeywordMatch(const char* s, const int l)
 {
     //        const char* s = pos;
     //        const int l = matchlen;
@@ -145,7 +145,7 @@ typedef struct Token {
 } Token;
 
 // Peek at the char after the current (complete) token
-char Token_peekCharAfter(Token* this)
+static char Token_peekCharAfter(Token* this)
 {
     char* s = this->pos + this->matchlen;
     if (this->flags.skipWhiteSpace)
@@ -162,7 +162,7 @@ char Token_peekCharAfter(Token* this)
 
 // Check if an (ident) this->token matches a keyword and return its type
 // accordingly.
-void Token_tryKeywordMatch(Token* this)
+static void Token_tryKeywordMatch(Token* this)
 {
     if (this->kind != TKIdentifier) return;
 
@@ -199,7 +199,7 @@ void Token_tryKeywordMatch(Token* this)
 
 // Get the token kind based only on the char at the current position
 // (or an offset).
-TokenKind Token_getType(Token* this, const size_t offset)
+static TokenKind Token_getType(Token* this, const size_t offset)
 {
     const char c = this->pos[offset];
     const char cn = c ? this->pos[1 + offset] : 0;
@@ -282,7 +282,7 @@ TokenKind Token_getType(Token* this, const size_t offset)
     }
 }
 
-void Token_detect(Token* this)
+static void Token_detect(Token* this)
 {
     TokenKind tt = Token_getType(this, 0);
     TokenKind tt_ret = TKUnknown; // = tt;
@@ -517,7 +517,7 @@ void Token_detect(Token* this)
 }
 
 // Advance to the next this->token (skip whitespace if `skipws` is set).
-void Token_advance(Token* this)
+static void Token_advance(Token* this)
 {
     switch (this->kind) {
     case TKIdentifier:

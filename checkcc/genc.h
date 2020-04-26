@@ -1,6 +1,6 @@
 #define genLineNumbers 0
 
-void ASTImport_genc(ASTImport* import, int level)
+static void ASTImport_genc(ASTImport* import, int level)
 {
     str_tr_ip(import->importFile, '.', '_', 0);
     printf("\n#include \"%s.h\"\n", import->importFile);
@@ -10,13 +10,13 @@ void ASTImport_genc(ASTImport* import, int level)
     str_tr_ip(import->importFile, '_', '.', 0);
 }
 
-void ASTImport_undefc(ASTImport* import)
+static void ASTImport_undefc(ASTImport* import)
 {
     if (import->hasAlias)
         printf("#undef %s\n", import->importFile + import->aliasOffset);
 }
 
-void ASTTypeSpec_genc(ASTTypeSpec* typeSpec, int level, bool isconst)
+static void ASTTypeSpec_genc(ASTTypeSpec* typeSpec, int level, bool isconst)
 {
     if (isconst) printf("const ");
     // TODO: actually this depends on the collectionType. In general
@@ -54,10 +54,10 @@ void ASTTypeSpec_genc(ASTTypeSpec* typeSpec, int level, bool isconst)
     //        }
 }
 
-void ASTExpr_genc(ASTExpr* this, int level, bool spacing, bool inFuncArgs,
-    bool escStrings);
+static void ASTExpr_genc(ASTExpr* this, int level, bool spacing,
+    bool inFuncArgs, bool escStrings);
 
-void ASTVar_genc(ASTVar* var, int level, bool isconst)
+static void ASTVar_genc(ASTVar* var, int level, bool isconst)
 {
     // for C the variable declarations go at the top of the block, without
     // init
@@ -81,7 +81,7 @@ void ASTVar_genc(ASTVar* var, int level, bool isconst)
 // containing statement, and in place of the original call you
 // should place a temporary holding the value that would have been
 // "returned".
-bool mustPromote(const char* name)
+static bool mustPromote(const char* name)
 {
     // TODO: at some point these should go into a dict or trie or MPH
     // whatever
@@ -94,7 +94,7 @@ bool mustPromote(const char* name)
 }
 
 // Promotion scan & promotion happens AFTER resolving functions!
-ASTExpr* ASTExpr_promotionCandidate(ASTExpr* expr)
+static ASTExpr* ASTExpr_promotionCandidate(ASTExpr* expr)
 {
     assert(expr);
     ASTExpr* ret;
@@ -142,14 +142,14 @@ ASTExpr* ASTExpr_promotionCandidate(ASTExpr* expr)
     return NULL;
 }
 
-char* newTmpVarName(int num)
+static char* newTmpVarName(int num)
 {
     char buf[8];
     int l = snprintf(buf, 8, "_%d", num);
     return pstrndup(buf, l);
 }
 
-void ASTScope_promoteCandidates(ASTScope* scope)
+static void ASTScope_promoteCandidates(ASTScope* scope)
 {
     int tmpCount = 0;
     ASTExpr* pc = NULL;
@@ -242,7 +242,7 @@ void ASTScope_promoteCandidates(ASTScope* scope)
     }
 }
 
-void ASTScope_genc(ASTScope* scope, int level)
+static void ASTScope_genc(ASTScope* scope, int level)
 {
     foreach (ASTVar*, local, locals, scope->locals) {
         ASTVar_genc(local, level, false);
@@ -265,7 +265,7 @@ void ASTScope_genc(ASTScope* scope, int level)
     }
 }
 
-void ASTType_genc(ASTType* type, int level)
+static void ASTType_genc(ASTType* type, int level)
 {
     if (not type->body) return;
     printf("#define FIELDS_%s \\\n", type->name);
@@ -317,14 +317,14 @@ void ASTType_genc(ASTType* type, int level)
     puts("");
 }
 
-void ASTType_genh(ASTType* type, int level)
+static void ASTType_genh(ASTType* type, int level)
 {
     if (not type->body) return;
     printf("typedef struct %s* %s; struct %s;\n", type->name, type->name,
         type->name);
 }
 
-void ASTFunc_genc(ASTFunc* func, int level)
+static void ASTFunc_genc(ASTFunc* func, int level)
 {
     if (func->flags.isDeclare) return;
     size_t stackUsage = ASTFunc_calcSizeUsage(func);
@@ -424,7 +424,7 @@ void ASTFunc_genc(ASTFunc* func, int level)
     puts("#undef MYSTACKUSAGE");
 }
 
-void ASTFunc_genh(ASTFunc* func, int level)
+static void ASTFunc_genh(ASTFunc* func, int level)
 {
     if (func->flags.isDeclare) return;
     if (not func->flags.isExported) printf("static ");
@@ -444,8 +444,8 @@ void ASTFunc_genh(ASTFunc* func, int level)
     puts(");\n");
 }
 
-void ASTExpr_genc(ASTExpr* expr, int level, bool spacing, bool inFuncArgs,
-    bool escStrings)
+static void ASTExpr_genc(ASTExpr* expr, int level, bool spacing,
+    bool inFuncArgs, bool escStrings)
 {
     // generally an expr is not split over several lines (but maybe in
     // rare cases). so level is not passed on to recursive calls.
@@ -864,7 +864,7 @@ void ASTExpr_genc(ASTExpr* expr, int level, bool spacing, bool inFuncArgs,
     }
 }
 
-void ASTModule_genc(ASTModule* module, int level)
+static void ASTModule_genc(ASTModule* module, int level)
 {
     foreach (ASTImport*, import, imports, module->imports)
         ASTImport_genc(import, level);

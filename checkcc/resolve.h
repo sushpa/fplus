@@ -1,5 +1,5 @@
 
-void resolveTypeSpec(Parser* this, ASTTypeSpec* typeSpec, ASTModule* mod)
+static void resolveTypeSpec(Parser* this, ASTTypeSpec* typeSpec, ASTModule* mod)
 {
     // TODO: disallow a type that derives from itself!
     if (typeSpec->typeType != TYUnresolved) return;
@@ -34,7 +34,7 @@ void resolveTypeSpec(Parser* this, ASTTypeSpec* typeSpec, ASTModule* mod)
 // TODO: Btw there should be a module level scope to hold lets (and
 // comments). That will be the root scope which has parent==NULL.
 
-void resolveFuncsAndTypes(Parser* this, ASTExpr* expr, ASTModule* mod)
+static void resolveFuncsAndTypes(Parser* this, ASTExpr* expr, ASTModule* mod)
 { // TODO: what happens if you get a TKSubscriptResolved?
 
     switch (expr->kind) {
@@ -100,7 +100,7 @@ void resolveFuncsAndTypes(Parser* this, ASTExpr* expr, ASTModule* mod)
     }
 }
 
-void resolveVars(
+static void resolveVars(
     Parser* this, ASTExpr* expr, ASTScope* scope, bool inFuncCall)
 { // TODO: this could be done on rpn in parseExpr, making it iterative
   // instead of recursive
