@@ -1,0 +1,111 @@
+
+# $ Array(T) GArray(sizeof(T), 32)
+# $ ArrayN(T,D) GArrayN(sizeof(T), D, 32)
+# $ ArrayL(T) GArray(sizeof(T), 64)
+# $ ArrayNL(T,D) GArrayN(sizeof(T), D, 64)
+
+# $ Slice(T) GSlice(sizeof(T), 32)
+# $ SliceN(T,D) GSliceN(sizeof(T), D, 32)
+# $ SliceL(T) GSlice(sizeof(T), 64)
+# $ SliceNL(T,D) GSliceN(sizeof(T), D, 64)
+
+
+declare type T
+declare type I
+
+type GArray
+    var ref as T
+    var len as I
+    var cap as I
+end type
+
+function push(self as Array, item as T)
+function justPush(self as Array, item as T)
+function pushp(self as Array, ) as T*
+function pop(self as Array, ) as T
+function concat(self as Array, otherArray as Array)
+function insert(self as Array, item as T)
+function insert(self as Array, item as T, at as I)
+function insert(self as Array, item as T, before as T)
+function insert(self as Array, item as T, after as T)
+function remove(self as Array, atIndex as I)
+function remove(self as Array, item as T)
+function contains(self as Array, item as T) as Logical
+function count(self as Array, ) as I
+function count(self as Array, filter as Expr) as I
+function any(self as Array, ) as Logical
+function all(self as Array, ) as Logical
+function copy(self as Array, ) as Array
+function any(self as Array, filter as Expr) as Logical
+function all(self as Array, filter as Expr) as Logical
+function copy(self as Array, filter as Expr) as Array
+
+
+function write(self as Array, )
+# write textual repr to file, to string, to screen,
+# whatever -- basically calls write() of elements
+# write(self[0], ", ", self[4]) etc
+function write(self as Array, filter as Expr)
+function get(self as Array, atIndex as I) as T
+function getSafely(self as Array, atIndex as I) as T
+function inbounds(self as Array, atIndex as I) as Logical
+function realIndex(self as Array, atIndex as I) as I # +ve, in n-d all dims collapsed
+function set(self as Array, atIndex as I)
+function setSafely(self as Array, atIndex as I)
+function setItemsInSlice(slice as Slice, otherArray as Array, offset as I)  # offset of start atIndex between this array and other. same slice info is used
+function firstIndex(self as Array, item as T) as I
+function lastIndex(self as Array, item as T) as I
+function swap(self as Array, index1 as I, index2 as I)
+function clear(self as Array, )
+function sortQuick(self as Array, )
+function sortMerge(self as Array, )
+function shuffleKnuth(self as Array, )
+function searchBinary(self as Array, forValue as T)
+function clone(self as Array, ) Array
+function getFullSlice(self as Array, ) Slice
+function equals(self as Array, otherArray as Array) as Logical
+
+# filter/map -- but it should be impl as a macro. besides funcs r elemental
+function String joinToString(self as Array, sep as String)
+
+function add(self as Array, otherArray as Array)
+function sub(self as Array, otherArray as Array)
+function mul(self as Array, otherArray as Array)
+function div(self as Array, otherArray as Array)
+function pow(self as Array, otherArray as Array)
+function mod(self as Array, otherArray as Array)
+
+function add1(self as Array, value as T)
+function sub1(self as Array, value as T)
+function mul1(self as Array, value as T)
+function div1(self as Array, value as T)
+function pow1(self as Array, value as T)
+function mod1(self as Array, value as T)
+
+////////////////////////////////////////////////////////////////////////////////
+! GArrayN
+> T, D, I
+^ GArray(S, I)
+% int(I) dlen[D]
+
+type ArrayN extends Array
+    var dlen[D] = 0
+end type
+
+type GSlice
+    var ref as Array
+    var start = 0
+    var stop = 0
+    var step = 1
+    var pos = 0
+end type
+
+function reset
+function hasNext
+function next
+////////////////////////////////////////////////////////////////////////////////
+! GSliceN
+> S, D, I
+% GArrayN(S, D, I)* ref
+% int(I) start, stop, step, pos
+

@@ -4,7 +4,7 @@ CCFLAGS=-std=c99 -Werror
 CPP=gcc
 
 checkc.bin: main.c *.h
-	$(CPP) -O0 $(CCFLAGS) $< -lc -o $@
+	$(CPP) -O3 $(CCFLAGS) $< -lc -o $@
 
 checkc-s.bin: main.c *.h
 	$(CPP) -Os $(CCFLAGS) $< -lc -o $@

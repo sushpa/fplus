@@ -1,0 +1,36 @@
+
+type Complex
+    var re = 0
+    var im = 0
+end type
+
+Complex(x as Scalar) :=
+    Complex(re = 0, im = x)
+
+add(a as Complex, b as Complex) :=
+    Complex(re = a.re + b.re, im = a.im + b.im)
+
+sub(a as Complex, b as Complex) :=
+    Complex(re = a.re - b.re, im = a.im - b.im)
+
+mul(a as Complex, b as Complex) :=
+    Complex(re = min(products(a, b)), im = max(products(a, b)))
+
+div(a as Complex, b as Complex) :=
+    Complex(re = a.re + b.re, im = a.im + b.im)
+
+recip(a as Complex) :=
+    Complex(re = 1/a.im, im = a.re)
+
+flip(a as Complex) :=
+    Complex(re = -a.im, im = -a.re)
+
+addinv(a as Complex) :=
+    NotInterval(re = a.re, im = a.im)
+
+conjugate(a as Complex) :=
+    Complex(re = a.re + b.re, im = a.im + b.im)
+
+mulinv(a as Complex) :=
+    Complex(re = max(a.re, b.re), im = min(a.im, b.im)) or nothing # might violate invariant
+

@@ -1,0 +1,67 @@
+
+enum MyEnum
+    elem1 = "First element"
+    elem2 = "Second one"
+end enum
+
+var en as MyEnum = .elem1
+print(en) # prints ".elem1" (or "MyEnum.elem1"?)
+print(MyEnum[en]) # prints "First element"
+
+# each enum is also an apparent dict of some type of values indexed by that enum
+# the values must be const exprs and are read only
+enum MyNumEnum
+    odds = [1, 3, 5, 7]
+    evens = [2, 4, 6]
+end enum
+
+# but they can be objects i.e. not just compile time consts.
+# types must of course be the same (homogenous)
+enum StdExprs
+    lparen = ASTExpr(TK.parenOpen)
+    rparen = ASTExpr(TK.parenClose)
+    rbox = ASTExpr(TK.arrayClose)
+end enum
+
+var en2 as MyNumEnum = .odds
+print(en2) # prints ".odds"
+print(en2.value) # prints [1, 3, 5, 7]
+
+# comparisons use the numeric value
+var mx as Bool = en2 < .evens
+
+enum BasicEnum
+    first
+    second
+end enum
+
+var fi = .first # error: cannot deduce type
+var fi as BasicEnum = .first # correct
+print(BasicEnum[fi]) # error, no associated data if determined at comptime
+# else print blank or null
+# basically there is always associated data if any 1 elem has data.
+# all others are init'd with 0 or "" or NULL as per type
+
+# for each enum generate the enum itself, a table of element names, a table
+# of associated data, and an efficient routine to convert a string into
+# a var of that enum type (or error if invalid)
+
+enum UPerms
+    read
+    write
+    exec
+end enum
+
+var perms as UPerms = .read + .write + .exec
+
+var styleMask as NSWindowStyle =
+    .movableByBackground + .fullScreenContentView
+
+if .read in perms
+    xyz()
+end if
+
+# how to decide if the enum values should be generated as linear or additive?
+# can't find all instances of '+' or 'in' usage in any case.
+# just make enums with 8 or fewer items as additive or even 16 or 32
+# for more than that disallow additive use

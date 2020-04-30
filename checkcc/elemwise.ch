@@ -1,0 +1,62 @@
+
+    # this whole expr is an elemntwise op on various arrays and slices.
+    # it means there must be a common iterator over all of them if the expr
+    # is valid.
+f = a[3:5] + b[1:3] + 3 + c[2:xm-1] * 5
+# if it is mixed with non-elementwise ops on matrixes eg matmul, move them out:
+f = a[3:5] + b[1:3] + 3 + M[1:4, 2:5] ** c[2:xm-1] * 5
+# becomes
+_1 = M[1:4, 2:5] ** c[2:xm-1]
+f = a[3:5] + b[1:3] + 3 + _1 * 5
+
+# as it stands this will generate to a for loop for each op so 3-4-5 separate for loops.
+add(range(a,3,5), add(range(b,1,3), 3)...
+# Also vectorisation isnt great since the full inner expression is not available.
+# what it should generate to:
+for (...)
+    i_a = ...
+    i_b = ...
+    ...
+    f[i_f] = a[i_a] + b[i_b] + 3 + _1[i__1] * 5
+# that's the magic. also: NO TEMPORARY ARRAYS WASTED, no mallocs, nothing.
+# great for fma and auto-vectorisation.
+# this requires proof at compile time that all array/slice SPANs are equal.
+
+# NOT POSSIBLE WHEN the target overlaps with something on the RHS that lies before the target indices (in direction of travel)
+a[5:7] = a[3:5] + b[1:3] + 3 + M[1:4, 2:5] ** c[2:xm-1] * 5
+# if the RHS indices lie AFTER the target indices (in direction of travel) this is OK
+a[1:3] = a[3:5] + b[1:3] + 3 + M[1:4, 2:5] ** c[2:xm-1] * 5
+# Also it is doable when
+a[3:5] += b[1:3] + 3 + M[1:4, 2:5] ** c[2:xm-1] * 5
+# ALSO when
+a[3:5] = -a[3:5] + b[1:3] + 3 + M[1:4, 2:5] ** c[2:xm-1] * 5 / a[3:5]
+# also when
+a[3:5] = a[13:15] + b[1:3] + 3 + M[1:4, 2:5] ** c[2:xm-1] * 5
+# BUT AGAIN not doable when
+a[3:5] = a[5:3:-1] + b[1:3] + 3 + M[1:4, 2:5] ** c[2:xm-1] * 5
+# or even
+
+# just do it in all cases and tell user that these ops are inplace
+
+# FOR THIS YOU NEED A FLAG IN ASTEXPR: isElementwiseOperation
+# then the topmost expr with the flag will be promoted, so that exprs like
+print(arr[12:16] + arr[4:8] + arr[2:6])
+# can be
+_1 = arr[12:16] + arr[4:8] + arr[2:6]
+print(_1)
+# and then the assignment to _1 can be optimised as above.
+
+
+# --- FREE MALLOC QUICKLY
+
+xfree(ptr,size): routine which puts the ptr into a freelist
+xalloc(size): gets a ptr from freelist or calls malloc if none available.
+
+call xfree on a var IMMEDIATELY after the LAST time the var is used in its owning scope.
+it will go into the freelist.
+later if you ask for xalloc of the same or similar size (class) you get it from the freelist.
+so vars within the same scope or enclosing scopes, or even loops, can reuse buffers if they need similar sizes.
+(if returning the var (it should not be xfree'd) : the xfree will be placed after the return and it will work as expected.)
+
+So this is still at runtime, but can be moved to compile time later since it can be detected in most cases.
+just use lists based on a size class,since mostly this will be for larger arrays (objs will go on stack or altstack)
