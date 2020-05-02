@@ -68,14 +68,18 @@ static size_t sys_stackSize()
 #define SETPROP(var, propname, type) JOIN3_(type, set, propname)(var)
 // a.x becomes AType_x(a),  a.x = y becomes AType_set_x(a, y)
 
-#define _btLimit_ 5
+#define _btLimit_ 10
 #define ERROR_TRACE (char*)0xFFFFFFFFFFFFFFFF
-#define DOBACKTRACE                                                        \
+#define DONE                                                               \
     {                                                                      \
         _err_ = ERROR_TRACE;                                               \
         goto done;                                                         \
     }
-
+#define BACKTRACE                                                          \
+    {                                                                      \
+        _err_ = ERROR_TRACE;                                               \
+        goto backtrace;                                                    \
+    }
 static size_t _scSize_; // size of stack
 // static const char* _scStart_; // start of stack, set in main()
 static size_t _scDepth_ = 0; // current depth, updated in each function
@@ -153,13 +157,13 @@ int main(int argc, char* argv[])
     Strings_main(NULL
 #ifdef DEBUG
         ,
-        "start\e[0m"
+        "\e[0mmain\n"
 #endif
     );
 
     double dt = elapsed(getticks(), t0) / 1e9;
     if (_err_ == ERROR_TRACE) {
-        printf("[%.3fs] Aborted due to an unhandled error.\n", dt);
+        printf("[%.3fs] Terminated due to an unhandled error.\n", dt);
 #ifndef DEBUG
         printf("(run in debug mode to see a backtrace)\n");
 #endif

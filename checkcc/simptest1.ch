@@ -11,17 +11,23 @@ function fxfunc(what as Scalar) returns Scalar
 end function
 
 function main(a as Strings) returns Scalar
+    funky(4+2)
+end function
+
+function funky(s as Scalar)
+    joyce(2)
+end function
+
+function joyce(a as Scalar) returns Scalar
     let name as String = "Bhabru"
-    describe(name)
+    print(name)
     let x = 3 + 5 + 4
-    # let arr as Scalar[] = [4, 5, 6, 7, 8]
     x = x + 2
-    describe(x+5)
-    # describe(count(arr, filter = arr<6))
+    print(x+5)
     let y = 3-x * 2.5 / x
-    describe(y*3-x+54/x*3.1415)
-    check x + fxfunc(y) == 3 + 5 + 2*x
-    check 0 < x < 1
+    print(y*3-x+54/x*3.1415)
+    check x + fxfunc(y)  >=  3 + 5 + 2*x
+    # check 0 < x < 1
     # check name == "Jiok"
 end function
 

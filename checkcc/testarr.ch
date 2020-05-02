@@ -1,0 +1,43 @@
+function main(args as Strings)
+    let arr = [3, 4, 5, 6, 7, 8, 9]
+    print(arr)
+    arr += 1.5
+    print(arr)
+    let arr2 = [9, 8, 7, 6, 5, 4, 3]
+    arr2 -= 1.5
+    print(arr2)
+    let arr3 = arr + arr2 * 3
+    print(arr3)
+    arr3[1:4] = 0
+    print(arr3)
+    arr2[arr2<6] = 0
+    print(arr2)
+    arr3[1:4] = arr[3:6]
+    print(arr3)
+    arr3[2:9] -= 4 # error: out of bounds (9)
+end function
+
+test "array basics"
+# within tests, checks that pass at compile time are not removed
+    let arr = [3, 4, 5, 6, 7, 8, 9]
+    arr += 1.5
+    check arr == [4.5, 5.5, 6.5, 7.5, 8.5, 9.5, 10.5]
+    let arr2 = [9, 8, 7, 6, 5, 4, 3]
+    arr2 -= 1.5
+    check arr2 == [7.5, 6.5, 5.5, 4.5, 3.5, 2.5, 1.5]
+    let arr3 = arr + arr2 * 3
+    check arr3 == [27, 25, 23, 21, 19, 17, 15]
+    arr3[1:4] = 0
+    check arr3 == [0, 0, 0, 0, 19, 17, 15]
+    arr2[arr2<6] = 0
+    check arr2 == [7.5, 6.5, 0, 0, 0, 0, 0]
+    arr3[1:4] = arr[3:6]
+    check arr3 == [6.5, 7.5, 8.5, 9.5, 19, 17, 15]
+    check not empty(arr3)
+end test
+
+test "out of bounds"
+    check arr3[2:9] -= 4 throws Error.outOfBounds
+    # error: out of bounds (9)
+end test
+

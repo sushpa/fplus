@@ -106,7 +106,7 @@ static void ASTExpr_genPrintVars(ASTExpr* expr, int level)
     // what about func args?
     switch (expr->kind) {
     case TKIdentifierResolved:
-        printf("%.*sprintf(\"|   %s = %s\\n\", %s);\n", level, spaces,
+        printf("%.*sprintf(\"    %s = %s\\n\", %s);\n", level, spaces,
             expr->var->name, TypeType_format(expr->typeType, true),
             expr->var->name);
         // printf("printf(\"%%s:%d:%d: %s = %s\\n\", THISFILE, %s);\n",
@@ -114,7 +114,7 @@ static void ASTExpr_genPrintVars(ASTExpr* expr, int level)
         //     TypeType_format(expr->typeType, true), expr->var->name);
         break;
     case TKVarAssign:
-        printf("%.*sprintf(\"|   %s = %s\\n\", %s);\n", level, spaces,
+        printf("%.*sprintf(\"    %s = %s\\n\", %s);\n", level, spaces,
             expr->var->name,
             TypeType_format(expr->var->init->typeType, true),
             expr->var->name);
@@ -452,9 +452,9 @@ static void ASTFunc_genc(ASTFunc* func, int level)
     // frame bookkeeping whatever, and in debug mode the callsite needs
     // sizeof(char*) more.
     printf("#ifdef DEBUG\n"
-           "#define MYSTACKUSAGE (%lu + 4*sizeof(void*) + sizeof(char*))\n"
+           "#define MYSTACKUSAGE (%lu + 6*sizeof(void*) + sizeof(char*))\n"
            "#else\n"
-           "#define MYSTACKUSAGE (%lu + 4*sizeof(void*))\n"
+           "#define MYSTACKUSAGE (%lu + 6*sizeof(void*))\n"
            "#endif\n",
         stackUsage, stackUsage);
 
@@ -513,7 +513,7 @@ static void ASTFunc_genc(ASTFunc* func, int level)
         "        printf(\"\\e[31mfatal: stack "
         "overflow at call depth %lu.\\e[0m\\n\",_scDepth_);\n"
         "#endif\n"
-        "        DOBACKTRACE\n    }\n"
+        "        DONE\n    }\n"
         "#endif\n");
 
     ASTScope_genc(func->body, level + STEP);
@@ -660,8 +660,8 @@ static void ASTExpr_genc(ASTExpr* expr, int level, bool spacing,
             // more generally this IF is for those funcs that are
             // standard and dont need any instrumentation
             printf("\n#ifdef DEBUG\n"
-                   "      %c THISFILE \":%d:\\e[0m\\n     -> ",
-                expr->left ? ',' : ' ', expr->line);
+                   "      %c \"./\" THISFILE \":%d:%d:\\e[0m ",
+                expr->left ? ',' : ' ', expr->line, expr->col);
             ASTExpr_gen(expr, 0, false, true);
             printf("\"\n"
                    "#endif\n        ");
@@ -974,10 +974,12 @@ static void ASTExpr_genc(ASTExpr* expr, int level, bool spacing,
         printf(")) {\n");
         // printf("%.*sprintf(\"\\n%%s\\n\",_undersc72_);\n", level + STEP,
         // spaces);
-        printf("%.*sprintf(\"\\n|\\n| check failed at ./%%s:%d:\\n|   "
-               "%%s\\n|\\n| because\\n\", "
-               "THISFILE, \"",
-            level + STEP, spaces, expr->line);
+        printf(
+            "%.*sprintf(\"\\n\\n\e[31mruntime error:\e[0m check failed at "
+            "\e[36m./%%s:%d:%d:\e[0m\\n    "
+            "%%s\\n\\n\e[90mHere's some help:\e[0m\\n\", "
+            "THISFILE, \"",
+            level + STEP, spaces, expr->line, expr->col + 6);
         ASTExpr_gen(expr->right, 0, spacing, true);
         printf("\");\n");
 
@@ -985,7 +987,7 @@ static void ASTExpr_genc(ASTExpr* expr, int level, bool spacing,
             // dont print literals or arrays
             if (expr->right->left->collectionType == CTYNone) {
                 printf(
-                    "%.*s%s", level + STEP, spaces, "printf(\"|   %s = ");
+                    "%.*s%s", level + STEP, spaces, "printf(\"    %s = ");
                 printf("%s",
                     TypeType_format(expr->right->left->typeType, true));
                 printf("%s", "\\n\", \"");
@@ -994,7 +996,7 @@ static void ASTExpr_genc(ASTExpr* expr, int level, bool spacing,
             }
         }
         if (expr->right->right->collectionType == CTYNone) {
-            printf("%.*s%s", level + STEP, spaces, "printf(\"|   %s = ");
+            printf("%.*s%s", level + STEP, spaces, "printf(\"    %s = ");
             printf(
                 "%s", TypeType_format(expr->right->right->typeType, true));
             printf("%s", "\\n\", \"");
@@ -1007,7 +1009,18 @@ static void ASTExpr_genc(ASTExpr* expr, int level, bool spacing,
         // printf(
         //     "%.*sprintf(\"%%s\\n\",_undersc72_);\n", level + STEP,
         //     spaces);
-        printf("%.*sprintf(\"|\\n\");\n", level + STEP, spaces);
+        printf("%.*sprintf(\"\\n\");\n", level + STEP, spaces);
+        // printf("%.*s_err_ = ERROR_TRACE; goto backtrace;\n", level +
+        // STEP,
+        //     spaces);
+        printf("%s",
+            "#ifdef DEBUG\n"
+            "        printf(\"\\e[90mBacktrace (innermost first):\\n\");\n"
+            "        if (_scDepth_ > 2*_btLimit_)\n        "
+            "printf(\"    limited to %d outer and %d inner entries.\\n\", "
+            "_btLimit_, _btLimit_);\n"
+            "        BACKTRACE\n    \n"
+            "#endif\n");
         printf("\n%.*s}\n", level, spaces);
         printf("%.*s}", level, spaces);
         break;
