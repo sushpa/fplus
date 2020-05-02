@@ -9,6 +9,7 @@ typedef enum TokenKind {
     TKKeyword_function,
     TKKeyword_declare,
     TKKeyword_test,
+    TKKeyword_check,
     TKKeyword_not,
     TKKeyword_and,
     TKKeyword_or,
@@ -110,6 +111,8 @@ static const char* TokenKind_repr(const TokenKind kind, bool spacing)
         return "EOF";
     case TKKeyword_cheater:
         return "cheater";
+    case TKKeyword_check:
+        return "check";
     case TKKeyword_for:
         return "for";
     case TKKeyword_while:
@@ -301,6 +304,7 @@ static const char* TokenKind_repr(const TokenKind kind, bool spacing)
 }
 
 // Return the repr of a this->token kind (for debug)
+// this is a VERY rudimentary way of type inference
 static const char* TokenKind_defaultType(const TokenKind kind)
 {
     switch (kind) {
@@ -371,7 +375,8 @@ static const char* TokenKind_defaultType(const TokenKind kind)
 static bool TokenKind_isUnary(TokenKind kind)
 {
     return kind == TKKeyword_not or kind == TKUnaryMinus
-        or kind == TKKeyword_return or kind == TKArrayOpen;
+        or kind == TKKeyword_return or kind == TKArrayOpen
+        or kind == TKKeyword_check;
     // TKArrayOpen is "unary" because it's EXPR is unary i.e.
     // it has one field `->right`, a list/dict literal expr
 }
@@ -418,6 +423,7 @@ static uint8_t TokenKind_getPrecedence(TokenKind kind)
         return 31;
     case TKKeyword_or:
         return 30;
+    case TKKeyword_check:
     case TKKeyword_return:
         return 25;
     case TKOpAssign:

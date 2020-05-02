@@ -4,12 +4,12 @@ DIAG=
 
 %.bin: %.ch chstd.h checkstd.h
 	./comp $< $(DIAG) > $@.c && cc -O0 $@.c -o $@
-	rm $@.c
+#	rm $@.c
 
 %-d.bin: %.ch chstd.h checkstd.h
 	./comp $< $(DIAG) > $@.c && cc -O0 -g -Werror -DDEBUG $@.c -o $@
-	rm $@.c
+#	rm $@.c
 
 %-f.bin: %.ch chstd.h checkstd.h
 	./comp $< $(DIAG) > $@.c && cc -O3 -DNOSTACKCHECK -DNONULLCHECK -DNOBOUNDSCHECK $@.c -o $@
-	rm $@.c
+#	rm $@.c

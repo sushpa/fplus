@@ -93,6 +93,52 @@ static bool mustPromote(const char* name)
     return false;
 }
 
+// given an expr, generate code to print all the resolved vars in it (only
+// scalars). for example in f(x + 4) + m + y[5:6], the following should be
+// generated
+// printf("x = %?\n", x);
+// printf("m = %?\n", m);
+// checks will print the vars involved in the check expr, if the check
+// fails. This routine will be used there.
+static void ASTExpr_genPrintVars(ASTExpr* expr, int level)
+{
+    assert(expr);
+    // what about func args?
+    switch (expr->kind) {
+    case TKIdentifierResolved:
+        printf("%.*sprintf(\"|   %s = %s\\n\", %s);\n", level, spaces,
+            expr->var->name, TypeType_format(expr->typeType, true),
+            expr->var->name);
+        // printf("printf(\"%%s:%d:%d: %s = %s\\n\", THISFILE, %s);\n",
+        //     expr->line, expr->col, expr->var->name,
+        //     TypeType_format(expr->typeType, true), expr->var->name);
+        break;
+    case TKVarAssign:
+        printf("%.*sprintf(\"|   %s = %s\\n\", %s);\n", level, spaces,
+            expr->var->name,
+            TypeType_format(expr->var->init->typeType, true),
+            expr->var->name);
+        ASTExpr_genPrintVars(expr->var->init, level);
+        break;
+    case TKFunctionCallResolved:
+    case TKFunctionCall: // shouldnt happen
+    case TKSubscriptResolved:
+    case TKSubscript:
+    case TKKeyword_if:
+    case TKKeyword_for:
+    case TKKeyword_while:
+        ASTExpr_genPrintVars(expr->left, level);
+        break;
+
+    default:
+        if (expr->opPrec) {
+            if (not expr->opIsUnary)
+                ASTExpr_genPrintVars(expr->left, level);
+            ASTExpr_genPrintVars(expr->right, level);
+        }
+    }
+}
+
 // Promotion scan & promotion happens AFTER resolving functions!
 static ASTExpr* ASTExpr_promotionCandidate(ASTExpr* expr)
 {
@@ -148,6 +194,76 @@ static char* newTmpVarName(int num)
     int l = snprintf(buf, 8, "_%d", num);
     return pstrndup(buf, l);
 }
+static void ASTScope_lowerElementalOps(ASTScope* scope)
+{
+    //    int tmpCount = 0;
+    foreach (ASTExpr*, stmt, stmts, scope->stmts) {
+
+        if (stmt->kind == TKKeyword_if //
+            or stmt->kind == TKKeyword_for //
+            or stmt->kind == TKKeyword_while //
+            or stmt->kind == TKKeyword_else //
+                and stmt->body)
+            ASTScope_lowerElementalOps(stmt->body);
+
+        if (not stmt->isElementalOp) continue;
+
+        // wrap it in an empty block (or use if true)
+        ASTExpr* ifblk = NEW(ASTExpr);
+        ifblk->kind = TKKeyword_if;
+        ifblk->left = NEW(ASTExpr);
+        ifblk->left->kind = TKNumber;
+        ifblk->string = "1";
+
+        // look top-down for subscripts. if you encounter a node with
+        // isElementalOp=false, don't process it further even if it may have
+        // ranges inside. e.g.
+        // vec[7:9] = arr2[6:8] + sin(arr2[-6:-1:-4]) + test[[8,6,5]]
+        // + 3 + count(vec[vec < 5]) + M ** x[-8:-1:-4]
+        // the matmul above is not
+        // elemental, but the range inside it is.
+        // the Array_count_filter will be promoted and isnt elemental
+        // (unless you plan to set elemental op on boolean subscripts.)
+        // Even so, count is a reduce op and will unset isElementalOp.
+        // --
+        // as you find each subscript, add 2 local vars to the ifblk body
+        // so then you might have for the above example :
+        // T* vec_p1 = vec->start + 7;
+        // // ^ this func could be membptr(a,i) -> i<0 ? a->end-i :
+        // a->start+i #define vec_1 *vec_p1 // these could be ASTVars with
+        // an isCMacro flag T2* arr2_p1 = membptr(arr2, 6); #define arr2_1
+        // *arr2_p1 T3* arr2_p2 = membptr(arr2, -6); #define arr2_2 *arr2_p2
+        // ...
+        // // now add vars for each slice end and delta
+        // const T* const vec_e1 = vec->start + 9; // use membptr
+        // const T2* const arr2_e1 = arr2->start + 8; // membptr
+        // const T3* const arr2_e2 = membptr(arr2, -4);
+        // what about test[[8,6,5]]?
+        // const T* const vec_d1 = 1;
+        // const T2* const arr2_d1 = 1;
+        // const T3* const arr2_d2 = -1;
+        // ...
+        // // the ends (and starts) could be used for BC.
+        // ...
+        // // now add a check / separate checks for count match and bounds
+        // check_span1deq(vec_e1,vec_p1,arr2_e1,arr2_p1,col1,col2,"vec[7:9]","arr2[6:8]",__FILE__,__LINE__);
+        // check_span1deq(arr2_e1,arr2_p1,arr2_e2,arr2_p2,col1,col2,"arr2[6:8]","arr2[-6:-4]",__FILE__,__LINE__);
+        // check_inbounds1d(vec, vec_p1, vec_e1,col1,
+        // "vec[7:9]",__FILE__,__LINE__) check_inbounds1d(arr2, arr2_p1,
+        // arr2_e1,col1, "arr2[6:8]",__FILE__,__LINE__) now change the
+        // subscripts in the stmt to unresolved idents, and change the ident
+        // by appending _1, _2 etc. based on their position. so when they
+        // are generated they will refer to the current item of that array.
+        // then wrap the stmt in a for expr 'forblk'. put the for expr in
+        // ifblk. the active scope is now the for's body. generate the stmt.
+        // it should come out in scalar form if all went well.. add
+        // increments for each ptr. vec_p1 += vec_d1; arr2_p1 += arr2_d1;
+        // arr2_p2 += arr2_d2;
+        // ...
+        // all done, at the end put the ifblk at the spot of stmt in the
+        // original scope. stmt is already inside ifblk inside forblk.
+    }
+}
 
 static void ASTScope_promoteCandidates(ASTScope* scope)
 {
@@ -158,11 +274,12 @@ static void ASTScope_promoteCandidates(ASTScope* scope)
         // TODO:
         // if (not stmt->flags.mayNeedPromotion) {prev=stmts;continue;}
 
-        if (stmt->kind == TKKeyword_if or stmt->kind == TKKeyword_for
-            or stmt->kind == TKKeyword_while
-            or stmt->kind == TKKeyword_else and stmt->body) {
+        if (stmt->kind == TKKeyword_if //
+            or stmt->kind == TKKeyword_for //
+            or stmt->kind == TKKeyword_while //
+            or stmt->kind == TKKeyword_else //
+                and stmt->body)
             ASTScope_promoteCandidates(stmt->body);
-        }
 
     startloop:
 
@@ -260,6 +377,8 @@ static void ASTScope_genc(ASTScope* scope, int level)
         else
             puts("");
         // convert this into a flag which is set in the resolution pass
+        // ASTExpr_genPrintVars(stmt); // just for kicks
+        // puts("//--//");
         if (ASTExpr_canThrow(stmt))
             puts("    if (_err_ == ERROR_TRACE) goto backtrace;");
     }
@@ -537,7 +656,7 @@ static void ASTExpr_genc(ASTExpr* expr, int level, bool spacing,
         if (expr->left)
             ASTExpr_genc(expr->left, 0, false, true, escStrings);
 
-        if (strcmp(tmp, "print")) {
+        if (strcmp(tmp, "print")) { // FIXME
             // more generally this IF is for those funcs that are
             // standard and dont need any instrumentation
             printf("\n#ifdef DEBUG\n"
@@ -826,7 +945,80 @@ static void ASTExpr_genc(ASTExpr* expr, int level, bool spacing,
         ASTExpr_genc(expr->right, 0, spacing, inFuncArgs, escStrings);
         printf(";}\n");
         break;
+    case TKKeyword_check:
+        // switch (expr->right->kind) {
+        // case TKOpLE:
+        // case TKOpLT:
+        // case TKOpGE:
+        // case TKOpGT:
+        // case TKOpNE:
+        // case TKOpEQ:
+        // case TKKeyword_and:
+        // case TKKeyword_or:
+        // case TKKeyword_not:
+        printf("{\n");
+        if (not expr->right->opIsUnary) {
+            printf("%.*s%s _lhs = ", level, spaces,
+                ASTExpr_typeName(expr->right->left));
+            ASTExpr_genc(expr->right->left, 0, spacing, false, false);
+            printf(";\n");
+        }
+        printf("%.*s%s _rhs = ", level, spaces,
+            ASTExpr_typeName(expr->right->right));
+        ASTExpr_genc(expr->right->right, 0, spacing, false, false);
+        printf(";\n");
+        printf("%.*sif (not(", level, spaces);
+        // ASTExpr_genc(expr->right, 0, spacing, false, false);
+        printf("%s%s_rhs", expr->right->opIsUnary ? "" : "_lhs",
+            TokenKind_repr(expr->right->kind, true));
+        printf(")) {\n");
+        // printf("%.*sprintf(\"\\n%%s\\n\",_undersc72_);\n", level + STEP,
+        // spaces);
+        printf("%.*sprintf(\"\\n|\\n| check failed at ./%%s:%d:\\n|   "
+               "%%s\\n|\\n| because\\n\", "
+               "THISFILE, \"",
+            level + STEP, spaces, expr->line);
+        ASTExpr_gen(expr->right, 0, spacing, true);
+        printf("\");\n");
 
+        if (not expr->right->opIsUnary) {
+            // dont print literals or arrays
+            if (expr->right->left->collectionType == CTYNone) {
+                printf(
+                    "%.*s%s", level + STEP, spaces, "printf(\"|   %s = ");
+                printf("%s",
+                    TypeType_format(expr->right->left->typeType, true));
+                printf("%s", "\\n\", \"");
+                ASTExpr_gen(expr->right->left, 0, spacing, true);
+                printf("%s", "\", _lhs);\n");
+            }
+        }
+        if (expr->right->right->collectionType == CTYNone) {
+            printf("%.*s%s", level + STEP, spaces, "printf(\"|   %s = ");
+            printf(
+                "%s", TypeType_format(expr->right->right->typeType, true));
+            printf("%s", "\\n\", \"");
+            ASTExpr_gen(expr->right->right, 0, spacing, true);
+            printf("%s", "\", _rhs);\n");
+        }
+        // ASTExpr_gen(expr->right->right, 0, spacing, true);
+
+        ASTExpr_genPrintVars(expr->right, level + STEP);
+        // printf(
+        //     "%.*sprintf(\"%%s\\n\",_undersc72_);\n", level + STEP,
+        //     spaces);
+        printf("%.*sprintf(\"|\\n\");\n", level + STEP, spaces);
+        printf("\n%.*s}\n", level, spaces);
+        printf("%.*s}", level, spaces);
+        break;
+
+        // default:
+        //     assert(0); // NO, just allow whatever. I think in fact we
+        //     don't
+        //                // need the switch at all
+        //     break;
+        // }
+        break;
     default:
         if (not expr->opPrec) break;
         // not an operator, but this should be error if you reach here

@@ -116,6 +116,8 @@ typedef CStrings Strings;
 #define print printf
 #define String_print puts
 #define Scalar_print(x) printf("%g\n", x)
+#define String_describe(x) printf("%s = \"%s\"\n", #x, x)
+#define Scalar_describe(x) printf("%s = %g\n", #x, x)
 
 static Scalar Strings_main(const Strings a
 #ifdef DEBUG
@@ -125,6 +127,10 @@ static Scalar Strings_main(const Strings a
 );
 
 static const char* _err_ = NULL;
+
+static const char* _undersc72_ = "------------------------"
+                                 "------------------------"
+                                 "------------------------";
 
 int main(int argc, char* argv[])
 {

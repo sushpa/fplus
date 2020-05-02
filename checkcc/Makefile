@@ -3,13 +3,13 @@ all: checkc.bin
 CCFLAGS=-std=c99 -Werror
 CPP=gcc
 
-checkc.bin: main.c *.h
+checkc.bin: main.c chstd.h cycle.h errors.h gen.h genc.h gencpp.h genlua.h hash.h resolve.h   token.h tokenKind.h typecheck.h zutest.h
 	$(CPP) -O3 $(CCFLAGS) $< -lc -o $@
 
-checkc-s.bin: main.c *.h
+checkc-s.bin: main.c chstd.h cycle.h errors.h gen.h genc.h gencpp.h genlua.h hash.h resolve.h   token.h tokenKind.h typecheck.h zutest.h
 	$(CPP) -Os $(CCFLAGS) $< -lc -o $@
 
-checkc-d.bin: main.c *.h
+checkc-d.bin: main.c chstd.h cycle.h errors.h gen.h genc.h gencpp.h genlua.h hash.h resolve.h   token.h tokenKind.h typecheck.h zutest.h
 	$(CPP) -g -O0 $(CCFLAGS) $< -lc -o $@
 
 clean:

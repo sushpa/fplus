@@ -274,7 +274,7 @@ static const char* TypeType_name(TypeTypes tyty)
 }
 
 // these are DEFAULTS
-static const char* TypeType_format(TypeTypes tyty)
+static const char* TypeType_format(TypeTypes tyty, bool quoted)
 {
     switch (tyty) {
     case TYUnresolved:
@@ -287,7 +287,7 @@ static const char* TypeType_format(TypeTypes tyty)
                  // TYObjects. maybe rename it
         return "%lu";
     case TYString:
-        return "%s";
+        return quoted ? "\\\"%s\\\"" : "%s";
     case TYBool:
         return "%d";
         // above this, ie. > 4 or >= TYInt8, all may have units |kg.m/s etc.
@@ -552,8 +552,8 @@ typedef struct ASTExpr {
         uint16_t line;
         union {
             struct {
-                uint16_t typeType : 6, canThrow : 1, opIsUnary : 1,
-                    collectionType : 6, mayNeedPromotion : 1,
+                uint16_t typeType : 5, isElementalOp : 1, canThrow : 1,
+                    opIsUnary : 1, collectionType : 6, mayNeedPromotion : 1,
                     opIsRightAssociative : 1;
             };
             uint16_t strLen;
@@ -610,7 +610,8 @@ typedef struct ASTFunc {
             uint16_t usesIO : 1, nothrow : 1, isRecursive : 1, usesNet : 1,
                 usesGUI : 1, usesSerialisation : 1, isExported : 1,
                 usesReflection : 1, nodispatch : 1, isStmt : 1,
-                isDeclare : 1, isCalledFromWithinLoop : 1;
+                isDeclare : 1, isCalledFromWithinLoop : 1,
+                isElementalFunc : 1;
         } flags; //= { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
         uint8_t argCount;
     };
@@ -1262,7 +1263,8 @@ static ASTExpr* parseExpr(Parser* this)
 
     // ******* STEP 1 CONVERT TOKENS INTO RPN
 
-    while (this->token.kind != TKNullChar and this->token.kind != TKNewline
+    while (this->token.kind != TKNullChar //
+           and this->token.kind != TKNewline
         and this->token.kind != TKLineComment) { // build RPN
 
         // you have to ensure that ops have a space around them, etc.
@@ -1349,6 +1351,8 @@ static ASTExpr* parseExpr(Parser* this)
                 PtrArray_push(&rpn, p);
 
             break;
+        case TKKeyword_check:
+            PtrArray_push(&ops,expr);break;
         case TKKeyword_return:
             // for empty return, push a NULL if there is no expr coming.
             PtrArray_push(&ops, expr);
@@ -2139,6 +2143,7 @@ static List(ASTModule) * parseModule(Parser* this)
               // resolveVars should be part of astscope
               // resolveTypeSpecs(this, stmt, root);
 
+            if (not this->errCount) ASTScope_lowerElementalOps(func->body);
             if (not this->errCount) ASTScope_promoteCandidates(func->body);
             // no point doing code motion if there were errors
         }

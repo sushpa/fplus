@@ -5,10 +5,12 @@ static void setExprTypeInfo(Parser* self, ASTExpr* expr, bool inFuncArgs)
     switch (expr->kind) {
     case TKIdentifierResolved:
         expr->typeType = expr->var->typeSpec->typeType;
+        expr->isElementalOp = false;
         break;
     case TKSubscriptResolved:
         expr->typeType = expr->var->typeSpec->typeType;
         setExprTypeInfo(self, expr->left, false); // check args
+        expr->isElementalOp = expr->left->isElementalOp;
         // TODO: check args in the same way as for funcs below, not directly
         // checking expr->left.
         break;
@@ -24,6 +26,14 @@ static void setExprTypeInfo(Parser* self, ASTExpr* expr, bool inFuncArgs)
             setExprTypeInfo(
                 self, expr->left, true); // but this call shouldn't check
             // for equal types on both sides of a comma
+
+            expr->isElementalOp = expr->left->isElementalOp
+                and expr->func->flags.isElementalFunc;
+            // isElementalFunc means the func is only defined for (all)
+            // scalar arguments and another definition for vector args
+            // doesn't exist. Basically during typecheck this should see
+            // if a type mismatch is only in terms of collectionType.
+
             ASTExpr* currArg = expr->left;
             foreach (ASTVar*, arg, args, expr->func->args) {
                 ASTExpr* cArg
@@ -45,19 +55,23 @@ static void setExprTypeInfo(Parser* self, ASTExpr* expr, bool inFuncArgs)
         break;
     case TKString:
         expr->typeType = TYString;
+        expr->isElementalOp = false;
         break;
     case TKNumber:
         expr->typeType = TYReal64;
+        expr->isElementalOp = false;
         break;
     case TKVarAssign:
         setExprTypeInfo(self, expr->var->init, false);
+        expr->isElementalOp = expr->var->init->isElementalOp;
+
         if (not expr->var->typeSpec->typeType)
             expr->var->typeSpec->typeType = expr->var->init->typeType;
         else if (expr->var->typeSpec->typeType != expr->var->init->typeType)
             Parser_errorTypeMismatchBinOp(self, expr);
         break;
 
-    case TKKeyword_if:
+    case TKKeyword_if: // elemental ops in if cond?
     case TKKeyword_for:
     case TKKeyword_else:
     case TKKeyword_while: {
@@ -72,6 +86,13 @@ static void setExprTypeInfo(Parser* self, ASTExpr* expr, bool inFuncArgs)
                 setExprTypeInfo(self, expr->left, inFuncArgs);
             setExprTypeInfo(self, expr->right, inFuncArgs);
             expr->typeType = expr->right->typeType;
+            expr->isElementalOp
+                = expr->right->isElementalOp or expr->kind == TKOpColon;
+            // TODO: actually, indexing by an array of integers is also an
+            // indication of an elemental op
+            if (not expr->opIsUnary)
+                expr->isElementalOp
+                    = expr->isElementalOp or expr->left->isElementalOp;
 
             if (not expr->opIsUnary
                 and not(inFuncArgs

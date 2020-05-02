@@ -164,6 +164,7 @@ static char Token_peekCharAfter(Token* this)
 // accordingly.
 static void Token_tryKeywordMatch(Token* this)
 {
+    // TODO: USE A DICT OR MPH FOR THIS!
     if (this->kind != TKIdentifier) return;
 
     const char* s = this->pos;
@@ -186,7 +187,7 @@ static void Token_tryKeywordMatch(Token* this)
     Token_compareKeyword(in)
     Token_compareKeyword(else)
     Token_compareKeyword(type)
-    //        Token_compareKeyword(check)
+    Token_compareKeyword(check)
     Token_compareKeyword(extends)
     Token_compareKeyword(var)
     Token_compareKeyword(let)
@@ -194,7 +195,14 @@ static void Token_tryKeywordMatch(Token* this)
     Token_compareKeyword(return)
     Token_compareKeyword(returns)
     Token_compareKeyword(as)
+    // Token_compareKeyword(elif)
+
     //        Token_compareKeyword(print);
+    //     if (sizeof("else if") - 1 == l and not strncmp("else if", s, l))
+    // {
+    //     this->kind = TKKeyword_elseif;
+    //     return;
+    // }
 }
 
 // Get the token kind based only on the char at the current position
