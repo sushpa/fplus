@@ -1,7 +1,16 @@
 static void checkBinOpTypeMismatch(Parser* self, ASTExpr* expr) {}
 
+static void setStmtFuncTypeInfo(Parser* self, ASTFunc* func) {
+// this assumes that setExprTypeInfo has been called on the func body
+    const ASTExpr* stmt = func->body->stmts->item;
+    if (not func->returnType->typeType)
+        func->returnType->typeType = stmt->typeType;
+    else if (func->returnType->typeType != stmt->typeType)
+        Parser_errorTypeMismatchBinOp(self, stmt);
+ }
+
 static void setExprTypeInfo(Parser* self, ASTExpr* expr, bool inFuncArgs)
-{
+{//return;
     switch (expr->kind) {
     case TKIdentifierResolved:
         expr->typeType = expr->var->typeSpec->typeType;
@@ -63,6 +72,7 @@ static void setExprTypeInfo(Parser* self, ASTExpr* expr, bool inFuncArgs)
         break;
     case TKVarAssign:
         setExprTypeInfo(self, expr->var->init, false);
+        expr->typeType = expr->var->init->typeType;
         expr->isElementalOp = expr->var->init->isElementalOp;
 
         if (not expr->var->typeSpec->typeType)
@@ -98,21 +108,35 @@ static void setExprTypeInfo(Parser* self, ASTExpr* expr, bool inFuncArgs)
                 and not(inFuncArgs
                     and (expr->kind == TKOpComma
                         or expr->kind == TKOpAssign))) {
-                // ignore , and = inside function calls.
+                TypeTypes leftType = expr->left->typeType;
+                TypeTypes rightType = expr->right->typeType;
+
+                // ignore , and = inside function call arguments.
                 // thing is array or dict literals passed as args will have
                 // , and = which should be checked. so when you descend into
                 // their args, unset inFuncArgs.
 
-                if (expr->left->typeType != expr->right->typeType)
+                if (leftType != rightType)
                     Parser_errorTypeMismatchBinOp(self, expr);
                 // TODO: as it stands, "x" + "y" wont be an error because
                 // types are consistent. BUT types should also be valid for
                 // that operator: in general operators are defined only for
                 // numeric types and some keywords for logicals.
-                else if (not TypeType_isnum(expr->left->typeType))
+                else if (leftType == TYString and //
+                    (expr->kind == TKOpAssign //
+                        or expr->kind == TKOpEQ //
+                        or expr->kind == TKPlusEq))
+                    ;
+                else if (leftType == TYBool and //
+                    (expr->kind == TKOpAssign //
+                        or expr->kind == TKOpEQ
+                        or expr->kind == TKKeyword_and
+                        or expr->kind == TKKeyword_or))
+                    ;
+                else if (not TypeType_isnum(leftType))
                     Parser_errorInvalidTypeForOp(self, expr);
 
-                expr->typeType = expr->left->typeType;
+                expr->typeType = leftType;
             }
             // TODO: here statements like return etc. that are not binary
             // but need to have their types checked w.r.t. an expected type

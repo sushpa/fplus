@@ -52,9 +52,9 @@ static void Parser_errorInvalidTypeMember(Parser* this)
 static void Parser_errorUnrecognizedVar(Parser* this, ASTExpr* expr)
 {
     eprintf("\n(%d) \e[31merror:\e[0m unknown variable "
-            "\e[34m%.*s\e[0m at "
+            "\e[34m%s\e[0m at "
             "%s%s:%d:%d\n",
-        this->errCount + 1, expr->strLen, expr->string,
+        this->errCount + 1,  expr->string,
         RELF(this->filename), expr->line, expr->col);
     Parser_errorIncrement(this);
 }
@@ -77,9 +77,9 @@ static void Parser_errorUnrecognizedFunc(
     Parser* this, ASTExpr* expr, const char* selector)
 {
     eprintf("\n(%d) \e[31merror:\e[0m can't resolve call to "
-            "\e[34m%.*s\e[0m at %s%s:%d:%d\n"
+            "\e[34m%s\e[0m at %s%s:%d:%d\n"
             "        selector is \e[34m%s\e[0m\n",
-        this->errCount + 1, expr->strLen, expr->string,
+        this->errCount + 1,  expr->string,
         RELF(this->filename), expr->line, expr->col, selector);
     Parser_errorIncrement(this);
 }
@@ -137,7 +137,7 @@ static void Parser_errorUnrecognizedType(
     Parser_errorIncrement(this);
 }
 
-static void Parser_errorTypeMismatchBinOp(Parser* this, ASTExpr* expr)
+static void Parser_errorTypeMismatchBinOp(Parser* this, const ASTExpr* expr)
 {
     eprintf("\n(%d) \e[31merror:\e[0m type mismatch for operands of '"
             "\e[34m%s\e[0m' at %s%s:%d:%d\n",
@@ -146,7 +146,15 @@ static void Parser_errorTypeMismatchBinOp(Parser* this, ASTExpr* expr)
     Parser_errorIncrement(this);
 }
 
-static void Parser_errorInvalidTypeForOp(Parser* this, ASTExpr* expr)
+static void Parser_errorReadOnlyVar(Parser* this, const ASTExpr* expr)
+{
+    eprintf("\n(%d) \e[31merror:\e[0m mutating read-only variable '"
+            "\e[34m%s\e[0m' at %s%s:%d:%d\n",
+        this->errCount + 1, expr->var->name, RELF(this->filename),
+        expr->line, expr->col);
+    Parser_errorIncrement(this);
+}
+static void Parser_errorInvalidTypeForOp(Parser* this, const ASTExpr* expr)
 {
     eprintf("\n(%d) \e[31merror:\e[0m invalid types for operator '"
             "\e[34m%s\e[0m' at %s%s:%d:%d\n",
@@ -179,9 +187,8 @@ static void Parser_errorUnexpectedToken(Parser* this)
 static void Parser_errorUnexpectedExpr(Parser* this, const ASTExpr* expr)
 {
     eprintf("\n(%d) \e[31merror:\e[0m at %s%s:%d:%d\n"
-            "      unexpected expr '%.*s'",
+            "      unexpected expr '%s'",
         this->errCount + 1, RELF(this->filename), expr->line, expr->col,
-        expr->opPrec ? 100 : expr->strLen,
         expr->opPrec ? TokenKind_repr(expr->kind, false) : expr->name);
     Parser_errorIncrement(this);
 }

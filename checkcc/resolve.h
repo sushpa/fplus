@@ -1,8 +1,10 @@
 
-static void resolveTypeSpec(Parser* this, ASTTypeSpec* typeSpec, ASTModule* mod)
+static void resolveTypeSpec(
+    Parser* this, ASTTypeSpec* typeSpec, ASTModule* mod)
 {
     // TODO: disallow a type that derives from itself!
     if (typeSpec->typeType != TYUnresolved) return;
+    if (not *typeSpec->name) return;
 
     // TODO: DO THIS IN PARSE... stuff!!
 
@@ -34,7 +36,8 @@ static void resolveTypeSpec(Parser* this, ASTTypeSpec* typeSpec, ASTModule* mod)
 // TODO: Btw there should be a module level scope to hold lets (and
 // comments). That will be the root scope which has parent==NULL.
 
-static void resolveFuncsAndTypes(Parser* this, ASTExpr* expr, ASTModule* mod)
+static void resolveFuncsAndTypes(
+    Parser* this, ASTExpr* expr, ASTModule* mod)
 { // TODO: what happens if you get a TKSubscriptResolved?
 
     switch (expr->kind) {
@@ -125,8 +128,8 @@ static void resolveVars(
         ASTScope* scp = scope;
         do {
             foreach (ASTVar*, local, locals, scp->locals) {
-                if (not strncasecmp(expr->name, local->name, expr->strLen)
-                    and local->name[expr->strLen] == '\0') {
+                if (not strcasecmp(expr->name, local->name)
+                    ) {
                     expr->kind = ret;
                     expr->var = local; // this overwrites name btw
                     goto getout;
@@ -136,6 +139,7 @@ static void resolveVars(
         } while (scp);
         Parser_errorUnrecognizedVar(this, expr);
     getout:
+        expr->var->flags.used = true;
         if (ret == TKSubscriptResolved) {
             resolveVars(this, expr->left, scope, inFuncCall);
             // check subscript argument count
@@ -151,18 +155,37 @@ static void resolveVars(
         if (expr->left) resolveVars(this, expr->left, scope, true);
         break;
 
-    case TKOpAssign:
-        // behaves differently inside a func call and otherwise
-        if (not inFuncCall)
-            resolveVars(this, expr->left, scope, inFuncCall);
-        resolveVars(this, expr->right, scope, inFuncCall);
-        break;
+        // case TKOpAssign:
+        //         // behaves differently inside a func call and otherwise
+
+        //         if (not inFuncCall)
+        //             resolveVars(this, expr->left, scope, inFuncCall);
+        //     resolveVars(this, expr->right, scope, inFuncCall);
+        //             if (expr->kind == TKPlusEq or expr->kind == TKMinusEq
+        //         or expr->kind == TKSlashEq or expr->kind == TKTimesEq
+        //         or expr->kind == TKPowerEq
+        //         or expr->kind == TKOpModEq
+        //             and (expr->left->kind == TKIdentifierResolved
+        //                 or expr->left->kind == TKSubscriptResolved))
+        //         expr->var->flags.changed = true;
+        //     break;
 
     default:
         if (expr->opPrec) {
-            if (not expr->opIsUnary)
+            if (not expr->opIsUnary
+                and not(inFuncCall and expr->kind == TKOpAssign))
                 resolveVars(this, expr->left, scope, inFuncCall);
             resolveVars(this, expr->right, scope, inFuncCall);
+        }
+        if (expr->kind == TKPlusEq or expr->kind == TKMinusEq
+            or expr->kind == TKSlashEq or expr->kind == TKTimesEq
+            or expr->kind == TKPowerEq or expr->kind == TKOpModEq
+            or expr->kind == TKOpAssign
+                and (expr->left->kind == TKIdentifierResolved
+                    or expr->left->kind == TKSubscriptResolved)) {
+            expr->left->var->flags.changed = true;
+            if (expr->left->var->flags.isLet)
+                Parser_errorReadOnlyVar(this, expr->left);
         }
     }
 }

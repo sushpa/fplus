@@ -316,7 +316,7 @@ static void Token_detect(Token* this)
             this->pos++;
             tt = Token_getType(this, 0);
             if (tt == TKNullChar or tt == tmp) {
-                this->pos++;
+                *this->pos++ = 0;
                 break;
             }
             if (tt == TKBackslash)

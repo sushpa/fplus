@@ -203,47 +203,7 @@ typedef enum TypeTypes {
 } TypeTypes;
 
 static bool TypeType_isnum(TypeTypes tyty) { return tyty >= TYInt8; }
-/*
-const char* TypeType_nativeName(TypeTypes tyty)
-{
-    switch (tyty) {
-    case TYUnresolved:
-        return NULL;
-    case TYObject:
-        return "";
-    case TYSize: // this is actually uintptr_t, since actual ptrs are
-                 // TYObjects. maybe rename it
-        return "size_t";
-    case TYString:
-        return "char*";
-    case TYBool:
-        return "bool_t";
-        // above this, ie. > 4 or >= TYInt8, all may have units |kg.m/s etc.
-    case TYInt8:
-        return "int8_t";
-    case TYUInt8:
-        return "uint8_t";
-    case TYInt16:
-        return "int16_t";
-    case TYUInt16:
-        return "uint16_t";
-    case TYInt32:
-        return "int32_t";
-    case TYUInt32:
-        return "uint32_t";
-    case TYInt64: // for loop indices start out as size_t by default
-        return "int64_t";
-    case TYUInt64:
-        return "uint64_t";
-    case TYReal16:
-        return "float_half";
-    case TYReal32:
-        return "float";
-    case TYReal64: // Numbers start out with Real64 by default
-        return "double";
-    }
-}
-*/
+
 static const char* TypeType_name(TypeTypes tyty)
 {
     switch (tyty) {
@@ -266,7 +226,6 @@ static const char* TypeType_name(TypeTypes tyty)
     case TYUInt32:
     case TYInt64:
     case TYUInt64:
-    // case TYReal16:
     case TYReal32:
     case TYReal64:
         return "Scalar";
@@ -309,8 +268,6 @@ static const char* TypeType_format(TypeTypes tyty, bool quoted)
         return "%d";
     case TYUInt64:
         return "%u";
-    // case TYReal16:
-    // return "%g";
     case TYReal32:
         return "%g";
     case TYReal64: // Numbers start out with Real64 by default
@@ -349,8 +306,6 @@ static unsigned int TypeType_size(TypeTypes tyty)
         return 8;
     case TYUInt64:
         return 8;
-    // case TYReal16:
-    // return 2;
     case TYReal32:
         return 4;
     case TYReal64:
@@ -366,13 +321,12 @@ static unsigned int TypeType_size(TypeTypes tyty)
 // (e.g. func args)
 static TypeTypes TypeType_byName(const char* spec)
 {
-    // does NOT use strncmp!
     if (not spec) return TYUnresolved;
-    if (not strcmp(spec, "Scalar"))
+    if (not strcasecmp(spec, "Scalar"))
         return TYReal64; // this is default, analysis might change it to
                          // more specific
-    if (not strcmp(spec, "String")) return TYString;
-    if (not strcmp(spec, "Logical")) return TYBool;
+    if (not strcasecmp(spec, "String")) return TYString;
+    if (not strcasecmp(spec, "Logical")) return TYBool;
     // note that Vector, Matrix, etc. are actually types, so they should
     // resolve to TYObject.
     return TYUnresolved;
@@ -485,7 +439,6 @@ MKSTAT(ASTVar)
 MKSTAT(Parser)
 MKSTAT(List_ASTExpr)
 MKSTAT(List_ASTFunc)
-// MKSTAT(List_ASTTypeSpec)
 MKSTAT(List_ASTType)
 MKSTAT(List_ASTModule)
 MKSTAT(List_ASTScope)
@@ -536,14 +489,16 @@ typedef struct ASTVar {
     uint16_t line;
     uint8_t col;
     struct {
-        bool unused : 1, //
-            unchanged : 1, //
+        bool used : 1, //
+            changed : 1, //
             isLet : 1, //
             isVar : 1, //
-            isTarget : 1, //
+            isTarget : 1, // x = f(x,y)
+            printed : 1, // for checks, used to avoid printing this var more
+                         // than once.
             escapesFunc : 1; // for func args, does it escape the func?
                              // (returned etc.)
-        /* x = f(x,y) */ //
+
     } flags;
 } ASTVar;
 
@@ -556,13 +511,11 @@ typedef struct ASTExpr {
                     opIsUnary : 1, collectionType : 6, mayNeedPromotion : 1,
                     opIsRightAssociative : 1;
             };
-            uint16_t strLen;
-        }; // for literals, the string length
+        };
         uint8_t opPrec;
         uint8_t col;
         TokenKind kind : 8;
     };
-    // struct ASTTypeSpec* typeSpec;
     struct ASTExpr* left;
     union {
         // union {
@@ -577,7 +530,6 @@ typedef struct ASTExpr {
         struct ASTScope* body; // for if/for/while
         struct ASTExpr* right;
     };
-    // canThrow:1, mayNeedPromotion:1
     // TODO: the code motion routine should skip over exprs with
     // mayNeedPromotion=false this is set for exprs with func calls or array
     // filtering etc...
@@ -587,7 +539,6 @@ typedef struct ASTScope {
     List(ASTExpr) * stmts;
     List(ASTVar) * locals;
     struct ASTScope* parent;
-    // uint16_t tmpCount;
     // still space left
 } ASTScope;
 
@@ -612,7 +563,7 @@ typedef struct ASTFunc {
                 usesReflection : 1, nodispatch : 1, isStmt : 1,
                 isDeclare : 1, isCalledFromWithinLoop : 1,
                 isElementalFunc : 1;
-        } flags; //= { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+        } flags;
         uint8_t argCount;
     };
 } ASTFunc;
@@ -625,9 +576,7 @@ typedef struct ASTModule {
     List(ASTImport) * imports;
     List(ASTFunc) * tests;
     char* name;
-    char* moduleName; // mod.submod.xyz.mycode
-    // char* mangledName; // mod_submod_xyz_mycode
-    // char* capsMangledName; // MOD_SUBMOD_XYZ_MYCODE
+    char* moduleName;
 } ASTModule;
 
 #pragma mark - AST IMPORT IMPL.
@@ -664,20 +613,16 @@ static const char* ASTTypeSpec_name(ASTTypeSpec* this)
 }
 static const char* getDefaultValueForType(ASTTypeSpec* type)
 {
-    if (not type) return ""; // for no type e.g. void
-    if (not strcmp(type->name, "String")) return "\"\"";
-    if (not strcmp(type->name, "Scalar")) return "0";
-    if (not strcmp(type->name, "Int")) return "0";
-    if (not strcmp(type->name, "Int32")) return "0";
-    if (not strcmp(type->name, "UInt32")) return "0";
-    if (not strcmp(type->name, "UInt")) return "0";
-    if (not strcmp(type->name, "UInt64")) return "0";
-    if (not strcmp(type->name, "Int64")) return "0";
-    if (not strcmp(type->name, "Real32")) return "0";
-    if (not strcmp(type->name, "Real64")) return "0";
-    if (not strcmp(type->name, "Real")) return "0";
-    if (not strcmp(type->name, "Logical")) return "false";
-    return "NULL";
+    if (not type) return "";
+    switch (type->typeType) {
+    case TYUnresolved:
+        assert(0);
+        return "ERROR_ERROR_ERROR";
+    case TYString:
+        return "\"\"";
+    default:
+        return "0";
+    }
 }
 
 #pragma mark - AST EXPR IMPL.
@@ -689,7 +634,6 @@ static void expralloc_stat()
     for (int i = 0; i < 128; i++)
         sum += exprsAllocHistogram[i];
     thres = sum / 20;
-    // eputs("-------------------------------------------------------");
 
     eputs("\e[1mASTExpr allocation by kind \e[0m(those above 5% of "
           "total)\n  Kind    "
@@ -727,7 +671,6 @@ static ASTExpr* ASTExpr_fromToken(const Token* this)
     case TKNumber:
     case TKMultiDotNumber:
     case TKLineComment: // Comments go in the AST like regular stmts
-        ret->strLen = (uint16_t)this->matchlen;
         ret->string = this->pos;
         break;
     default:;
@@ -736,19 +679,11 @@ static ASTExpr* ASTExpr_fromToken(const Token* this)
     if (ret->kind == TKLineComment) ret->string++;
     // turn all 1.0234[DdE]+01 into 1.0234e+01.
     if (ret->kind == TKNumber) {
-        str_tr_ip(ret->string, 'd', 'e', ret->strLen);
-        str_tr_ip(ret->string, 'D', 'e', ret->strLen);
-        str_tr_ip(ret->string, 'E', 'e', ret->strLen);
+        str_tr_ip(ret->string, 'd', 'e', this->matchlen);
+        str_tr_ip(ret->string, 'D', 'e', this->matchlen);
+        str_tr_ip(ret->string, 'E', 'e', this->matchlen);
     }
     return ret;
-}
-
-union Value ASTExpr_eval(ASTExpr* this)
-{
-    // TODO: value is a union of whatever
-    union Value v;
-    v.d = 0;
-    return v;
 }
 
 static bool ASTExpr_canThrow(ASTExpr* this)
@@ -784,16 +719,6 @@ static bool ASTExpr_canThrow(ASTExpr* this)
     }
 }
 
-static TypeTypes evalType()
-{
-    // TODO:
-    // this func should return union {ASTType*; TypeTypes;} with the
-    // TypeTypes value reduced by 1 (since it cannot be unresolved and
-    // since 0 LSB would mean valid pointer (to an ASTType)).
-    // this func does all type checking too btw and reports errors.
-    return TYBool;
-}
-
 #pragma mark - AST VAR IMPL.
 
 #pragma mark - AST SCOPE IMPL.
@@ -801,8 +726,7 @@ static TypeTypes evalType()
 static size_t ASTScope_calcSizeUsage(ASTScope* this)
 {
     size_t size = 0, sum = 0, subsize = 0, maxsubsize = 0;
-    // all variables must be resolved before calling this, call it e.g.
-    // during cgen
+    // all variables must be resolved before calling this
     foreach (ASTExpr*, stmt, stmts, this->stmts) {
         switch (stmt->kind) {
         case TKKeyword_if:
@@ -812,10 +736,6 @@ static size_t ASTScope_calcSizeUsage(ASTScope* this)
             subsize = ASTScope_calcSizeUsage(stmt->body);
             if (subsize > maxsubsize) maxsubsize = subsize;
             break;
-        // case TKVarAssign:
-        //     assert(size = TypeType_size(stmt->var->typeSpec->typeType));
-        //     sum += size;
-        //     break;
         default:;
         }
     }
@@ -832,52 +752,11 @@ static size_t ASTScope_calcSizeUsage(ASTScope* this)
 static ASTVar* ASTScope_getVar(ASTScope* this, const char* name)
 {
     // stupid linear search, no dictionary yet
-    foreach (ASTVar*, local, locals, this->locals) {
-        if (not strcmp(name, local->name)) return local;
-    }
-    // in principle this will walk up the scopes, including the
-    // function's "own" scope (which has locals = func's args). It
-    // doesn't yet reach up to module scope, because there isn't yet a
-    // "module" scope.
+    foreach (ASTVar*, local, locals, this->locals)
+        if (not strcasecmp(name, local->name)) return local;
     if (this->parent) return ASTScope_getVar(this->parent, name);
     return NULL;
 }
-
-/*
- #pragma mark - AST NodeRef
-
- class ASTNodeRef {
- union {
- struct {
- uint64_t typ : 3, _danger : 45, _unused : 16;
- };
- uintptr_t uiptr;
- void* ptr = NULL;
- };
-
- public:
- enum NodeKind { NKVar, NKExpr, NKFunc, NKType, NKModule, NKTest };
-
- ASTNodeRef() {}
-
- ASTNodeRef(ASTVar* varNode)
- {
- ptr = varNode;
- typ = NKVar;
- }
-
- ASTNodeRef(ASTExpr* exprNode)
- {
- ptr = exprNode;
- typ = NKExpr;
- }
- inline uintptr_t getptr() { return (uiptr & 0xFFFFFFFFFFFFFFF8); }
- uint8_t kind() { return typ; } // this only takes values 0-7, 3 bits
- //--
- ASTVar* var() { return (ASTVar*)getptr(); }
- ASTExpr* expr() { return (ASTExpr*)getptr(); }
- };
- */
 
 #pragma mark - AST TYPE IMPL.
 
@@ -885,7 +764,7 @@ static ASTVar* ASTType_getVar(ASTType* this, const char* name)
 {
     // stupid linear search, no dictionary yet
     foreach (ASTVar*, var, vars, this->body->locals) {
-        if (not strcmp(name, var->name)) return var;
+        if (not strcasecmp(name, var->name)) return var;
     }
     if (this->super and this->super->typeType == TYObject)
         return ASTType_getVar(this->super->type, name);
@@ -924,7 +803,6 @@ static const char* ASTExpr_typeName(ASTExpr* this)
         return "String";
     case TKRegex:
         return "RegEx";
-        // case TKFunctionCall: return this->name;
     case TKFunctionCallResolved: {
         const char* name = TypeType_name(this->func->returnType->typeType);
         if (!*name) name = this->func->returnType->type->name;
@@ -1065,13 +943,10 @@ typedef enum ParserMode {
 } ParserMode;
 
 typedef struct Parser {
-    // bring down struct size!
     char* filename; // mod/submod/xyz/mycode.ch
     char* moduleName; // mod.submod.xyz.mycode
     char* mangledName; // mod_submod_xyz_mycode
     char* capsMangledName; // MOD_SUBMOD_XYZ_MYCODE
-    // char* basename; // mycode
-    // char* dirname; // mod/submod/xyz
     char *data, *end;
     char* noext;
     Token token; // current
@@ -1086,10 +961,6 @@ typedef struct Parser {
                                // true when linting
 
 } Parser;
-
-// STHEAD_POOLB(Parser, 16)
-
-// size_t dataSize() { return end - data; }
 
 #define STR(x) STR_(x)
 #define STR_(x) #x
@@ -1159,8 +1030,6 @@ static Parser* Parser_fromFile(char* filename, bool skipws)
         ret->moduleName = str_tr(ret->noext, '/', '.');
         ret->mangledName = str_tr(ret->noext, '/', '_');
         ret->capsMangledName = str_upper(ret->mangledName);
-        // ret->basename = str_base(ret->noext, '/', flen);
-        // ret->dirname = str_dir(ret->noext);
         ret->end = ret->data + size;
         ret->token.pos = ret->data;
         ret->token.flags.skipWhiteSpace = skipws;
@@ -1255,8 +1124,7 @@ static ASTExpr* parseExpr(Parser* this)
     // stack, collapsing the stack when you find nonterminals (ops, func
     // calls, array index, ...)
 
-    // we could make this static and set len to 0 upon func exit
-    static PtrArray /* ASTExpr*, 32 */ rpn, ops, result;
+    static PtrArray rpn, ops, result;
     int prec_top = 0;
     ASTExpr* p = NULL;
     TokenKind revBrkt = TKUnknown;
@@ -1264,15 +1132,14 @@ static ASTExpr* parseExpr(Parser* this)
     // ******* STEP 1 CONVERT TOKENS INTO RPN
 
     while (this->token.kind != TKNullChar //
-           and this->token.kind != TKNewline
+        and this->token.kind != TKNewline
         and this->token.kind != TKLineComment) { // build RPN
 
         // you have to ensure that ops have a space around them, etc.
         // so don't just skip the one spaces like you do now.
         if (this->token.kind == TKOneSpace) Token_advance(&this->token);
         if (this->token.kind == TKIdentifier
-            and memchr(this->token.pos, '_', this->token.matchlen)
-            /*or doesKeywordMatch(expr->value.string, expr->strLen)*/)
+            and memchr(this->token.pos, '_', this->token.matchlen))
             Parser_errorInvalidIdent(this); // but continue parsing
 
         ASTExpr* expr = ASTExpr_fromToken(&this->token); // dont advance yet
@@ -1298,14 +1165,14 @@ static ASTExpr* parseExpr(Parser* this)
                 break;
             }
             break;
+
         case TKParenOpen:
             PtrArray_push(&ops, expr);
             if (not PtrArray_empty(&ops)
                 and PtrArray_topAs(ASTExpr*, &ops)->kind == TKFunctionCall)
                 PtrArray_push(&rpn, expr);
-            if (lookAheadChar == ')')
-                PtrArray_push(&rpn,
-                    NULL); // for empty func() push null for no args
+            if (lookAheadChar == ')') PtrArray_push(&rpn, NULL);
+            // for empty func() push null for no args
             break;
 
         case TKArrayOpen:
@@ -1313,9 +1180,8 @@ static ASTExpr* parseExpr(Parser* this)
             if (not PtrArray_empty(&ops)
                 and PtrArray_topAs(ASTExpr*, &ops)->kind == TKSubscript)
                 PtrArray_push(&rpn, expr);
-            if (lookAheadChar == ')')
-                PtrArray_push(&rpn,
-                    NULL); // for empty arr[] push null for no args
+            if (lookAheadChar == ')') PtrArray_push(&rpn, NULL);
+            // for empty arr[] push null for no args
             break;
 
         case TKParenClose:
@@ -1323,9 +1189,8 @@ static ASTExpr* parseExpr(Parser* this)
         case TKBraceClose:
 
             revBrkt = TokenKind_reverseBracket(expr->kind);
-            if (PtrArray_empty(
-                    &ops)) { // need atleast the opening bracket of
-                // the current kind
+            if (PtrArray_empty(&ops)) {
+                // need atleast the opening bracket of the current kind
                 Parser_errorParsingExpr(this);
                 goto error;
             }
@@ -1352,7 +1217,8 @@ static ASTExpr* parseExpr(Parser* this)
 
             break;
         case TKKeyword_check:
-            PtrArray_push(&ops,expr);break;
+            PtrArray_push(&ops, expr);
+            break;
         case TKKeyword_return:
             // for empty return, push a NULL if there is no expr coming.
             PtrArray_push(&ops, expr);
@@ -1360,7 +1226,7 @@ static ASTExpr* parseExpr(Parser* this)
                 PtrArray_push(&rpn, NULL);
             break;
         default:
-            if (prec) { // general operators
+            if (prec) {
 
                 if (expr->kind == TKOpColon) {
                     if (PtrArray_empty(&rpn)
@@ -1373,17 +1239,15 @@ static ASTExpr* parseExpr(Parser* this)
                             and (PtrArray_topAs(ASTExpr*, &ops)->kind
                                     == TKOpComma
                                 or PtrArray_topAs(ASTExpr*, &ops)->kind
-                                    == TKArrayOpen)) // <<-----
-                        // yesssssssssss
-                    )
+                                    == TKArrayOpen)))
                         // TODO: better way to parse :, 1:, :-1, etc.
                         // while passing tokens to RPN, if you see a :
                         // with nothing on the RPN or comma or [, push a
                         // NULL. while unwinding the op stack, if you
                         // pop a : and see a NULL or comma on the rpn,
                         // push another NULL.
-                        PtrArray_push(
-                            &rpn, NULL); // indicates empty operand
+                        PtrArray_push(&rpn, NULL);
+                    // indicates empty operand
                 }
                 while (not PtrArray_empty(&ops)) {
                     prec_top = PtrArray_topAs(ASTExpr*, &ops)->opPrec;
@@ -1404,21 +1268,15 @@ static ASTExpr* parseExpr(Parser* this)
 
                     if (not(p->opPrec or p->opIsUnary)
                         and p->kind != TKFunctionCall
-                        and p->kind != TKOpColon
-                        // in case of ::, second colon will add null
-                        // later
-                        and p->kind != TKSubscript and rpn.used < 2) {
+                        and p->kind != TKOpColon and p->kind != TKSubscript
+                        and rpn.used < 2) {
                         Parser_errorUnexpectedToken(this);
                         goto error;
-                        // TODO: even if you have more than two, neither
-                        // of the top two should be a comma
                     }
 
                     PtrArray_push(&rpn, p);
                 }
 
-                // when the first error is found in an expression, seek
-                // to the next newline and return NULL.
                 if (PtrArray_empty(&rpn)) {
                     Parser_errorUnexpectedToken(this);
                     goto error;
@@ -1475,6 +1333,7 @@ exitloop:
                 p->left = arg;
             }
             break;
+
         case TKNumber:
         case TKString:
         case TKRegex:
@@ -1515,10 +1374,6 @@ exitloop:
         goto error;
     }
 
-    // TODO: run evalType() and report errors
-
-    // for next invocation just set.used to 0, allocation will be
-    // reused
     ops.used = 0;
     rpn.used = 0;
     result.used = 0;
@@ -1546,7 +1401,7 @@ error:
                 printf("NUL ");
             else {
                 ASTExpr* e = rpn.ref[i];
-                printf("%.*s ", e->opPrec ? 100 : e->strLen,
+                printf("%s ",
                     e->opPrec ? TokenKind_repr(e->kind, false) : e->name);
             }
         puts("");
@@ -1559,19 +1414,17 @@ error:
                 printf("NUL ");
             else {
                 ASTExpr* e = result.ref[i];
-                printf("%.*s ", e->opPrec ? 100 : e->strLen,
+                printf("%s ",
                     e->opPrec ? TokenKind_repr(e->kind, false) : e->name);
             }
         puts("");
     }
 
     if (p) {
-        printf("      p: %.*s ", p->opPrec ? 100 : p->strLen,
+        printf("      p: %s ",
             p->opPrec ? TokenKind_repr(p->kind, false) : p->name);
         puts("");
     }
-
-    // if (rpn.used or ops.used or result.used) puts("");
 
     ops.used = 0; // "reset" stacks
     rpn.used = 0;
@@ -1637,16 +1490,11 @@ static ASTVar* parseVar(Parser* this)
         var->typeSpec = NEW(ASTTypeSpec);
         var->typeSpec->line = this->token.line;
         var->typeSpec->col = this->token.col;
-        var->typeSpec->name = "Scalar";
+        var->typeSpec->name = "";
     }
 
     Parser_ignore(this, TKOneSpace);
     if (Parser_ignore(this, TKOpAssign)) var->init = parseExpr(this);
-
-    // TODO: set default inferred type if typeSpec is NULL but init
-    // present.
-    //     const char* ctyp
-    // = TokenKind_defaultType(var->init ? var->init->kind : TKUnknown);
 
     return var;
 }
@@ -1678,10 +1526,7 @@ static ASTScope* parseScope(
     TokenKind tt = TKUnknown;
 
     scope->parent = parent;
-    //    while (this->token.kind == TKNewline or this->token.kind ==
-    //    TKOneSpace)
-    //        Token_advance(&this->token);
-    bool startedElse = false; //(this->token.kind == TKKeyword_else);
+    bool startedElse = false;
     while (this->token.kind != TKKeyword_end) {
 
         switch (this->token.kind) {
@@ -1693,7 +1538,10 @@ static ASTScope* parseScope(
         case TKKeyword_var:
         case TKKeyword_let:
             var = parseVar(this);
-            if (not var) continue;
+            if (not var)
+                continue;
+            else
+                Token_advance(&this->token);
             if ((orig = ASTScope_getVar(scope, var->name)))
                 Parser_errorDuplicateVar(this, var, orig);
             // TODO: why only idents and binops for resolveVars??
@@ -1719,15 +1567,13 @@ static ASTScope* parseScope(
 
         case TKKeyword_else:
             if (not startedElse) goto exitloop;
-            //            else
-            //                startedElse = false; // so that it
-            // fallthrough
+
         case TKKeyword_if:
         case TKKeyword_for:
         case TKKeyword_while:
             if (isTypeBody) Parser_errorInvalidTypeMember(this);
             tt = this->token.kind;
-            expr = match(this, tt); // will advance
+            expr = match(this, tt);
             expr->left = tt != TKKeyword_else ? parseExpr(this) : NULL;
 
             if (tt == TKKeyword_for) {
@@ -1759,8 +1605,7 @@ static ASTScope* parseScope(
 
             if (matches(this, TKKeyword_else)) {
                 startedElse = true;
-                //                 discard(this, TKKeyword_else);
-            } else { // if (matches(this, TKKeyword_end)) {
+            } else {
                 discard(this, TKKeyword_end);
                 discard(this, TKOneSpace);
                 discard(this, tt == TKKeyword_else ? TKKeyword_if : tt);
@@ -1783,18 +1628,13 @@ static ASTScope* parseScope(
 
         default:
             expr = parseExpr(this);
-            if (expr and isTypeBody
-                and (expr->kind != TKFunctionCall
-                    or strncmp(expr->name, "check", 6))) {
+            if (expr and isTypeBody) {
                 Parser_errorInvalidTypeMember(this);
-                // do you want to continue to find errors in exprs that
-                // are anyway invalid? If yes, allow the expr to be
-                // added to the body, or else, set the expr to null
-                // here.
                 expr = NULL;
             }
             if (not expr) break;
             PtrList_append(&scope->stmts, expr);
+            Token_advance(&this->token); // eat the newline
             resolveVars(this, expr, scope, false);
             break;
         }
@@ -1829,7 +1669,6 @@ static ASTFunc* parseFunc(Parser* this, bool shouldParseBody)
     ASTFunc* func = NEW(ASTFunc);
 
     func->line = this->token.line;
-    // func->col = this->token.col;
 
     if (memchr(this->token.pos, '_', this->token.matchlen))
         Parser_errorInvalidIdent(this);
@@ -1841,9 +1680,6 @@ static ASTFunc* parseFunc(Parser* this, bool shouldParseBody)
 
     func->args = parseArgs(this);
     func->argCount = PtrList_count(func->args);
-
-    // func->selector = PoolB_alloc(&strPool, getSelectorLength(func));
-    // getSelector(func);
 
     if (Parser_ignore(this, TKOneSpace)
         and Parser_ignore(this, TKKeyword_returns)) {
@@ -1871,7 +1707,7 @@ static ASTFunc* parseStmtFunc(Parser* this)
     ASTFunc* func = NEW(ASTFunc);
 
     func->line = this->token.line;
-    // func->col = this->token.col;
+    func->flags.isStmt = true;
 
     if (memchr(this->token.pos, '_', this->token.matchlen))
         Parser_errorInvalidIdent(this);
@@ -1886,6 +1722,12 @@ static ASTFunc* parseStmtFunc(Parser* this)
         and Parser_ignore(this, TKKeyword_as)) {
         discard(this, TKOneSpace);
         func->returnType = parseTypeSpec(this);
+        Parser_ignore(this, TKOneSpace);
+    } else {
+        func->returnType = NEW(ASTTypeSpec);
+        func->returnType->line = this->token.line;
+        func->returnType->col = this->token.col;
+        func->returnType->name = "";
     }
 
     ASTExpr* ret = exprFromCurrentToken(this);
@@ -1897,7 +1739,12 @@ static ASTFunc* parseStmtFunc(Parser* this)
     ASTScope* scope = NEW(ASTScope);
     PtrList_append(&scope->stmts, ret);
 
+    ASTScope* funcScope = NEW(ASTScope);
+    funcScope->locals = func->args;
+    scope->parent = funcScope;
     func->body = scope;
+
+    resolveVars(this, ret->right, funcScope, false);
 
     return func;
 }
@@ -2107,10 +1954,6 @@ static List(ASTModule) * parseModule(Parser* this)
                 break;
             }
         default:
-            // printf("other token: %s at %d:%d len %d\n",
-            //     TokenKind_repr(this->token.kind, false),
-            //     this->token.line, this->token.col,
-            //     this->token.matchlen);
             Parser_errorUnexpectedToken(this);
             while (this->token.kind != TKNewline
                 and this->token.kind != TKLineComment)
@@ -2134,18 +1977,19 @@ static List(ASTModule) * parseModule(Parser* this)
         if (func->returnType) resolveTypeSpec(this, func->returnType, root);
         getSelector(func);
     }
+
     foreach (ASTFunc*, func, mfuncs, root->funcs) {
         if (func->body) {
             foreach (ASTExpr*, stmt, stmts, func->body->stmts) {
                 resolveFuncsAndTypes(this, stmt, root);
                 setExprTypeInfo(this, stmt, false);
-            } // should be part of astmodule, and
-              // resolveVars should be part of astscope
-              // resolveTypeSpecs(this, stmt, root);
+            }
+            if (func->flags.isStmt) setStmtFuncTypeInfo(this, func);
 
-            if (not this->errCount) ASTScope_lowerElementalOps(func->body);
-            if (not this->errCount) ASTScope_promoteCandidates(func->body);
-            // no point doing code motion if there were errors
+            if (not this->errCount) {
+                ASTScope_lowerElementalOps(func->body);
+                ASTScope_promoteCandidates(func->body);
+            }
         }
     }
 
@@ -2161,6 +2005,7 @@ static void Parser_genc_open(Parser* this)
     printf("#define THISMODULE %s\n", this->mangledName);
     printf("#define THISFILE \"%s\"\n", this->filename);
 }
+
 static void Parser_genc_close(Parser* this)
 {
     printf("#undef THISMODULE\n");
@@ -2178,9 +2023,6 @@ static void Parser_genc_close(Parser* this)
 
 static void alloc_stat() {}
 
-// ASTTypeSpec* standardTypeSpecs[16][16];
-// ^ these will correspond to enum TypeTypes
-
 #pragma mark - main
 int main(int argc, char* argv[])
 {
@@ -2189,13 +2031,6 @@ int main(int argc, char* argv[])
         return 1;
     }
     bool printDiagnostics = (argc > 2 && *argv[2] == 'd') or false;
-
-    //    for (int i = 2; i < 16; i++) // first 2 are unresolved and object
-    //    resp.
-    //        for (int j = 2; j < 18; j++)
-    //            standardTypeSpecs[i][j-2]
-    //                = ASTTypeSpec_new((TypeTypes)i, (CollectionTypes)j);
-    //    // new sets typeType and name, sets collectionType to none
 
     ticks t0 = getticks();
 
@@ -2219,6 +2054,7 @@ int main(int argc, char* argv[])
             foreach (ASTModule*, mod, mods, modules)
                 ASTModule_genlua(mod, 0);
         } break;
+
         case PMGenC: {
             printf("#include \"checkstd.h\"\n");
             Parser_genc_open(parser);
@@ -2226,6 +2062,7 @@ int main(int argc, char* argv[])
                 ASTModule_genc(mod, 0);
             Parser_genc_close(parser);
         } break;
+
         case PMGenCpp: {
             printf("#include \"checkstd.hpp\"\n");
             Parser_genc_open(parser);

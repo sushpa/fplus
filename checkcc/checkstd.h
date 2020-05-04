@@ -111,6 +111,12 @@ static size_t _scPrintAbove_ = 0; // used for truncating long backtraces
 // CString. For now ignoring
 typedef CString String;
 typedef CStrings Strings;
+#define str_cmp_EQ(a, b) (not strcmp(a, b))
+#define str_cmp_NE(a, b) strcmp(a, b)
+#define str_cmp_GE(a, b) (strcmp(a, b) >= 0)
+#define str_cmp_LE(a, b) (strcmp(a, b) <= 0)
+#define str_cmp_GT(a, b) (strcmp(a, b) > 0)
+#define str_cmp_LT(a, b) (strcmp(a, b) < 0)
 
 // #define DEFAULT_VALUE
 // #define SArray(x) x[]

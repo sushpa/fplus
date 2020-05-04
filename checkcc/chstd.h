@@ -184,11 +184,11 @@ typedef double Real64;
     static bool Array_empty(T)(Array(T) * this) { return this->used == 0; }
 
 MAKE_Array(Ptr);
-MAKE_Array(UInt32);
+//MAKE_Array(UInt32);
 // MAKE_Array(uint64_t);
 // MAKE_Array(int64_t);
 // MAKE_Array(int32_t);
-MAKE_Array(Scalar);
+//MAKE_Array(Scalar);
 // MAKE_Array(float);
 // make array for strings etc later
 
@@ -262,7 +262,7 @@ MKSTAT(PtrList)
 
 #define List(T) PtrList
 typedef struct PtrList {
-    void** item;
+    void* item;
     struct PtrList* next;
 } PtrList;
 
@@ -386,6 +386,7 @@ static void str_tr_ip(
     while (*++sc && sc < end)
         if (*sc == oldc) *sc = newc;
 }
+ 
 
 static char* str_tr(char* str, const char oldc, const char newc)
 {

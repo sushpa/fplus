@@ -92,7 +92,31 @@ static bool mustPromote(const char* name)
     if (not strcmp(name, "Strs_print_filter")) return true;
     return false;
 }
-
+static void ASTExpr_unsetPrintedVarsFlag(ASTExpr* expr)
+{
+    switch (expr->kind) {
+    case TKIdentifierResolved:
+    case TKVarAssign:
+        expr->var->flags.printed = false;
+        break;
+    case TKFunctionCallResolved:
+    case TKFunctionCall: // shouldnt happen
+    case TKSubscriptResolved:
+    case TKSubscript:
+    case TKKeyword_if:
+    case TKKeyword_for:
+    case TKKeyword_else:
+    case TKKeyword_while:
+        ASTExpr_unsetPrintedVarsFlag(expr->left);
+        break;
+    default:
+        if (expr->opPrec) {
+            if (not expr->opIsUnary)
+                ASTExpr_unsetPrintedVarsFlag(expr->left);
+            ASTExpr_unsetPrintedVarsFlag(expr->right);
+        }
+    }
+}
 // given an expr, generate code to print all the resolved vars in it (only
 // scalars). for example in f(x + 4) + m + y[5:6], the following should be
 // generated
@@ -106,25 +130,34 @@ static void ASTExpr_genPrintVars(ASTExpr* expr, int level)
     // what about func args?
     switch (expr->kind) {
     case TKIdentifierResolved:
+    case TKVarAssign:
+        if (expr->var->flags.printed) break;
+        // TypeTypes tt = //
+        //     expr->kind == TKIdentifierResolved //
+        //     ? expr->typeType //
+        //     : expr->var->init->typeType;
         printf("%.*sprintf(\"    %s = %s\\n\", %s);\n", level, spaces,
             expr->var->name, TypeType_format(expr->typeType, true),
             expr->var->name);
+        expr->var->flags.printed = true;
         // printf("printf(\"%%s:%d:%d: %s = %s\\n\", THISFILE, %s);\n",
         //     expr->line, expr->col, expr->var->name,
         //     TypeType_format(expr->typeType, true), expr->var->name);
         break;
-    case TKVarAssign:
-        printf("%.*sprintf(\"    %s = %s\\n\", %s);\n", level, spaces,
-            expr->var->name,
-            TypeType_format(expr->var->init->typeType, true),
-            expr->var->name);
-        ASTExpr_genPrintVars(expr->var->init, level);
-        break;
+        // if (expr->var->flags.printed) break;
+        // printf("%.*sprintf(\"    %s = %s\\n\", %s);\n", level, spaces,
+        //     expr->var->name,
+        //     TypeType_format(expr->var->init->typeType, true),
+        //     expr->var->name);
+        // expr->var->flags.printed = true;
+        // ASTExpr_genPrintVars(expr->var->init, level);
+        // break;
     case TKFunctionCallResolved:
     case TKFunctionCall: // shouldnt happen
     case TKSubscriptResolved:
     case TKSubscript:
     case TKKeyword_if:
+    case TKKeyword_else:
     case TKKeyword_for:
     case TKKeyword_while:
         ASTExpr_genPrintVars(expr->left, level);
@@ -164,6 +197,7 @@ static ASTExpr* ASTExpr_promotionCandidate(ASTExpr* expr)
 
     case TKKeyword_if:
     case TKKeyword_for:
+    case TKKeyword_else:
     case TKKeyword_while:
         return ASTExpr_promotionCandidate(expr->left);
         // body will be handled by parent scope
@@ -301,7 +335,7 @@ static void ASTScope_promoteCandidates(ASTScope* scope)
         ASTVar* tmpvar = NEW(ASTVar);
         tmpvar->name = newTmpVarName(++tmpCount);
         tmpvar->typeSpec = NEW(ASTTypeSpec);
-        tmpvar->typeSpec->typeType = TYReal64; // FIXME
+        //        tmpvar->typeSpec->typeType = TYReal64; // FIXME
         // TODO: setup tmpvar->typeSpec
         PtrList_append(&scope->locals, tmpvar);
 
@@ -573,12 +607,11 @@ static void ASTExpr_genc(ASTExpr* expr, int level, bool spacing,
     switch (expr->kind) {
     case TKNumber:
     case TKMultiDotNumber:
-        printf("%.*s", expr->strLen, expr->string);
+        printf("%s", expr->string);
         break;
 
     case TKString:
-        printf(escStrings ? "\\%.*s\\\"" : "%.*s\"", expr->strLen - 1,
-            expr->string);
+        printf(escStrings ? "\\%s\\\"" : "%s\"", expr->string);
         break;
 
     case TKIdentifier:
@@ -606,24 +639,24 @@ static void ASTExpr_genc(ASTExpr* expr, int level, bool spacing,
         break;
 
     case TKRegex:
-        expr->string[0] = '"';
-        expr->string[expr->strLen - 1] = '"';
-        printf("%.*s", expr->strLen, expr->string);
-        expr->string[0] = '\'';
-        expr->string[expr->strLen - 1] = '\'';
+        // expr->string[0] = '"';
+        // expr->string[expr->strLen - 1] = '"';
+        printf("\"%s\"", expr->string + 1);
+        // expr->string[0] = '\'';
+        // expr->string[expr->strLen - 1] = '\'';
         break;
 
     case TKInline:
-        expr->string[0] = '"';
-        expr->string[expr->strLen - 1] = '"';
-        printf("mkRe_(%.*s)", expr->strLen, expr->string);
-        expr->string[0] = '`';
-        expr->string[expr->strLen - 1] = '`';
+        // expr->string[0] = '"';
+        // expr->string[expr->strLen - 1] = '"';
+        printf("mkRe_(\"%s\")", expr->string + 1);
+        // expr->string[0] = '`';
+        // expr->string[expr->strLen - 1] = '`';
         break;
 
     case TKLineComment:
         // TODO: skip  comments in generated code
-        printf("// %.*s", expr->strLen, expr->string);
+        printf("// %s", expr->string);
         break;
 
     case TKFunctionCall:
@@ -656,9 +689,7 @@ static void ASTExpr_genc(ASTExpr* expr, int level, bool spacing,
         if (expr->left)
             ASTExpr_genc(expr->left, 0, false, true, escStrings);
 
-        if (strcmp(tmp, "print")) { // FIXME
-            // more generally this IF is for those funcs that are
-            // standard and dont need any instrumentation
+        if (not expr->func->flags.isDeclare) {
             printf("\n#ifdef DEBUG\n"
                    "      %c \"./\" THISFILE \":%d:%d:\\e[0m ",
                 expr->left ? ',' : ' ', expr->line, expr->col);
@@ -670,14 +701,12 @@ static void ASTExpr_genc(ASTExpr* expr, int level, bool spacing,
         break;
     }
 
-    case TKSubscript: // slice here should be slice1D slice2D etc.
+    case TKSubscript:
         assert(0);
         break;
 
     case TKSubscriptResolved: {
-        char* name
-            = /*(this->kind == TKSubscriptResolved) ?*/ expr->var->name;
-        //: this->name;
+        char* name = expr->var->name;
         ASTExpr* index = expr->left;
         assert(index);
         switch (index->kind) {
@@ -762,10 +791,6 @@ static void ASTExpr_genc(ASTExpr* expr, int level, bool spacing,
 
         default:
             assert(0);
-            //            printf("Tensor%dD_get(CString, %s)(%s,
-            //                ASTExpr_genc(this->left, 0, false, inFuncArgs,
-            //                escStrings);
-            //        printf(")");
             break;
         }
         break;
@@ -790,8 +815,6 @@ static void ASTExpr_genc(ASTExpr* expr, int level, bool spacing,
                 printf("%s_set(%s, %s,%s, ", ASTExpr_typeName(expr->left),
                     expr->left->var->name, expr->left->left->string,
                     TokenKind_repr(expr->kind, spacing));
-                // ASTExpr_genc(this->left->left,0,spacing,inFuncArgs,escStrings);
-                // printf(", ");
                 ASTExpr_genc(
                     expr->right, 0, spacing, inFuncArgs, escStrings);
                 printf(")");
@@ -902,7 +925,6 @@ static void ASTExpr_genc(ASTExpr* expr, int level, bool spacing,
                       // var
         // var x as XYZ = abc... -> becomes an ASTVar and an
         // ASTExpr (to keep location). Send it to ASTVar::gen.
-        //        ASTVar_genc(this->var, 0, false);
         if (expr->var->init != NULL) {
             printf("%s = ", expr->var->name);
             ASTExpr_genc(expr->var->init, 0, true, inFuncArgs, escStrings);
@@ -945,101 +967,102 @@ static void ASTExpr_genc(ASTExpr* expr, int level, bool spacing,
         ASTExpr_genc(expr->right, 0, spacing, inFuncArgs, escStrings);
         printf(";}\n");
         break;
-    case TKKeyword_check:
-        // switch (expr->right->kind) {
-        // case TKOpLE:
-        // case TKOpLT:
-        // case TKOpGE:
-        // case TKOpGT:
-        // case TKOpNE:
-        // case TKOpEQ:
-        // case TKKeyword_and:
-        // case TKKeyword_or:
-        // case TKKeyword_not:
+    case TKKeyword_check: {
+        ASTExpr* checkExpr = expr->right; // now use checkExpr below
+        ASTExpr* lhsExpr = checkExpr->left;
+        ASTExpr* rhsExpr = checkExpr->right;
         printf("{\n");
-        if (not expr->right->opIsUnary) {
-            printf("%.*s%s _lhs = ", level, spaces,
-                ASTExpr_typeName(expr->right->left));
-            ASTExpr_genc(expr->right->left, 0, spacing, false, false);
+        if (not checkExpr->opIsUnary) {
+            printf(
+                "%.*s%s _lhs = ", level, spaces, ASTExpr_typeName(lhsExpr));
+            ASTExpr_genc(lhsExpr, 0, spacing, false, false);
             printf(";\n");
         }
-        printf("%.*s%s _rhs = ", level, spaces,
-            ASTExpr_typeName(expr->right->right));
-        ASTExpr_genc(expr->right->right, 0, spacing, false, false);
+        printf("%.*s%s _rhs = ", level, spaces, ASTExpr_typeName(rhsExpr));
+        ASTExpr_genc(rhsExpr, 0, spacing, false, false);
         printf(";\n");
         printf("%.*sif (not(", level, spaces);
-        // ASTExpr_genc(expr->right, 0, spacing, false, false);
-        printf("%s%s_rhs", expr->right->opIsUnary ? "" : "_lhs",
-            TokenKind_repr(expr->right->kind, true));
+        ASTExpr_genc(checkExpr, 0, spacing, false, false);
         printf(")) {\n");
-        // printf("%.*sprintf(\"\\n%%s\\n\",_undersc72_);\n", level + STEP,
-        // spaces);
-        printf(
-            "%.*sprintf(\"\\n\\n\e[31mruntime error:\e[0m check failed at "
-            "\e[36m./%%s:%d:%d:\e[0m\\n    "
-            "%%s\\n\\n\e[90mHere's some help:\e[0m\\n\", "
-            "THISFILE, \"",
+        printf("%.*sprintf(\"\\n\\n\e[31mruntime error:\e[0m check "
+               "failed at "
+               "\e[36m./%%s:%d:%d:\e[0m\\n    "
+               "%%s\\n\\n\e[90mHere's some help:\e[0m\\n\", "
+               "THISFILE, \"",
             level + STEP, spaces, expr->line, expr->col + 6);
-        ASTExpr_gen(expr->right, 0, spacing, true);
+        ASTExpr_gen(checkExpr, 0, spacing, true);
         printf("\");\n");
 
-        if (not expr->right->opIsUnary) {
+        if (not checkExpr->opIsUnary) {
             // dont print literals or arrays
-            if (expr->right->left->collectionType == CTYNone) {
+            if (lhsExpr->collectionType == CTYNone
+                and lhsExpr->kind != TKString and lhsExpr->kind != TKNumber
+                and lhsExpr->kind != TKRegex) {
                 printf(
                     "%.*s%s", level + STEP, spaces, "printf(\"    %s = ");
-                printf("%s",
-                    TypeType_format(expr->right->left->typeType, true));
+                printf("%s", TypeType_format(lhsExpr->typeType, true));
                 printf("%s", "\\n\", \"");
-                ASTExpr_gen(expr->right->left, 0, spacing, true);
+                ASTExpr_gen(lhsExpr, 0, spacing, true);
                 printf("%s", "\", _lhs);\n");
+                // checks can't have TKVarAssign inside them
+                if (lhsExpr->kind == TKIdentifierResolved)
+                    lhsExpr->var->flags.printed = true;
             }
         }
-        if (expr->right->right->collectionType == CTYNone) {
+        if (rhsExpr->collectionType == CTYNone and rhsExpr->kind != TKString
+            and rhsExpr->kind != TKNumber and rhsExpr->kind != TKRegex) {
             printf("%.*s%s", level + STEP, spaces, "printf(\"    %s = ");
-            printf(
-                "%s", TypeType_format(expr->right->right->typeType, true));
+            printf("%s", TypeType_format(rhsExpr->typeType, true));
             printf("%s", "\\n\", \"");
-            ASTExpr_gen(expr->right->right, 0, spacing, true);
+            ASTExpr_gen(rhsExpr, 0, spacing, true);
             printf("%s", "\", _rhs);\n");
+            if (rhsExpr->kind == TKIdentifierResolved)
+                rhsExpr->var->flags.printed = true;
         }
-        // ASTExpr_gen(expr->right->right, 0, spacing, true);
 
-        ASTExpr_genPrintVars(expr->right, level + STEP);
-        // printf(
-        //     "%.*sprintf(\"%%s\\n\",_undersc72_);\n", level + STEP,
-        //     spaces);
+        ASTExpr_genPrintVars(checkExpr, level + STEP);
+        // the `printed` flag on all vars of the expr will be set
+        // (genPrintVars uses this to avoid printing the same var
+        // twice). This should be unset after every toplevel call to
+        // genPrintVars.
+        ASTExpr_unsetPrintedVarsFlag(checkExpr);
+
         printf("%.*sprintf(\"\\n\");\n", level + STEP, spaces);
-        // printf("%.*s_err_ = ERROR_TRACE; goto backtrace;\n", level +
-        // STEP,
-        //     spaces);
         printf("%s",
             "#ifdef DEBUG\n"
-            "        printf(\"\\e[90mBacktrace (innermost first):\\n\");\n"
+            "        printf(\"\\e[90mBacktrace (innermost "
+            "first):\\n\");\n"
             "        if (_scDepth_ > 2*_btLimit_)\n        "
-            "printf(\"    limited to %d outer and %d inner entries.\\n\", "
+            "printf(\"    limited to %d outer and %d inner "
+            "entries.\\n\", "
             "_btLimit_, _btLimit_);\n"
             "        BACKTRACE\n    \n"
             "#endif\n");
         printf("\n%.*s}\n", level, spaces);
         printf("%.*s}", level, spaces);
-        break;
-
-        // default:
-        //     assert(0); // NO, just allow whatever. I think in fact we
-        //     don't
-        //                // need the switch at all
-        //     break;
-        // }
-        break;
+    } break;
+    case TKOpEQ:
+    case TKOpNE:
+    case TKOpGE:
+    case TKOpLE:
+    case TKOpGT:
+    case TKOpLT:
+        if (expr->right->typeType == TYString) {
+            printf("str_cmp_%s(", TokenKind_ascrepr(expr->kind, false));
+            ASTExpr_genc(expr->left, 0, spacing, inFuncArgs, escStrings);
+            printf(", ");
+            ASTExpr_genc(expr->right, 0, spacing, inFuncArgs, escStrings);
+            printf(")");
+            break;
+        }
     default:
         if (not expr->opPrec) break;
         // not an operator, but this should be error if you reach here
         bool leftBr = expr->left and expr->left->opPrec
             and expr->left->opPrec < expr->opPrec;
         bool rightBr = expr->right and expr->right->opPrec
-            and expr->right->kind
-                != TKKeyword_return // found in 'or return'
+            and expr->right->kind != TKKeyword_return
+            // found in 'or return'
             and expr->right->opPrec < expr->opPrec;
 
         char lpo = '(';

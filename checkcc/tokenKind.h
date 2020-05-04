@@ -302,7 +302,26 @@ static const char* TokenKind_repr(const TokenKind kind, bool spacing)
     printf("unknown kind: %d\n", kind);
     return "(!unk)";
 }
-
+// alternative ascii repr of a token kind
+static const char* TokenKind_ascrepr(const TokenKind kind, bool spacing)
+{
+    switch (kind) {
+    case TKOpGT:
+        return "GT";
+    case TKOpLT:
+        return "LT";
+    case TKOpGE:
+        return "GE";
+    case TKOpLE:
+        return "LE";
+    case TKOpNE:
+        return "NE";
+    case TKOpEQ:
+        return "EQ";
+    default:
+        return TokenKind_repr(kind, spacing);
+    }
+}
 // Return the repr of a this->token kind (for debug)
 // this is a VERY rudimentary way of type inference
 static const char* TokenKind_defaultType(const TokenKind kind)

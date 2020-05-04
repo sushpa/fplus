@@ -117,9 +117,13 @@ static void ASTExpr_gen(
     switch (this->kind) {
     case TKNumber:
     case TKMultiDotNumber:
+        printf("%s", this->string);
+        break;
     case TKRegex:
+        printf("'%s'", this->string + 1);
+        break;
     case TKInline:
-        printf("%.*s", this->strLen, this->string);
+        printf("`%s`", this->string + 1);
         break;
 
     case TKIdentifier:
@@ -130,14 +134,13 @@ static void ASTExpr_gen(
     } break;
 
     case TKString:
-        printf(escapeStrings ? "\\%.*s\\\"" : "%.*s\"", this->strLen - 1,
-            this->string);
+        printf(escapeStrings ? "\\%s\\\"" : "%s\"", this->string);
         break;
 
     case TKLineComment:
-        printf("%s%.*s",
+        printf("%s%s",
             TokenKind_repr(TKLineComment, *this->string != ' '),
-            this->strLen, this->string);
+             this->string);
         break;
 
     case TKFunctionCall:

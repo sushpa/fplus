@@ -1,0 +1,129 @@
+@str # declare
+
+# dependent (exprs) & nondep (literals) vars. init routine for each.
+# init using @mytype {.var1 := 34}
+@mytype :=
+    ix @i8 := 0
+        0 < ix < 64
+        ix % 2 == 0
+    name @str := ""
+        len(name) < 256
+    ptx @vec:r8 := [0, ix, 0]
+    lsm @vec:box := boxes(ix)
+        len(lsm) <= 100
+
+@mytype :=
+    ix @i8 := 0
+    name @str := ""
+    ptx @vec:r8 := [0, ix, 0]
+    lsm @vec:box := boxes(ix)
+# collections themselves are not Myabe types, only their containees may be
+
+# @mytype(ix @i8, name @str, ptx @vec:r8, lsm @vec:box?) :=
+#     0 < ix < 64
+#     ix % 2 == 0
+
+# declared funcs are basically implemented in C, they
+# can be funcs or macros, doesn't matter here
+print(what @str) # declare
+print(what @r8)
+desc(what @str)
+desc(what @r8)
+
+# define stmt func
+fxfunc(what @r8) :=
+    what * 1.5
+        0 < fxfunc < 3
+        fxfunc % 2 == 1
+
+#define normal func
+main(args @vec:str) ret @r8 :=
+    funky(4+2)
+    ret = 0
+
+funky(scalar1 @r8) @na :=
+    joyce(2)
+
+    root := @json("rowx/giles.json") or return()
+        root.count > 0
+
+    win := @ui.window(size = 450x650) or exit(-2)
+    let window = ui.Window.withSize(450x650) or exit(-2)
+    let cv @ui.View = window.contentView
+
+    frac := 22\7
+    frac2 := @frac(3.14159) # computed at compile time?
+    check(frac2 == 22\7)
+
+    let M =
+        1, 2, 3;
+        4, 5, 6;
+        7, 8, 9
+
+# @mat3x3 understood
+
+    let A =
+        1, 3, 6
+
+    x := M // A # matrix solve
+    xb := M ** A # matrix multiply
+    detM := det(M)
+        min(M) < detM < max(M)
+
+
+joyce(a @r8) :=
+    name := "Bhabru"
+        len(name) < 64 #invariant
+    name2 := "Bhabrus"
+
+    x|m := 3 + 5 + 4
+        x < 65
+    desc(x + 5)
+
+    y|1/s := 3-x * 2.5 / x
+        x * y <= 5
+    check(x + fxfuNC(y) - fxfunc(x) >= 3*y + 5 + 2*x)
+    check(name == naME2)
+
+    mxp := zeros(x)
+        0 <= sum(mxp) <= 1
+    mxp[2:-1] += 1 / random(1:10)
+
+undefc(imp @ast.import) := print("#undef {{imp.alias}}")
+
+genc(var @ast.var, level @int, isconst @bool) @na :=
+    printc(repeat("    ", times = level))
+
+    if var.typeSpec
+        genc(var.typeSpec, level = level + step, isconst = isconst)
+    else
+        ctyp := defaultType(var.init.kind or .unknown)
+        cname := var.init.name or ""
+        if "A" <= cname[1] <= "Z"
+            ctyp = cname
+        printc(ctyp)
+
+    print(" {{var.name}}")
+
+genc(typeSpec @ast.typeSpec, level @int, isconst @bool) @na :=
+    if isconst
+        printc("const ")
+    dims := typeSpec.dims
+    match dims
+        case 0
+        case 1
+            printc("Array_");
+        case 2:7
+            printc("Array{{dims}}D_")
+        case else
+            printc("ArrayN({{dims}}")
+    match typeSpec.typeType
+        case .object
+            print("{{typeSpec.type.name}}")
+        case .unresolved
+            print("{{typeSpec.name}}")
+        case ...
+            typeName := name(typeSpec.typeType)
+            print("{{typeName}}")
+
+
