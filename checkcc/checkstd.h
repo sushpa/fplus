@@ -111,12 +111,32 @@ static size_t _scPrintAbove_ = 0; // used for truncating long backtraces
 // CString. For now ignoring
 typedef CString String;
 typedef CStrings Strings;
+typedef bool Logical;
 #define str_cmp_EQ(a, b) (not strcmp(a, b))
 #define str_cmp_NE(a, b) strcmp(a, b)
 #define str_cmp_GE(a, b) (strcmp(a, b) >= 0)
 #define str_cmp_LE(a, b) (strcmp(a, b) <= 0)
 #define str_cmp_GT(a, b) (strcmp(a, b) > 0)
 #define str_cmp_LT(a, b) (strcmp(a, b) < 0)
+
+#define MAKE_cmp3way(T)                                                    \
+    static bool T##_cmp3way_LT_LT(T a, T b, T c)                           \
+    {                                                                      \
+        return a < b && b < c;                                             \
+    }                                                                      \
+    static bool T##_cmp3way_LT_LE(T a, T b, T c)                           \
+    {                                                                      \
+        return a < b && b <= c;                                            \
+    }                                                                      \
+    static bool T##_cmp3way_LE_LT(T a, T b, T c)                           \
+    {                                                                      \
+        return a <= b && b < c;                                            \
+    }                                                                      \
+    static bool T##_cmp3way_LE_LE(T a, T b, T c)                           \
+    {                                                                      \
+        return a <= b && b <= c;                                           \
+    }
+MAKE_cmp3way(Scalar)
 
 // #define DEFAULT_VALUE
 // #define SArray(x) x[]
@@ -129,12 +149,12 @@ typedef CStrings Strings;
 #define String_describe(x) printf("%s = \"%s\"\n", #x, x)
 #define Scalar_describe(x) printf("%s = %g\n", #x, x)
 
-static Scalar Strings_main(const Strings a
+    static Scalar Strings_main(const Strings a
 #ifdef DEBUG
-    ,
-    const char* callsite_
+        ,
+        const char* callsite_
 #endif
-);
+    );
 
 static const char* _err_ = NULL;
 

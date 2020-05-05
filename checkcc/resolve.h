@@ -4,7 +4,7 @@ static void resolveTypeSpec(
 {
     // TODO: disallow a type that derives from itself!
     if (typeSpec->typeType != TYUnresolved) return;
-    if (not *typeSpec->name) return;
+    if (not*typeSpec->name) return;
 
     // TODO: DO THIS IN PARSE... stuff!!
 
@@ -12,7 +12,7 @@ static void resolveTypeSpec(
     if (tyty) { // can be member of ASTTypeSpec!
         typeSpec->typeType = tyty;
     } else {
-        foreach (ASTType*, type, types, mod->types) {
+        foreach (ASTType*, type, mod->types) {
             if (not strcasecmp(typeSpec->name, type->name)) {
                 // so what do you do  if types are "resolved"? Set
                 // typeType and collectionType?
@@ -31,6 +31,23 @@ static void resolveTypeSpec(
         // patterns. so this will probably be a separate func that is
         // called during such analysis.
     }
+}
+
+static void ASTScope_checkUnusedVars(Parser* this, ASTScope* scope)
+{
+    foreach (ASTVar*, var, scope->locals)
+        if (not var->flags.used) Parser_warnUnusedVar(this, var);
+
+    foreach (ASTExpr*, stmt, scope->stmts)
+        if (isCtrlExpr(stmt) and stmt->body)
+            ASTScope_checkUnusedVars(this, stmt->body);
+}
+static void ASTFunc_checkUnusedVars(Parser* this, ASTFunc* func)
+{
+    foreach (ASTVar*, arg, func->args)
+        if (not arg->flags.used) Parser_warnUnusedArg(this, arg);
+
+    ASTScope_checkUnusedVars(this, func->body);
 }
 
 // TODO: Btw there should be a module level scope to hold lets (and
@@ -63,7 +80,7 @@ static void resolveFuncsAndTypes(
         bufp += sprintf(bufp, "%s", expr->name);
         ASTExpr_strarglabels(expr->left, bufp, 128 - ((int)(bufp - buf)));
 
-        foreach (ASTFunc*, func, funcs, mod->funcs) {
+        foreach (ASTFunc*, func, mod->funcs) {
             if (not strcasecmp(buf, func->selector)) {
                 expr->kind = TKFunctionCallResolved;
                 expr->func = func;
@@ -90,7 +107,7 @@ static void resolveFuncsAndTypes(
     case TKKeyword_for:
     case TKKeyword_while: {
         if (expr->left) resolveFuncsAndTypes(this, expr->left, mod);
-        foreach (ASTExpr*, stmt, stmts, expr->body->stmts)
+        foreach (ASTExpr*, stmt, expr->body->stmts)
             resolveFuncsAndTypes(this, stmt, mod);
     } break;
 
@@ -127,9 +144,8 @@ static void resolveVars(
                                                      : TKSubscriptResolved;
         ASTScope* scp = scope;
         do {
-            foreach (ASTVar*, local, locals, scp->locals) {
-                if (not strcasecmp(expr->name, local->name)
-                    ) {
+            foreach (ASTVar*, local, scp->locals) {
+                if (not strcasecmp(expr->name, local->name)) {
                     expr->kind = ret;
                     expr->var = local; // this overwrites name btw
                     goto getout;
@@ -184,7 +200,7 @@ static void resolveVars(
                 and (expr->left->kind == TKIdentifierResolved
                     or expr->left->kind == TKSubscriptResolved)) {
             expr->left->var->flags.changed = true;
-            if (expr->left->var->flags.isLet)
+            if (not expr->left->var->flags.isVar)
                 Parser_errorReadOnlyVar(this, expr->left);
         }
     }

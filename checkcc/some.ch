@@ -1,4 +1,4 @@
-function unsetPrintedVarsFlag(expr ASTExpr)
+function unsetPrinted(expr @ASTExpr)
     match expr.kind
     case .identResolved, .varAssign
         expr.var.flags.printed = no
@@ -15,13 +15,13 @@ function unsetPrintedVarsFlag(expr ASTExpr)
     end match
 end function
 
-function genPrintVars(expr as ASTExpr or nil, level as Scalar)
-    let spc as String = repeat("    ", times = level)
+function genPrintVars(expr @ASTExpr, level @Scalar)
+    let spc @String = repeat("    ", times = level)
     match expr.kind
     case .identResolved, .varAssign
         if expr.var.flags.printed then return
         let name = expr.var.name
-        let fmt String = format(expr.var.init.typeType, quoted = yes)
+        let fmt @String = format(expr.var.init.typeType, quoted = yes)
         print("{{spc}}printf('    {{name}} = {{fmt}}\\n', {{name}});")
         expr.var.flags.printed = yes
     case .funcCallResolved, .funcCall,
@@ -37,7 +37,7 @@ function genPrintVars(expr as ASTExpr or nil, level as Scalar)
     end match
 end function
 
-function promotionCandidate(expr ASTExpr) returns (ret ASTExpr)
+function promotionCandidate(expr @ASTExpr) returns (ret @ASTExpr)
     match expr.kind
     case .funcCallResolved
         try
@@ -67,7 +67,7 @@ end function
 let prom = promotionCandidate(stmt) or skip/break/return
 prom.left = ... # this should work since there is a skip above
 
-function promotionCandidate(expr as ASTExpr) returns (ret as ASTExpr?)
+function promotionCandidate(expr @ASTExpr) returns (ret @ASTExpr)
     match expr.kind
     case .funcCallResolved
         ret = promotionCandidate(expr.left)

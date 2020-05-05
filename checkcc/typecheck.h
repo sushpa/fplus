@@ -1,16 +1,17 @@
 static void checkBinOpTypeMismatch(Parser* self, ASTExpr* expr) {}
 
-static void setStmtFuncTypeInfo(Parser* self, ASTFunc* func) {
-// this assumes that setExprTypeInfo has been called on the func body
+static void setStmtFuncTypeInfo(Parser* self, ASTFunc* func)
+{
+    // this assumes that setExprTypeInfo has been called on the func body
     const ASTExpr* stmt = func->body->stmts->item;
     if (not func->returnType->typeType)
         func->returnType->typeType = stmt->typeType;
     else if (func->returnType->typeType != stmt->typeType)
         Parser_errorTypeMismatchBinOp(self, stmt);
- }
+}
 
 static void setExprTypeInfo(Parser* self, ASTExpr* expr, bool inFuncArgs)
-{//return;
+{ // return;
     switch (expr->kind) {
     case TKIdentifierResolved:
         expr->typeType = expr->var->typeSpec->typeType;
@@ -44,7 +45,7 @@ static void setExprTypeInfo(Parser* self, ASTExpr* expr, bool inFuncArgs)
             // if a type mismatch is only in terms of collectionType.
 
             ASTExpr* currArg = expr->left;
-            foreach (ASTVar*, arg, args, expr->func->args) {
+            foreach (ASTVar*, arg, expr->func->args) {
                 ASTExpr* cArg
                     = currArg->kind == TKOpComma ? currArg->left : currArg;
                 if (cArg->kind == TKOpAssign) cArg = cArg->right;
@@ -86,7 +87,7 @@ static void setExprTypeInfo(Parser* self, ASTExpr* expr, bool inFuncArgs)
     case TKKeyword_else:
     case TKKeyword_while: {
         if (expr->left) setExprTypeInfo(self, expr->left, false);
-        foreach (ASTExpr*, stmt, stmts, expr->body->stmts)
+        foreach (ASTExpr*, stmt, expr->body->stmts)
             setExprTypeInfo(self, stmt, false);
     } break;
 
@@ -95,7 +96,21 @@ static void setExprTypeInfo(Parser* self, ASTExpr* expr, bool inFuncArgs)
             if (not expr->opIsUnary)
                 setExprTypeInfo(self, expr->left, inFuncArgs);
             setExprTypeInfo(self, expr->right, inFuncArgs);
-            expr->typeType = expr->right->typeType;
+
+            if (expr->kind == TKKeyword_or
+                and expr->left->typeType != TYBool) {
+                ; // this is the x = func(...) or break / or continue / or
+                  // return (null handling)
+            } else if (expr->kind == TKOpLE or expr->kind == TKOpLT
+                or expr->kind == TKOpGT or expr->kind == TKOpGE
+                or expr->kind == TKOpEQ or expr->kind == TKOpNE
+                or expr->kind == TKKeyword_and or expr->kind == TKKeyword_or
+                or expr->kind == TKKeyword_not
+                or expr->kind == TKKeyword_in)
+                expr->typeType = TYBool;
+            else
+                expr->typeType = expr->right->typeType;
+
             expr->isElementalOp
                 = expr->right->isElementalOp or expr->kind == TKOpColon;
             // TODO: actually, indexing by an array of integers is also an
@@ -116,7 +131,10 @@ static void setExprTypeInfo(Parser* self, ASTExpr* expr, bool inFuncArgs)
                 // , and = which should be checked. so when you descend into
                 // their args, unset inFuncArgs.
 
-                if (leftType != rightType)
+                if (leftType == TYBool
+                    and (expr->kind == TKOpLE or expr->kind == TKOpLT))
+                    ;
+                else if (leftType != rightType)
                     Parser_errorTypeMismatchBinOp(self, expr);
                 // TODO: as it stands, "x" + "y" wont be an error because
                 // types are consistent. BUT types should also be valid for
@@ -136,7 +154,7 @@ static void setExprTypeInfo(Parser* self, ASTExpr* expr, bool inFuncArgs)
                 else if (not TypeType_isnum(leftType))
                     Parser_errorInvalidTypeForOp(self, expr);
 
-                expr->typeType = leftType;
+                // expr->typeType = leftType;
             }
             // TODO: here statements like return etc. that are not binary
             // but need to have their types checked w.r.t. an expected type

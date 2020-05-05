@@ -58,7 +58,7 @@ static void ASTVar_gen(ASTVar* this, int level)
 
 static void ASTScope_gen(ASTScope* this, int level)
 {
-    foreach (ASTExpr*, stmt, stmts, this->stmts) {
+    foreach (ASTExpr*, stmt, this->stmts) {
         ASTExpr_gen(stmt, level, true, false);
         puts("");
     }
@@ -75,7 +75,7 @@ static void ASTType_gen(ASTType* this, int level)
     puts("");
     if (not this->body) return;
 
-    foreach (ASTExpr*, stmt, stmts, this->body->stmts) {
+    foreach (ASTExpr*, stmt, this->body->stmts) {
         if (not stmt) continue;
         ASTExpr_gen(stmt, level + STEP, true, false);
         puts("");
@@ -87,24 +87,33 @@ static void ASTFunc_gen(ASTFunc* this, int level)
 {
     if (this->flags.isDeclare) printf("declare ");
 
-    printf("function %s(", this->name);
+    printf("%s%s(", this->flags.isStmt ? "\n" : "function ", this->name);
 
-    foreach (ASTVar*, arg, args, this->args) {
+    foreachn(ASTVar*, arg, args, this->args)
+    {
         ASTVar_gen(arg, level);
         printf(args->next ? ", " : "");
     }
     printf(")");
 
-    if (this->returnType) {
+    if (this->returnType and not this->flags.isStmt) {
         printf(" returns ");
         ASTTypeSpec_gen(this->returnType, level);
     }
-    puts("");
-    if (this->flags.isDeclare) return;
-
-    ASTScope_gen(this->body, level + STEP);
-
-    puts("end function\n");
+    if (this->flags.isDeclare) {
+        puts("");
+        return;
+    } else if (not this->flags.isStmt) {
+        puts("");
+        ASTScope_gen(this->body, level + STEP);
+        puts("end function\n");
+    } else {
+        ASTExpr* def = this->body->stmts->item;
+        def = def->right; // its a return expr
+        printf(" := ");
+        ASTExpr_gen(def, 0, true, false);
+        puts("\n");
+    }
 }
 
 static void ASTExpr_gen(
@@ -138,9 +147,8 @@ static void ASTExpr_gen(
         break;
 
     case TKLineComment:
-        printf("%s%s",
-            TokenKind_repr(TKLineComment, *this->string != ' '),
-             this->string);
+        printf("%s%s", TokenKind_repr(TKLineComment, *this->string != ' '),
+            this->string);
         break;
 
     case TKFunctionCall:
@@ -149,7 +157,7 @@ static void ASTExpr_gen(
             ? this->func->name
             : this->name;
         printf("%s(", tmp);
-        if (this->left) ASTExpr_gen(this->left, 0, false, escapeStrings);
+        if (this->left) ASTExpr_gen(this->left, 0, spacing, escapeStrings);
         printf(")");
     } break;
 
@@ -268,14 +276,14 @@ static void ASTModule_gen(ASTModule* this, int level)
 {
     printf("! module %s\n", this->name);
 
-    foreach (ASTImport*, import, imports, this->imports)
+    foreach (ASTImport*, import, this->imports)
         ASTImport_gen(import, level);
 
     puts("");
 
-    foreach (ASTType*, type, types, this->types)
+    foreach (ASTType*, type, this->types)
         ASTType_gen(type, level);
 
-    foreach (ASTFunc*, func, funcs, this->funcs)
+    foreach (ASTFunc*, func, this->funcs)
         ASTFunc_gen(func, level);
 }

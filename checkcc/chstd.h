@@ -125,70 +125,73 @@ typedef double Real64;
         UInt32 cap;                                                        \
     }                                                                      \
     Array(T);                                                              \
-    static void Array_free(T)(Array(T) * this)                                    \
+    static void Array_free(T)(Array(T) * this)                             \
     {                                                                      \
         if (this->cap) free(this->ref);                                    \
     }                                                                      \
-    static void Array_growTo(T)(Array(T) * this, UInt32 size)                     \
+    static void Array_growTo(T)(Array(T) * this, UInt32 size)              \
     {                                                                      \
         this->cap = roundUp32(size);                                       \
         this->ref = realloc(this->ref, sizeof(T) * this->cap);             \
         memset(this->ref + this->used, 0,                                  \
             sizeof(T) * (this->cap - this->used));                         \
     }                                                                      \
-    static T Array_get(T)(Array(T) * this, UInt32 index)                          \
+    static T Array_get(T)(Array(T) * this, UInt32 index)                   \
     {                                                                      \
         return this->ref[index];                                           \
     }                                                                      \
-    static void Array_concat_cArray(T)(Array(T) * this, T * cArray, int count)    \
+    static void Array_concat_cArray(T)(                                    \
+        Array(T) * this, T * cArray, int count)                            \
     {                                                                      \
         const UInt32 reqd = this->used + count;                            \
         if (reqd >= this->cap) Array_growTo(T)(this, reqd);                \
         memcpy(this->ref + this->used, cArray, count * sizeof(T));         \
     }                                                                      \
-    static void Array_concat_otherArray(T)(Array(T) * this, Array(T) * other)     \
+    static void Array_concat_otherArray(T)(                                \
+        Array(T) * this, Array(T) * other)                                 \
     {                                                                      \
         Array_concat_cArray(T)(this, other->ref, other->used);             \
     }                                                                      \
-    static void Array_clear(T)(Array(T) * this) { this->used = 0; }               \
-    static void Array_initWith_cArray(T)(Array(T) * this, T * cArray, int count)  \
+    static void Array_clear(T)(Array(T) * this) { this->used = 0; }        \
+    static void Array_initWith_cArray(T)(                                  \
+        Array(T) * this, T * cArray, int count)                            \
     {                                                                      \
         Array_clear(T)(this);                                              \
         Array_concat_cArray(T)(this, cArray, count);                       \
     }                                                                      \
-    static void Array_grow(T)(Array(T) * this)                                    \
+    static void Array_grow(T)(Array(T) * this)                             \
     { /* maybe this can be merged with growTo */                           \
         this->cap = this->cap ? 2 * this->cap : 8;                         \
         this->ref = realloc(this->ref, sizeof(T) * this->cap);             \
         memset(this->ref + this->used, 0,                                  \
             sizeof(T) * (this->cap - this->used));                         \
     }                                                                      \
-    static void Array_justPush(T)(Array(T) * this, T node)                        \
+    static void Array_justPush(T)(Array(T) * this, T node)                 \
     { /* when you know that cap is enough */                               \
         this->ref[this->used++] = node;                                    \
     }                                                                      \
-    static void Array_push(T)(Array(T) * this, T node)                            \
+    static void Array_push(T)(Array(T) * this, T node)                     \
     {                                                                      \
         if (this->used >= this->cap) Array_grow(T)(this);                  \
         Array_justPush(T)(this, node);                                     \
     }                                                                      \
-    static T Array_pop(T)(Array(T) * this)                                        \
+    static T Array_pop(T)(Array(T) * this)                                 \
     {                                                                      \
         assert(this->used > 0);                                            \
         return this->ref[--this->used];                                    \
     }                                                                      \
-    static T Array_top(T)(Array(T) * this)                                        \
+    static T Array_top(T)(Array(T) * this)                                 \
     {                                                                      \
         return this->used ? this->ref[this->used - 1] : 0;                 \
     }                                                                      \
     static bool Array_empty(T)(Array(T) * this) { return this->used == 0; }
 
 MAKE_Array(Ptr);
-//MAKE_Array(UInt32);
+// MAKE_Array(UInt32);
 // MAKE_Array(uint64_t);
 // MAKE_Array(int64_t);
 // MAKE_Array(int32_t);
-//MAKE_Array(Scalar);
+// MAKE_Array(Scalar);
 // MAKE_Array(float);
 // make array for strings etc later
 
@@ -297,12 +300,17 @@ static void PtrList_append(PtrList** selfp, void* item)
     }
 }
 
-#define foreach(T, var, listp, listSrc)                                    \
-    PtrList* listp = listSrc;                                              \
-    if (listp)                                                             \
-        for (T var = (T)listp->item; listp && (var = (T)listp->item);      \
-             listp = listp->next)
+// #define foreach(T, var, listp, listSrc)                                    \
+//     PtrList* listp = listSrc;                                              \
+//     if (listp)                                                             \
+//         for (T var = (T)listp->item; listp and (var = (T)listp->item);      \
+//              listp = listp->next)
 
+#define foreach(T, var, listSrc) foreachn(T, var, _listp_, listSrc)
+#define foreachn(T, var, listp, listSrc)                                   \
+    for (PtrList* listp = listSrc; listp; listp = NULL)                    \
+        for (T var = (T)listp->item; listp and (var = (T)listp->item);     \
+             listp = listp->next)
 #endif /* chstd_h */
 
 #pragma mark - String Functions
@@ -386,7 +394,6 @@ static void str_tr_ip(
     while (*++sc && sc < end)
         if (*sc == oldc) *sc = newc;
 }
- 
 
 static char* str_tr(char* str, const char oldc, const char newc)
 {
@@ -396,7 +403,10 @@ static char* str_tr(char* str, const char oldc, const char newc)
     return s;
 }
 
-static char* str_nthField(char* str, int len, char sep, int nth) { return NULL; }
+static char* str_nthField(char* str, int len, char sep, int nth)
+{
+    return NULL;
+}
 
 static int str_countFields(char* str, int len, char sep) { return 0; }
 

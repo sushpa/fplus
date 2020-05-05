@@ -6,13 +6,14 @@
         exit(1);                                                           \
     }
 
-static void Parser_errorIncrement(Parser* this)
+static void Parser_errorIncrement(Parser* const this)
 {
     if (++this->errCount >= this->errLimit)
         fatal("\ntoo many errors (%d), quitting\n", this->errLimit);
 }
 
-static void Parser_errorExpectedToken(Parser* this, TokenKind expected)
+static void Parser_errorExpectedToken(
+    Parser* const this, const TokenKind expected)
 {
     eprintf("\n(%d) \e[31merror:\e[0m at %s%s:%d:%d\n"
             "      expected '%s' found '%s'\n",
@@ -22,18 +23,16 @@ static void Parser_errorExpectedToken(Parser* this, TokenKind expected)
     Parser_errorIncrement(this);
 }
 
-static void Parser_errorParsingExpr(Parser* this)
+static void Parser_errorParsingExpr(Parser* const this)
 {
-    // fputs(dashes, stderr);
     eprintf("\n(%d) \e[31merror:\e[0m at %s%s:%d/%d\n"
             "      failed to parse expr, giving up\n",
         this->errCount + 1, RELF(this->filename), this->token.line - 1,
         this->token.line);
-    // parseExpr will move to next line IF there was no hanging comment
     Parser_errorIncrement(this);
 }
 
-static void Parser_errorInvalidIdent(Parser* this)
+static void Parser_errorInvalidIdent(Parser* const this)
 {
     eprintf("\n(%d) \e[31merror:\e[0m invalid name '%.*s' at "
             "%s%s:%d:%d\n",
@@ -42,48 +41,65 @@ static void Parser_errorInvalidIdent(Parser* this)
     Parser_errorIncrement(this);
 }
 
-static void Parser_errorInvalidTypeMember(Parser* this)
+static void Parser_errorInvalidTypeMember(Parser* const this)
 {
     eprintf("\n(%d) \e[31merror:\e[0m invalid member at %s%s:%d\n",
         this->errCount + 1, RELF(this->filename), this->token.line - 1);
     Parser_errorIncrement(this);
 }
 
-static void Parser_errorUnrecognizedVar(Parser* this, ASTExpr* expr)
+static void Parser_errorUnrecognizedVar(
+    Parser* const this, const ASTExpr* const expr)
 {
     eprintf("\n(%d) \e[31merror:\e[0m unknown variable "
-            "\e[34m%s\e[0m at "
-            "%s%s:%d:%d\n",
-        this->errCount + 1,  expr->string,
-        RELF(this->filename), expr->line, expr->col);
+            "\e[34m%s\e[0m at %s%s:%d:%d\n",
+        this->errCount + 1, expr->string, RELF(this->filename), expr->line,
+        expr->col);
     Parser_errorIncrement(this);
+}
+
+static void Parser_warnUnusedArg(
+    Parser* const this, const ASTVar* const var)
+{
+    eprintf("\n(%d) \e[33mwarning:\e[0m unused argument "
+            "\e[34m%s\e[0m at %s%s:%d:%d\n",
+        ++this->warnCount, var->name, RELF(this->filename), var->line,
+        var->col);
+}
+
+static void Parser_warnUnusedVar(
+    Parser* const this, const ASTVar* const var)
+{
+    eprintf("\n(%d) \e[33mwarning:\e[0m unused variable "
+            "\e[34m%s\e[0m at %s%s:%d:%d\n",
+        ++this->warnCount, var->name, RELF(this->filename), var->line,
+        var->col);
 }
 
 static void Parser_errorDuplicateVar(
-    Parser* this, ASTVar* var, ASTVar* orig)
+    Parser* const this, const ASTVar* const var, const ASTVar* const orig)
 {
     eprintf("\n(%d) \e[31merror:\e[0m duplicate variable "
-            "\e[34m%s\e[0m at "
-            "%s%s:%d:%d\n   "
+            "\e[34m%s\e[0m at %s%s:%d:%d\n   "
             "          already declared at %s%s:%d:%d\n",
         this->errCount + 1, var->name, RELF(this->filename), var->line,
-        var->col, RELF(this->filename), orig->line,
-        orig->col); // every var has init!! and every var is indented 4 spc
-                    // ;-)
+        var->col, RELF(this->filename), orig->line, orig->col);
     Parser_errorIncrement(this);
 }
 
-static void Parser_errorUnrecognizedFunc(
-    Parser* this, ASTExpr* expr, const char* selector)
+static void Parser_errorUnrecognizedFunc(Parser* const this,
+    const ASTExpr* const expr, const char* const selector)
 {
     eprintf("\n(%d) \e[31merror:\e[0m can't resolve call to "
             "\e[34m%s\e[0m at %s%s:%d:%d\n"
             "        selector is \e[34m%s\e[0m\n",
-        this->errCount + 1,  expr->string,
-        RELF(this->filename), expr->line, expr->col, selector);
+        this->errCount + 1, expr->string, RELF(this->filename), expr->line,
+        expr->col, selector);
     Parser_errorIncrement(this);
 }
-static void Parser_errorArgsCountMismatch(Parser* this, ASTExpr* expr)
+
+static void Parser_errorArgsCountMismatch(
+    Parser* const this, const ASTExpr* const expr)
 {
     assert(expr->kind == TKFunctionCallResolved);
     eprintf("\n(%d) \e[31merror:\e[0m arg count mismatch for "
@@ -94,7 +110,9 @@ static void Parser_errorArgsCountMismatch(Parser* this, ASTExpr* expr)
         expr->func->argCount, RELF(this->filename), expr->func->line);
     Parser_errorIncrement(this);
 }
-static void Parser_errorIndexDimsMismatch(Parser* this, ASTExpr* expr)
+
+static void Parser_errorIndexDimsMismatch(
+    Parser* const this, const ASTExpr* const expr)
 {
     assert(expr->kind == TKSubscriptResolved);
     int reqdDims = expr->var->typeSpec->dims;
@@ -116,19 +134,20 @@ static void Parser_errorIndexDimsMismatch(Parser* this, ASTExpr* expr)
             reqdDims, RELF(this->filename), expr->var->typeSpec->line);
     Parser_errorIncrement(this);
 }
-static void Parser_errorMissingInit(Parser* this, ASTExpr* expr)
+
+static void Parser_errorMissingInit(
+    Parser* const this, const ASTExpr* const expr)
 {
     assert(expr->kind == TKVarAssign);
     eprintf("\n(%d) \e[31merror:\e[0m missing initializer for "
-            "\e[34m%s\e[0m at "
-            "%s%s:%d-%d\n",
+            "\e[34m%s\e[0m at %s%s:%d-%d\n",
         this->errCount + 1, expr->var->name, RELF(this->filename),
         expr->line - 1, expr->line);
     Parser_errorIncrement(this);
 }
 
 static void Parser_errorUnrecognizedType(
-    Parser* this, ASTTypeSpec* typeSpec)
+    Parser* const this, const ASTTypeSpec* const typeSpec)
 {
     eprintf("\n(%d) \e[31merror:\e[0m unknown typespec \e[33m%s\e[0m "
             "at %s%s:%d:%d\n",
@@ -137,7 +156,8 @@ static void Parser_errorUnrecognizedType(
     Parser_errorIncrement(this);
 }
 
-static void Parser_errorTypeMismatchBinOp(Parser* this, const ASTExpr* expr)
+static void Parser_errorTypeMismatchBinOp(
+    Parser* const this, const ASTExpr* const expr)
 {
     eprintf("\n(%d) \e[31merror:\e[0m type mismatch for operands of '"
             "\e[34m%s\e[0m' at %s%s:%d:%d\n",
@@ -146,7 +166,8 @@ static void Parser_errorTypeMismatchBinOp(Parser* this, const ASTExpr* expr)
     Parser_errorIncrement(this);
 }
 
-static void Parser_errorReadOnlyVar(Parser* this, const ASTExpr* expr)
+static void Parser_errorReadOnlyVar(
+    Parser* const this, const ASTExpr* const expr)
 {
     eprintf("\n(%d) \e[31merror:\e[0m mutating read-only variable '"
             "\e[34m%s\e[0m' at %s%s:%d:%d\n",
@@ -154,7 +175,9 @@ static void Parser_errorReadOnlyVar(Parser* this, const ASTExpr* expr)
         expr->line, expr->col);
     Parser_errorIncrement(this);
 }
-static void Parser_errorInvalidTypeForOp(Parser* this, const ASTExpr* expr)
+
+static void Parser_errorInvalidTypeForOp(
+    Parser* const this, const ASTExpr* const expr)
 {
     eprintf("\n(%d) \e[31merror:\e[0m invalid types for operator '"
             "\e[34m%s\e[0m' at %s%s:%d:%d\n",
@@ -162,8 +185,9 @@ static void Parser_errorInvalidTypeForOp(Parser* this, const ASTExpr* expr)
         RELF(this->filename), expr->line, expr->col);
     Parser_errorIncrement(this);
 }
+
 static void Parser_errorArgTypeMismatch(
-    Parser* this, ASTExpr* expr, ASTVar* var)
+    Parser* const this, const ASTExpr* const expr, const ASTVar* const var)
 {
     eprintf("\n(%d) \e[31merror:\e[0m type mismatch for argument '"
             "\e[34m%s\e[0m' at %s%s:%d:%d\n",
@@ -171,20 +195,18 @@ static void Parser_errorArgTypeMismatch(
         expr->col);
     Parser_errorIncrement(this);
 }
-static void Parser_errorTypeMismatch(
-    Parser* this, ASTExpr* expr, ASTTypeSpec* expected);
 
-static void Parser_errorUnexpectedToken(Parser* this)
+static void Parser_errorUnexpectedToken(Parser* const this)
 {
     eprintf("\n(%d) \e[31merror:\e[0m at %s%s:%d:%d\n      unexpected "
-            "token "
-            "'%.*s'\n",
+            "token '%.*s'\n",
         this->errCount + 1, RELF(this->filename), this->token.line,
         this->token.col, this->token.matchlen, this->token.pos);
     Parser_errorIncrement(this);
 }
 
-static void Parser_errorUnexpectedExpr(Parser* this, const ASTExpr* expr)
+static void Parser_errorUnexpectedExpr(
+    Parser* const this, const ASTExpr* const expr)
 {
     eprintf("\n(%d) \e[31merror:\e[0m at %s%s:%d:%d\n"
             "      unexpected expr '%s'",
