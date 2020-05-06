@@ -75,14 +75,12 @@ typedef struct ASTVar {
 typedef struct ASTExpr {
     struct {
         uint16_t line;
-        union {
-            struct {
+             struct {
                 uint16_t typeType : 5, isElementalOp : 1, canThrow : 1,
                     opIsUnary : 1, collectionType : 6, mayNeedPromotion : 1,
                     opIsRightAssociative : 1;
             };
-        };
-        uint8_t opPrec;
+         uint8_t opPrec;
         uint8_t col;
         TokenKind kind : 8;
     };
@@ -227,7 +225,9 @@ static const char* getDefaultValueForType(ASTTypeSpec* type)
     if (not type) return "";
     switch (type->typeType) {
     case TYUnresolved:
-        assert(0);
+        unreachable(
+            "unresolved: '%s' at %d:%d", type->name, type->line, type->col);
+        // assert(0);
         return "ERROR_ERROR_ERROR";
     case TYString:
         return "\"\"";
@@ -438,7 +438,11 @@ static const char* ASTExpr_typeName(ASTExpr* this)
             //            TypeTypes typeType =
             //            if (!typeType) return "UnknownType";
             const char* name = TypeType_name(this->var->typeSpec->typeType);
-            if (!name) return "UnknownType";
+            if (!name) {
+                unreachable("unresolved: %s %s",
+                    TokenKind_repr(this->kind, false), this->name);
+                return "UnknownType";
+            }
             if (!*name) name = this->var->typeSpec->type->name;
             return name;
         }
@@ -458,9 +462,10 @@ static const char* ASTExpr_typeName(ASTExpr* this)
         return "Range";
         // TODO: what else???
     default:
-        fprintf(stderr, "%s\n", TokenKind_repr(this->kind, false));
-        assert(0);
+        unreachable("unexpected: %s %s", TokenKind_repr(this->kind, false),
+            this->name);
     }
+    return "UnknownType";
 }
 
 static void ASTExpr_catarglabels(ASTExpr* this)
@@ -769,7 +774,7 @@ static void getSelector(ASTFunc* func)
 }
 
 #include "typecheck.h"
-
+#include "sempass.h"
 #include "parse.h"
 
 // TODO: this should be in ASTModule open/close

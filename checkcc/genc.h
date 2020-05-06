@@ -45,8 +45,9 @@ static void ASTTypeSpec_genc(ASTTypeSpec* typeSpec, int level, bool isconst)
         break;
     case TYUnresolved:
         // should not happen, really
-        // unreachable("unresolved type during genc");
-        assert(0);
+        unreachable("unresolved: '%s' at %d:%d", typeSpec->name,
+            typeSpec->line, typeSpec->col);
+        // assert(0);
         printf("%s", typeSpec->name);
         break;
     default:
@@ -681,20 +682,24 @@ static void ASTExpr_genc(ASTExpr* expr, int level, bool spacing,
         break;
 
     case tkFunctionCall:
-    case tkFunctionCallResolved: {
-        char* tmp = (expr->kind == tkFunctionCallResolved)
-            ? expr->func->name
-            : expr->name;
-        ASTExpr* firstArg = expr->left;
+        unreachable("%s", "unresolved call");
+        break;
 
-        if (firstArg and firstArg->kind == tkOpComma)
-            firstArg = firstArg->left;
+    case tkFunctionCallResolved: {
+        char* tmp = expr->func->selector;
+        // (expr->kind == tkFunctionCallResolved)
+        //     ? expr->func->name
+        //     : expr->name;
+        // ASTExpr* firstArg = expr->left;
+
+        // if (firstArg and firstArg->kind == tkOpComma)
+        //     firstArg = firstArg->left;
 
         // TODO: refactor the following into a func, much needed
-        if (firstArg) printf("%s_", ASTExpr_typeName(firstArg));
+        // if (firstArg) printf("%s_", ASTExpr_typeName(firstArg));
 
-        str_tr_ip(tmp, '.', '_', 0); // this should have been done in a
-                                     // previous stage prepc() or lower()
+        // str_tr_ip(tmp, '.', '_', 0); // this should have been done in a
+        // previous stage prepc() or lower()
         printf("%s", tmp);
         if (*tmp >= 'A' and *tmp <= 'Z' and not strchr(tmp, '_'))
             printf("_new_"); // MyType() generates MyType_new_()
@@ -702,9 +707,9 @@ static void ASTExpr_genc(ASTExpr* expr, int level, bool spacing,
         // defined, they should
         // generate both a _init_arg1_arg2 function AND a corresponding
         // _new_arg1_arg2 func.
-        if (expr->left) ASTExpr_catarglabels(expr->left);
+        // if (expr->left) ASTExpr_catarglabels(expr->left);
 
-        str_tr_ip(tmp, '_', '.', 0);
+        // str_tr_ip(tmp, '_', '.', 0);
         // this won't be needed, prepc will do the "mangling"
         printf("(");
 

@@ -42,6 +42,7 @@ static void ASTScope_checkUnusedVars(Parser* this, ASTScope* scope)
         if (isCtrlExpr(stmt) and stmt->body)
             ASTScope_checkUnusedVars(this, stmt->body);
 }
+
 static void ASTFunc_checkUnusedVars(Parser* this, ASTFunc* func)
 {
     foreach (ASTVar*, arg, func->args)
@@ -53,7 +54,15 @@ static void ASTFunc_checkUnusedVars(Parser* this, ASTFunc* func)
 // TODO: Btw there should be a module level scope to hold lets (and
 // comments). That will be the root scope which has parent==NULL.
 
-static void resolveFuncsAndTypes(
+// This function is called once, after the types of basic elements
+// (literals, resolved vars, operators on basic elements, basically
+// everything except func calls) is assigned. Then after the call to this
+// function, the type assignment pass repeats so that exprs with
+// now-resolved func calls can have their types assigned.
+// WAIT -- WORKS FOR NOW -- OR NOT
+
+#if 0
+static void resolveFuncCalls(
     Parser* this, ASTExpr* expr, ASTModule* mod)
 { // TODO: what happens if you get a tkSubscriptResolved?
 
@@ -65,34 +74,42 @@ static void resolveFuncsAndTypes(
 
     case tkSubscriptResolved:
     case tkSubscript:
-        if (expr->left) resolveFuncsAndTypes(this, expr->left, mod);
+        if (expr->left) resolveFuncCalls(this, expr->left, mod);
         break;
 
     case tkFunctionCall: {
-        char buf[128]={};
+        char buf[128] = {};
         char* bufp = buf;
-        if (expr->left) resolveFuncsAndTypes(this, expr->left, mod);
+        if (expr->left) resolveFuncCalls(this, expr->left, mod);
 
+        // TODO: need a function to make and return selector
         ASTExpr* arg1 = expr->left;
-
-        if (arg1 and arg1->kind == tkOpComma)
-            arg1 = arg1->left;
-        if (arg1)
-          { const char* tyname=ASTExpr_typeName(arg1);
-            bufp += sprintf(bufp, "%s_", tyname);}
+        if (arg1 and arg1->kind == tkOpComma) arg1 = arg1->left;
+        if (arg1) {
+            const char* tyname = ASTExpr_typeName(arg1);
+            bufp += sprintf(bufp, "%s_", tyname);
+        }
         bufp += sprintf(bufp, "%s", expr->name);
-        if (expr->left) ASTExpr_strarglabels(expr->left, bufp, 128 - ((int)(bufp - buf)));
+        if (expr->left)
+            ASTExpr_strarglabels(
+                expr->left, bufp, 128 - ((int)(bufp - buf)));
 
         foreach (ASTFunc*, func, mod->funcs) {
             if (not strcasecmp(buf, func->selector)) {
                 expr->kind = tkFunctionCallResolved;
                 expr->func = func;
-                resolveFuncsAndTypes(this, expr, mod);
+                resolveFuncCalls(this, expr, mod);
                 return;
             }
         } // since it is known which module the func must be found in,
           // no need to scan others if function has not been found
         Parser_errorUnrecognizedFunc(this, expr, buf);
+        foreach (ASTFunc*, func, mod->funcs)
+            if (not strcasecmp(expr->name, func->name))
+                eprintf("        \e[;2mnot viable: \e[34m%s\e[0;2m (%d "
+                        "args) at ./%s:%d\e[0m\n",
+                    func->selector, func->argCount, this->filename,
+                    func->line);
         // but still check nested func calls
     } break;
 
@@ -100,8 +117,9 @@ static void resolveFuncsAndTypes(
         if (not expr->var->init)
             Parser_errorMissingInit(this, expr);
         else {
-            resolveTypeSpec(this, expr->var->typeSpec, mod);
-            resolveFuncsAndTypes(this, expr->var->init, mod);
+            if (!*expr->var->typeSpec->name)
+                resolveTypeSpec(this, expr->var->typeSpec, mod);
+            resolveFuncCalls(this, expr->var->init, mod);
         }
         break;
 
@@ -109,20 +127,23 @@ static void resolveFuncsAndTypes(
     case tkKeyword_if:
     case tkKeyword_for:
     case tkKeyword_while: {
-        if (expr->left) resolveFuncsAndTypes(this, expr->left, mod);
+        if (expr->left) resolveFuncCalls(this, expr->left, mod);
         foreach (ASTExpr*, stmt, expr->body->stmts)
-            resolveFuncsAndTypes(this, stmt, mod);
+            resolveFuncCalls(this, stmt, mod);
     } break;
 
     default:
         if (expr->opPrec) {
             if (not expr->opIsUnary)
-                resolveFuncsAndTypes(this, expr->left, mod);
-            resolveFuncsAndTypes(this, expr->right, mod);
+                resolveFuncCalls(this, expr->left, mod);
+            resolveFuncCalls(this, expr->right, mod);
         }
     }
 }
+#endif
 
+// This function is called in one pass, during the line-by-line parsing.
+// (since variables cannot be "forward-declared").
 static void resolveVars(
     Parser* this, ASTExpr* expr, ASTScope* scope, bool inFuncCall)
 { // TODO: this could be done on rpn in parseExpr, making it iterative

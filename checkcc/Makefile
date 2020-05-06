@@ -1,6 +1,6 @@
 all: checkc.bin
 
-CCFLAGS=-std=c99 -Werror -march=native -funroll-loops -ffast-math
+CCFLAGS=-std=c99 -Werror
 CPP=gcc
 
 TokenKindDefs.h: makeTokens.sh

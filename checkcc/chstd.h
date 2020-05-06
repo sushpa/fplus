@@ -54,6 +54,16 @@ union Value {
     double d;
 };
 
+#define unreachable(fmt, ...)                                              \
+    {                                                                      \
+        eprintf("\n\e[31m*** COMPILER INTERNAL ERROR\e[0m at ./%s:%d\n"    \
+                "    in %s\n"                                              \
+                "    unreachable location hit, quitting\n"                 \
+                "    msg: " fmt "\n",                                      \
+            __FILE__, __LINE__, __func__, __VA_ARGS__);                    \
+    }
+//    exit(12);
+
 #pragma mark - Array
 
 //#define DEFAULT0(T) DEFAULT0_##T
@@ -113,10 +123,10 @@ typedef double Real64;
 // Should be using adhoc to generate these.
 
 // At some point, make these use some smart ass tricks to enable good
-// perf even with -O0 since -O takes too long -- doesn't seem like "instant"
-// typically 200-300 ms should be the upper limit for compilation time
-// YES "COMPILATION" MEANS TO BINARY NOT TO C, that should be < 20ms
-// for a typical project.
+// perf even with -O0 since -O takes too long -- doesn't seem like
+// "instant" typically 200-300 ms should be the upper limit for
+// compilation time YES "COMPILATION" MEANS TO BINARY NOT TO C, that
+// should be < 20ms for a typical project.
 #define MAKE_Array(T)                                                      \
     typedef struct Array(T)                                                \
     {                                                                      \
@@ -197,8 +207,8 @@ MAKE_Array(Ptr);
 
 // Array_top(T) is only defined for value types to keep the number
 // of instantiations (of the "template" Array) down. So void* represents
-// object ptrs of all types. Cast them when you need to deref or do -> etc.
-// this is used to get a void* as a T (usually a SomeType*)
+// object ptrs of all types. Cast them when you need to deref or do ->
+// etc. this is used to get a void* as a T (usually a SomeType*)
 
 // TODO: StaticArray type with size and array, StaticArray2D/3Detc.
 // since this is not templated, it's your job to send items of the
@@ -206,9 +216,10 @@ MAKE_Array(Ptr);
 // ASSUMING SIZE IS 8. THAT MEANS NO FLOAT OR UINT32, only sizeof(void*)
 // #define Array_concat_cArray(T, Array, arr, count) \
 //     Array_concat_cArray_(Array, arr, count * sizeof(T))
-// TODO: the compiler should optimise away calls to concat if the original
-// arrays can be used one after the other. e.g. concat two arrays then print
-// it can be done by simply printing first then second, no memcpy involved.
+// TODO: the compiler should optimise away calls to concat if the
+// original arrays can be used one after the other. e.g. concat two
+// arrays then print it can be done by simply printing first then
+// second, no memcpy involved.
 // #define Array_concat_otherArray(T, s1, s2) \
 //     Array_concat_otherArray_(s1, s2, sizeof(T))
 #pragma mark - Pool
@@ -271,8 +282,8 @@ typedef struct PtrList {
 
 static PtrList* PtrList_with(void* item)
 {
-    // TODO: how to get separate alloc counts of List_ASTType List_ASTFunc
-    // etc.?
+    // TODO: how to get separate alloc counts of List_ASTType
+    // List_ASTFunc etc.?
     PtrList* li = NEW(PtrList);
     li->item = item;
     return li;
@@ -353,10 +364,11 @@ static char* str_noext(char* str)
 static char* str_base(char* str, char sep, size_t slen)
 {
     if (!slen)
-        return str; // you should pass in the len. len 0 is actually valid
-                    // since basename for 'mod' is 'mod' itself, and this
-                    // would have caused a call to strlen below. so len 0
-                    // now means really just return what came in.
+        return str; // you should pass in the len. len 0 is actually
+                    // valid since basename for 'mod' is 'mod' itself,
+                    // and this would have caused a call to strlen
+                    // below. so len 0 now means really just return what
+                    // came in.
     char* s = str;
     char* sc = s + slen;
     while (sc > s and sc[-1] != sep)

@@ -601,18 +601,17 @@ static ASTFunc* parseStmtFunc(Parser* this)
 
     func->args = parseArgs(this);
     func->argCount = PtrList_count(func->args);
-
-    if (Parser_ignore(this, tkOneSpace)
-        and Parser_ignore(this, tkKeyword_as)) {
-        discard(this, tkOneSpace);
-        func->returnType = parseTypeSpec(this);
-        Parser_ignore(this, tkOneSpace);
-    } else {
-        func->returnType = NEW(ASTTypeSpec);
-        func->returnType->line = this->token.line;
-        func->returnType->col = this->token.col;
-        func->returnType->name = "";
-    }
+    Parser_ignore(this, tkOneSpace);
+    // if (Parser_ignore(this, tkKeyword_returns)) {
+    //     discard(this, tkOneSpace);
+    //     func->returnType = parseTypeSpec(this);
+    //     Parser_ignore(this, tkOneSpace);
+    // } else {
+    func->returnType = NEW(ASTTypeSpec);
+    func->returnType->line = this->token.line;
+    func->returnType->col = this->token.col;
+    func->returnType->name = "";
+    // }
 
     ASTExpr* ret = exprFromCurrentToken(this);
     assert(ret->kind == tkColEq);
@@ -713,6 +712,7 @@ static ASTImport* parseImport(Parser* this)
         Token_advance(&this->token);
     return import;
 }
+void analyseModule(Parser* this, ASTModule* mod);
 
 static PtrList* parseModule(Parser* this)
 {
@@ -769,6 +769,7 @@ static PtrList* parseModule(Parser* this)
             ASTType* type = parseType(this, true);
             PtrList_append(typesTop, type);
             if ((*typesTop)->next) typesTop = &(*typesTop)->next;
+            // create default constructor
             ASTFunc* ctor = NEW(ASTFunc);
             ctor->line = type->line;
             ctor->flags.isDefCtor = true;
@@ -828,7 +829,14 @@ static PtrList* parseModule(Parser* this)
     // also keep modulesTop
 
     // do some analysis that happens after the entire module is loaded
+    analyseModule(this, root);
 
+    PtrList_append(&this->modules, root);
+    return this->modules;
+}
+
+void analyseModule(Parser* this, ASTModule* mod)
+{
     // now doing an O(N^2) loop over all types to check duplicates, and same
     // for funcs. In fact, funcs should not have the same effective selector
     // as type constructors, so they need an extra checking loop too. Later
@@ -837,29 +845,23 @@ static PtrList* parseModule(Parser* this)
     // from here and report the duplicates as errors. Also need to save the
     // number of funcs and types and tests and globals etc., so that the
     // dicts can be stack allocated with known size.
-    foreach (ASTType*, type, root->types) {
+    foreach (ASTType*, type, mod->types) {
         if (type->super) {
-            resolveTypeSpec(this, type->super, root);
+            resolveTypeSpec(this, type->super, mod);
             if (type->super->type == type)
                 Parser_errorTypeInheritsSelf(this, type);
         }
         // TODO: this should be replaced by a dict query
-        foreach (ASTType*, type2, root->types) {
+        foreach (ASTType*, type2, mod->types) {
             if (type2 == type) break;
             if (not strcasecmp(type->name, type2->name))
                 Parser_errorDuplicateType(this, type, type2);
         }
-        if (not type->body) continue;
-        foreach (ASTExpr*, stmt, type->body->stmts) {
-            resolveFuncsAndTypes(this, stmt, root);
-            setExprTypeInfo(this, stmt, false);
-        }
     }
 
-    foreach (ASTFunc*, func, root->funcs) {
+    foreach (ASTFunc*, func, mod->funcs) {
         // TODO: this should be replaced by a dict query
-        foreach (ASTType*, type, root->types) {
-            // if (func == func2) break;
+        foreach (ASTType*, type, mod->types) {
             if (not strcasecmp(func->name, type->name)) {
                 if (func->returnType
                     and not(func->flags.isStmt or func->flags.isDefCtor))
@@ -877,53 +879,38 @@ static PtrList* parseModule(Parser* this)
                 // stmt func has its return type assigned.
                 // if (func->flags.isStmt)
                 //     Parser_errorCtorHasType(this, func, type);
-                if (*func->name < 'A' or *func->name > 'Z') {
+                if (*func->name < 'A' or *func->name > 'Z')
                     Parser_warnCtorCase(this, func, type);
-                    func->name = type->name;
-                }
+
+                func->name = type->name;
                 goto foundctor;
             }
         }
         // TODO: here check func names that are capitalized but not type
         // names (no match was found above) and disallow them
-        if (not func->flags.isDefCtor and *func->name >= 'A'
-            and *func->name <= 'Z') {
+        if (not func->flags.isDefCtor //
+            and *func->name >= 'A' and *func->name <= 'Z')
             Parser_errorUnrecognizedCtor(this, func);
-        }
 
     foundctor:
 
-        foreach (ASTVar*, arg, func->args) {
-            resolveTypeSpec(this, arg->typeSpec, root);
-        }
+        foreach (ASTVar*, arg, func->args)
+            resolveTypeSpec(this, arg->typeSpec, mod);
 
-        if (func->returnType) resolveTypeSpec(this, func->returnType, root);
+        if (func->returnType) resolveTypeSpec(this, func->returnType, mod);
         getSelector(func);
     }
 
-    foreach (ASTFunc*, func, root->funcs) {
-        if (func->body) {
-            // TODO: this should be replaced by a dict query
-            foreach (ASTFunc*, func2, root->funcs) {
-                if (func == func2) break;
-                if (not strcasecmp(func->selector, func2->selector))
-                    Parser_errorDuplicateFunc(this, func, func2);
-            }
+    // now the semantic pass happens over all types first and then all
+    // funcs. It should instead start from main and process each type/func
+    // as it is resolved (and set a resolved flag). The reason is not only
+    // performance: because types can depend on funcs (initializers can call
+    // anything) and funcs obv depend on types, you may not be able to
+    // resolve all dependencies by doing all types first and then all funcs
+    // (or even vice versa).
+    foreach (ASTType*, type, mod->types)
+        sempassType(this, type, mod);
 
-            ASTFunc_checkUnusedVars(this, func);
-            foreach (ASTExpr*, stmt, func->body->stmts) {
-                resolveFuncsAndTypes(this, stmt, root);
-                setExprTypeInfo(this, stmt, false);
-            }
-            if (func->flags.isStmt) setStmtFuncTypeInfo(this, func);
-
-            if (not this->errCount) {
-                ASTScope_lowerElementalOps(func->body);
-                ASTScope_promoteCandidates(func->body);
-            }
-        }
-    }
-
-    PtrList_append(&this->modules, root);
-    return this->modules;
+    foreach (ASTFunc*, func, mod->funcs)
+        sempassFunc(this, func, mod);
 }

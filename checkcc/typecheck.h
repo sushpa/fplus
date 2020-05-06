@@ -1,5 +1,16 @@
 static void checkBinOpTypeMismatch(Parser* self, ASTExpr* expr) {}
 
+// TODO: rework type distribution.
+// It needs to be 2-pass: first the types of everything except function
+// calls is set, then in the second pass the exprs with func calls and those
+// above them are assigned types. This is because in order to resolve
+// functions, the type of the first arg is required, and thus func
+// resolution cannot happen before type distribution (first pass). So the
+// order is first type resolution, then name resolution, then second type
+// resolution.
+
+// TODO: call this check-or-set-func-type and run it on all funcs to ensure
+// funcs return what they declare
 static void setStmtFuncTypeInfo(Parser* self, ASTFunc* func)
 {
     // this assumes that setExprTypeInfo has been called on the func body
@@ -10,7 +21,9 @@ static void setStmtFuncTypeInfo(Parser* self, ASTFunc* func)
         Parser_errorTypeMismatchBinOp(self, stmt);
 }
 
-static void setExprTypeInfo(Parser* self, ASTExpr* expr, bool inFuncArgs)
+#if 0
+static void setExprTypeInfo(
+    Parser* self, ASTExpr* expr, bool inFuncArgs)
 { // return;
     switch (expr->kind) {
     case tkIdentifierResolved:
@@ -60,6 +73,7 @@ static void setExprTypeInfo(Parser* self, ASTExpr* expr, bool inFuncArgs)
         break;
     case tkSubscript:
     case tkFunctionCall:
+        // allow this: the first pass will fall here and silently pass
         // eprintf(
         //     "\nissue in setExprTypeInfo: can't handle unresolved '%s'\n",
         //     expr->name);
@@ -174,3 +188,4 @@ static void setExprTypeInfo(Parser* self, ASTExpr* expr, bool inFuncArgs)
             assert(0);
     }
 }
+#endif

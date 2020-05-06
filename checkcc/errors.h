@@ -25,8 +25,7 @@ static void Parser_errorExpectedToken(
 
 static void Parser_errorParsingExpr(Parser* const this)
 {
-    eprintf("\n(%d) \e[31merror:\e[0m at %s%s:%d/%d\n"
-            "      failed to parse expr, giving up\n",
+    eprintf("\n(%d) \e[31merror:\e[0m syntax error at %s%s:%d/%d\n",
         this->errCount + 1, RELF(this->filename), this->token.line - 1,
         this->token.line);
     Parser_errorIncrement(this);
@@ -146,9 +145,9 @@ static void Parser_errorUnrecognizedFunc(Parser* const this,
 {
     eprintf("\n(%d) \e[31merror:\e[0m can't resolve call to "
             "\e[34m%s\e[0m at %s%s:%d:%d\n"
-            "        selector is \e[34m%s\e[0m\n",
+            "        selector is \e[34m%s\e[0m (%d args)\n",
         this->errCount + 1, expr->string, RELF(this->filename), expr->line,
-        expr->col, selector);
+        expr->col, selector, ASTExpr_countCommaList(expr->left));
     Parser_errorIncrement(this);
 }
 

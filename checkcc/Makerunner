@@ -1,7 +1,7 @@
 # at some point checkc should output to a file not stdout
 DIAG=
 
-CFLOPT=-O3 -Wall
+CFLOPT=-O0 -Wall
 CFLDBG=-O0 -g -Werror -DDEBUG
 CFLFAST=-O3 -march=native -ffast-math -funroll-loops -DNOSTACKCHECK -DNONULLCHECK -DNOBOUNDSCHECK
 
