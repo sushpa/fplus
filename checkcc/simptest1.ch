@@ -37,15 +37,15 @@ type Point
     var x = fxfunc(3) # fxfunc(p, p.po)
     var y = 69.6723
     var z = y + 5.6 * x
-    # var o = Other()
+    var o = Other()
     var cstr = "xyz"
 end type
 
-# fxfunc(x as Scalar) := x * 1.5
+fxfunc(x as Scalar) := x * 1.5
 
-function fxfunc(x as Scalar) returns Scalar
-return x * 1.5
-end function
+# function fxfunc(x as Scalar) returns Scalar
+# return x * 1.5
+# end function
 # point(m as Scalar) := m + 4
 
 function Point(x as Scalar)
@@ -59,6 +59,7 @@ end function
 function main(args as Strings) returns Scalar
     let po = Point()
     let pcx = Point(78)
+    let mg = args
     json(po)
     funky()
     # print(pcx)

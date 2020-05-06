@@ -1,4 +1,6 @@
 // TODO make sempassModule -> same as analyseModule now
+static void sempassType(Parser* self, ASTType* type, ASTModule* mod);
+static void sempassFunc(Parser* self, ASTFunc* func, ASTModule* mod);
 
 static void sempass(
     Parser* self, ASTExpr* expr, ASTModule* mod, bool inFuncArgs)
@@ -59,6 +61,7 @@ static void sempass(
             if (not strcasecmp(buf, func->selector)) {
                 expr->kind = tkFunctionCallResolved;
                 expr->func = func;
+                sempassFunc(self, func, mod);
                 sempass(self, expr, mod, inFuncArgs);
                 return;
             }
@@ -98,6 +101,7 @@ static void sempass(
                             = expr->var->init->var->typeSpec->type;
                     else
                         unreachable("%s", "var type inference failed");
+                    sempassType(self, expr->var->typeSpec->type, mod);
                 }
             } else if (expr->var->typeSpec->typeType
                 != expr->var->init->typeType)
@@ -216,6 +220,9 @@ static void sempass(
 
 static void sempassType(Parser* self, ASTType* type, ASTModule* mod)
 {
+    if (type->flags.sempassDone) return;
+    eprintf(
+        "sempass: %s at ./%s:%d\n", type->name, self->filename, type->line);
     if (type->super) {
         resolveTypeSpec(self, type->super, mod);
         if (type->super->type == type)
@@ -227,6 +234,18 @@ static void sempassType(Parser* self, ASTType* type, ASTModule* mod)
         if (not strcasecmp(type->name, type2->name))
             Parser_errorDuplicateType(self, type, type2);
     }
+    // Mark the semantic pass as done for this type, so that recursive
+    // paths through calls found in initializers will not cause the compiler
+    // to recur. This might be a problem if e.g. the type has a, b, c and
+    // the initializer for b has a dependency on the type's .c member, whose
+    // type has not been set by the time b's initializer is processed.
+    // However if you set sempassDone after all statements, then you risk
+    // getting caught in a recursive path. One way to fix it is to have
+    // granularity at the member level, so not entire types but their
+    // individual members are processed. In that case the only problem can
+    // be a recursive path between a member var and a function that it calls
+    // in its initializer.
+    type->flags.sempassDone = true;
     // nothing to do for declared/empty types etc. with no body
     if (type->body) foreach (ASTExpr*, stmt, type->body->stmts)
             sempass(self, stmt, mod, false);
@@ -235,6 +254,10 @@ static void sempassType(Parser* self, ASTType* type, ASTModule* mod)
 static void sempassFunc(Parser* self, ASTFunc* func, ASTModule* mod)
 
 {
+    if (func->flags.semPassDone) return;
+    eprintf("sempass: %s: %s at ./%s:%d\n", func->name, func->selector,
+        self->filename, func->line);
+
     bool foundCtor = false;
     // Check if the function is a constructor call and identify the type.
     // TODO: this should be replaced by a dict query
@@ -270,7 +293,10 @@ static void sempassFunc(Parser* self, ASTFunc* func, ASTModule* mod)
         Parser_errorUnrecognizedCtor(self, func);
 
     // The rest of the processing is on the contents of the function.
-    if (not func->body) return;
+    if (not func->body) {
+        func->flags.semPassDone = true;
+        return;
+    }
 
     // Check for duplicate functions (same selectors) and report errors.
     // TODO: this should be replaced by a dict query
@@ -282,6 +308,10 @@ static void sempassFunc(Parser* self, ASTFunc* func, ASTModule* mod)
 
     // Check unused variables in the function and report warnings.
     ASTFunc_checkUnusedVars(self, func);
+
+    // Mark the semantic pass as done for this function, so that recursive
+    // calls found in the statements will not cause the compiler to recur.
+    func->flags.semPassDone = true;
 
     // Run the statement-level semantic pass on the function body.
     foreach (ASTExpr*, stmt, func->body->stmts)

@@ -1,3 +1,4 @@
+// static void sempassType(Parser* self, ASTType* type, ASTModule* mod);
 
 static void resolveTypeSpec(
     Parser* this, ASTTypeSpec* typeSpec, ASTModule* mod)
@@ -19,6 +20,7 @@ static void resolveTypeSpec(
                 //                printf("%s matched")
                 typeSpec->typeType = TYObject;
                 typeSpec->type = type;
+                // sempassType(this, type, mod);
                 return;
             }
         }

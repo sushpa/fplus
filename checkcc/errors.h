@@ -75,6 +75,25 @@ static void Parser_warnUnusedVar(
         var->col);
 }
 
+static void Parser_warnUnusedFunc(
+    Parser* const this, const ASTFunc* const func)
+{
+    eprintf("\n(%d) \e[33mwarning:\e[0m unused function "
+            "\e[34m%s\e[0m at %s%s:%d\n"
+            "            selector is \e[34m%s\e[0m\n",
+        ++this->warnCount, func->name, RELF(this->filename), func->line,
+        func->selector);
+}
+
+static void Parser_warnUnusedType(
+    Parser* const this, const ASTType* const type)
+{
+    eprintf("\n(%d) \e[33mwarning:\e[0m unused type "
+            "\e[34m%s\e[0m at %s%s:%d:%d\n",
+        ++this->warnCount, type->name, RELF(this->filename), type->line,
+        type->col);
+}
+
 static void Parser_errorDuplicateVar(
     Parser* const this, const ASTVar* const var, const ASTVar* const orig)
 {

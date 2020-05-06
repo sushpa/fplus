@@ -75,12 +75,12 @@ typedef struct ASTVar {
 typedef struct ASTExpr {
     struct {
         uint16_t line;
-             struct {
-                uint16_t typeType : 5, isElementalOp : 1, canThrow : 1,
-                    opIsUnary : 1, collectionType : 6, mayNeedPromotion : 1,
-                    opIsRightAssociative : 1;
-            };
-         uint8_t opPrec;
+        struct {
+            uint16_t typeType : 5, isElementalOp : 1, canThrow : 1,
+                opIsUnary : 1, collectionType : 6, mayNeedPromotion : 1,
+                opIsRightAssociative : 1;
+        };
+        uint8_t opPrec;
         uint8_t col;
         TokenKind kind : 8;
     };
@@ -117,6 +117,9 @@ typedef struct ASTType {
     ASTScope* body;
     uint16_t line;
     uint8_t col;
+    struct {
+        bool sempassDone;
+    } flags;
 } ASTType;
 
 typedef struct ASTFunc {
@@ -132,7 +135,7 @@ typedef struct ASTFunc {
                 usesGUI : 1, usesSerialisation : 1, isExported : 1,
                 usesReflection : 1, nodispatch : 1, isStmt : 1,
                 isDeclare : 1, isCalledFromWithinLoop : 1,
-                isElementalFunc : 1, isDefCtor : 1;
+                isElementalFunc : 1, isDefCtor : 1, semPassDone : 1;
         } flags;
         uint8_t argCount;
     };
@@ -738,8 +741,6 @@ static char* parseIdent(Parser* this)
     return p;
 }
 
-#include "resolve.h"
-
 static void getSelector(ASTFunc* func)
 {
     if (func->argCount) {
@@ -774,7 +775,9 @@ static void getSelector(ASTFunc* func)
 }
 
 #include "typecheck.h"
+#include "resolve.h"
 #include "sempass.h"
+
 #include "parse.h"
 
 // TODO: this should be in ASTModule open/close

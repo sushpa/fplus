@@ -121,11 +121,22 @@ typedef bool Logical;
 // #define str_cmp_GT(a, b) (strcmp(a, b) > 0)
 // #define str_cmp_LT(a, b) (strcmp(a, b) < 0)
 
-#define Scalar_json(x) printf("%g", x)
-#define String_json(x) printf("\"%s\"", x) // should be escape(x)
+#define Logical_json_(x, _) printf(x ? "true" : "false")
+#define Scalar_json_(x, _) printf("%g", x)
+#define String_json_(x, _) printf("\"%s\"", x) // should be escape(x)
+
+static const char* _spaces_ = //
+    "                                                                    ";
+
+#define MAKE_json(T)                                                       \
+    static void T##_json(const T this)                                     \
+    {                                                                      \
+        T##_json_(this, 0);                                                \
+        puts("");                                                          \
+    }
 
 #define MAKE_json_file(T)                                                  \
-    void T##_json_file(const T* const this, const char* file)              \
+    static void T##_json_file(const T* const this, const char* file)       \
     {                                                                      \
         FILE* fd = fopen(file, "w");                                       \
         if (!fd) ERR;                                                      \

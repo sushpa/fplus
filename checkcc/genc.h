@@ -416,32 +416,35 @@ static void ASTScope_genc(ASTScope* scope, int level)
 
 static void ASTType_genJson(ASTType* type)
 {
-    printf("void %s_json(const %s this) {\n", type->name, type->name);
+    printf("static void %s_json_(const %s this, int nspc) {\n", type->name,
+        type->name);
 
     printf("    printf(\"{\\n\");\n");
-    printf("    printf(\"\\\"_type_\\\": \\\"%s\\\"\");\n", type->name);
-    if (type->body->locals) printf("    printf(\",\\n\");\n");
+    // printf("    printf(\"\\\"_type_\\\": \\\"%s\\\"\");\n", type->name);
+    // if (type->body->locals) printf("    printf(\",\\n\");\n");
 
     // TODO: move this part into its own func so that subclasses can ask the
     // superclass to add in their fields inline
     foreachn(ASTVar*, var, vars, type->body->locals)
     {
         if (not var) continue;
-        printf("    printf(\"\\\"%s\\\": \");\n", var->name);
+        printf("    printf(\"%%.*s\\\"%s\\\": \", nspc+4, _spaces_);\n",
+            var->name);
         const char* valueType = ASTExpr_typeName(var->init);
-        printf(
-            "    %s_json(this->%s);\n    printf(\"", valueType, var->name);
+        printf("    %s_json_(this->%s, nspc+4);\n    printf(\"", valueType,
+            var->name);
         if (vars->next) printf(",");
         printf("\\n\");\n");
     }
-    printf("    printf(\"}\\n\");\n");
-    printf("}\n//MAKE_json_file(%s)\n", type->name);
+    printf("    printf(\"%%.*s}\", nspc, _spaces_);\n");
+    printf(
+        "}\nMAKE_json(%s)\n//MAKE_json_file(%s)\n", type->name, type->name);
 }
 static void ASTType_genJsonReader(ASTType* type) {}
 
 static void ASTType_genc(ASTType* type, int level)
 {
-    if (not type->body) return;
+    if (not type->body or not type->flags.sempassDone) return;
     printf("#define FIELDS_%s \\\n", type->name);
     foreach (ASTVar*, var, type->body->locals) {
         if (not var) continue;
@@ -499,14 +502,15 @@ static void ASTType_genc(ASTType* type, int level)
 
 static void ASTType_genh(ASTType* type, int level)
 {
-    if (not type->body) return;
+    if (not type->body or not type->flags.sempassDone) return;
     printf("typedef struct %s* %s; struct %s;\n", type->name, type->name,
         type->name);
 }
 
 static void ASTFunc_genc(ASTFunc* func, int level)
 {
-    if (not func->body) return; // declares, default ctors
+    if (not func->body or not func->flags.semPassDone)
+        return; // declares, default ctors
     size_t stackUsage = ASTFunc_calcSizeUsage(func);
 
     // it seems that actual stack usage is higher due to stack protection,
@@ -608,7 +612,7 @@ static void ASTFunc_genc(ASTFunc* func, int level)
 
 static void ASTFunc_genh(ASTFunc* func, int level)
 {
-    if (not func->body) return;
+    if (not func->body or not func->flags.semPassDone) return;
     if (not func->flags.isExported) printf("static ");
     if (func->returnType) {
         ASTTypeSpec_genc(func->returnType, level, false);

@@ -868,9 +868,29 @@ void analyseModule(Parser* this, ASTModule* mod)
     // anything) and funcs obv depend on types, you may not be able to
     // resolve all dependencies by doing all types first and then all funcs
     // (or even vice versa).
-    foreach (ASTType*, type, mod->types)
-        sempassType(this, type, mod);
+    // foreach (ASTType*, type, mod->types)
+    //     sempassType(this, type, mod);
 
+    // foreach (ASTFunc*, func, mod->funcs)
+    //     sempassFunc(this, func, mod);
+
+    ASTFunc* fmain = NULL;
+    // don't break on the first match, keep looking so that duplicate mains
+    // can be found
     foreach (ASTFunc*, func, mod->funcs)
-        sempassFunc(this, func, mod);
+        if (not strcmp(func->name, "main")) fmain = func;
+
+    if (fmain) {
+        sempassFunc(this, fmain, mod);
+        // Check dead code -- unused funcs and types, and report warnings.
+        foreach (ASTFunc*, func, mod->funcs)
+            if (not func->flags.semPassDone and not func->flags.isDefCtor)
+                Parser_warnUnusedFunc(this, func);
+        foreach (ASTType*, type, mod->types)
+            if (not type->flags.sempassDone)
+                Parser_warnUnusedType(this, type);
+    } else
+    {// TODO: new error, unless you want to get rid of main
+        eputs("\e[31m*** error:\e[0m cannot find function 'main'.");
+    }
 }
