@@ -112,12 +112,26 @@ static size_t _scPrintAbove_ = 0; // used for truncating long backtraces
 typedef CString String;
 typedef CStrings Strings;
 typedef bool Logical;
-#define str_cmp_EQ(a, b) (not strcmp(a, b))
-#define str_cmp_NE(a, b) strcmp(a, b)
-#define str_cmp_GE(a, b) (strcmp(a, b) >= 0)
-#define str_cmp_LE(a, b) (strcmp(a, b) <= 0)
-#define str_cmp_GT(a, b) (strcmp(a, b) > 0)
-#define str_cmp_LT(a, b) (strcmp(a, b) < 0)
+#define STR(x) #x
+
+// #define str_cmp_EQ(a, b) (not strcmp(a, b))
+#define str_cmp(op, a, b) (strcmp(a, b) op 0)
+// #define str_cmp_GE(a, b) (strcmp(a, b) >= 0)
+// #define str_cmp_LE(a, b) (strcmp(a, b) <= 0)
+// #define str_cmp_GT(a, b) (strcmp(a, b) > 0)
+// #define str_cmp_LT(a, b) (strcmp(a, b) < 0)
+
+#define Scalar_json(x) printf("%g", x)
+#define String_json(x) printf("\"%s\"", x) // should be escape(x)
+
+#define MAKE_json_file(T)                                                  \
+    void T##_json_file(const T* const this, const char* file)              \
+    {                                                                      \
+        FILE* fd = fopen(file, "w");                                       \
+        if (!fd) ERR;                                                      \
+        T##_json(this, fd);                                                \
+        fclose(fd);                                                        \
+    }
 
 #define MAKE_cmp3way(T)                                                    \
     static bool T##_cmp3way_LT_LT(T a, T b, T c)                           \

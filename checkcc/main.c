@@ -96,7 +96,7 @@ typedef struct ASTExpr {
         //} value; // for terminals
         char* name; // for idents or unresolved call or subscript
         struct ASTFunc* func; // for functioncall
-        struct ASTVar* var; // for array subscript, or a TKVarAssign
+        struct ASTVar* var; // for array subscript, or a tkVarAssign
         struct ASTScope* body; // for if/for/while
         struct ASTExpr* right;
     };
@@ -117,6 +117,8 @@ typedef struct ASTType {
     char* name;
     // TODO: flags: hasUserInit : whether user has defined Type() ctor
     ASTScope* body;
+    uint16_t line;
+    uint8_t col;
 } ASTType;
 
 typedef struct ASTFunc {
@@ -132,7 +134,7 @@ typedef struct ASTFunc {
                 usesGUI : 1, usesSerialisation : 1, isExported : 1,
                 usesReflection : 1, nodispatch : 1, isStmt : 1,
                 isDeclare : 1, isCalledFromWithinLoop : 1,
-                isElementalFunc : 1;
+                isElementalFunc : 1, isDefCtor : 1;
         } flags;
         uint8_t argCount;
     };
@@ -208,6 +210,18 @@ static const char* ASTTypeSpec_name(ASTTypeSpec* this)
     }
     // what about collectiontype???
 }
+static const char* ASTTypeSpec_cname(ASTTypeSpec* this)
+{
+    switch (this->typeType) {
+    case TYUnresolved:
+        return this->name;
+    case TYObject:
+        return this->type->name;
+    default:
+        return TypeType_name(this->typeType);
+    }
+    // what about collectiontype???
+}
 static const char* getDefaultValueForType(ASTTypeSpec* type)
 {
     if (not type) return "";
@@ -238,21 +252,21 @@ static ASTExpr* ASTExpr_fromToken(const Token* this)
     exprsAllocHistogram[ret->kind]++;
 
     switch (ret->kind) {
-    case TKIdentifier:
-    case TKString:
-    case TKRegex:
-    case TKInline:
-    case TKNumber:
-    case TKMultiDotNumber:
-    case TKLineComment: // Comments go in the AST like regular stmts
+    case tkIdentifier:
+    case tkString:
+    case tkRegex:
+    case tkInline:
+    case tkNumber:
+    case tkMultiDotNumber:
+    case tkLineComment: // Comments go in the AST like regular stmts
         ret->string = this->pos;
         break;
     default:;
     }
     // the '!' will be trampled
-    if (ret->kind == TKLineComment) ret->string++;
+    if (ret->kind == tkLineComment) ret->string++;
     // turn all 1.0234[DdE]+01 into 1.0234e+01.
-    if (ret->kind == TKNumber) {
+    if (ret->kind == tkNumber) {
         str_tr_ip(ret->string, 'd', 'e', this->matchlen);
         str_tr_ip(ret->string, 'D', 'e', this->matchlen);
         str_tr_ip(ret->string, 'E', 'e', this->matchlen);
@@ -265,27 +279,27 @@ static bool ASTExpr_canThrow(ASTExpr* this)
   // other flags (during e.g. the type resolution dive)
     if (not this) return false;
     switch (this->kind) {
-    case TKNumber:
-    case TKMultiDotNumber:
-    case TKRegex:
-    case TKInline:
-    case TKIdentifier:
-    case TKIdentifierResolved:
-    case TKString:
-    case TKLineComment:
+    case tkNumber:
+    case tkMultiDotNumber:
+    case tkRegex:
+    case tkInline:
+    case tkIdentifier:
+    case tkIdentifierResolved:
+    case tkString:
+    case tkLineComment:
         return false;
-    case TKFunctionCall:
-    case TKFunctionCallResolved:
+    case tkFunctionCall:
+    case tkFunctionCallResolved:
         return not this->func->flags.nothrow;
         // actually  only if the func really throws
-    case TKSubscript:
-    case TKSubscriptResolved:
+    case tkSubscript:
+    case tkSubscriptResolved:
         return ASTExpr_canThrow(this->left);
-    case TKVarAssign:
+    case tkVarAssign:
         return ASTExpr_canThrow(this->var->init);
-    case TKKeyword_for:
-    case TKKeyword_if:
-    case TKKeyword_while:
+    case tkKeyword_for:
+    case tkKeyword_if:
+    case tkKeyword_while:
         return false; // actually the condition could throw.
     default:
         if (not this->opPrec) return false;
@@ -304,10 +318,10 @@ static size_t ASTScope_calcSizeUsage(ASTScope* this)
     // all variables must be resolved before calling this
     foreach (ASTExpr*, stmt, this->stmts) {
         switch (stmt->kind) {
-        case TKKeyword_if:
-        case TKKeyword_else:
-        case TKKeyword_for:
-        case TKKeyword_while:
+        case tkKeyword_if:
+        case tkKeyword_else:
+        case tkKeyword_for:
+        case tkKeyword_while:
             subsize = ASTScope_calcSizeUsage(stmt->body);
             if (subsize > maxsubsize) maxsubsize = subsize;
             break;
@@ -318,7 +332,7 @@ static size_t ASTScope_calcSizeUsage(ASTScope* this)
     foreach (ASTVar*, var, this->locals) {
         size = TypeType_size(var->typeSpec->typeType);
         assert(size);
-        sum += size;
+        if (var->flags.used) sum += size;
     }
     // add the largest size among the sizes of the sub-scopes
     sum += maxsubsize;
@@ -356,9 +370,24 @@ static size_t ASTFunc_calcSizeUsage(ASTFunc* this)
         // all variables must be resolved before calling this
         size = TypeType_size(arg->typeSpec->typeType);
         assert(size);
+        // if (arg->flags.used)
         sum += size;
     }
     if (this->body) sum += ASTScope_calcSizeUsage(this->body);
+    return sum;
+}
+
+static size_t ASTType_calcSizeUsage(ASTType* this)
+{
+    size_t size = 0, sum = 0;
+    foreach (ASTVar*, var, this->body->locals) {
+        // all variables must be resolved before calling this
+        size = TypeType_size(var->typeSpec->typeType);
+        assert(size);
+        // if (arg->flags.used)
+        sum += size;
+    }
+    // if (this->body) sum += ASTScope_calcSizeUsage(this->body);
     return sum;
 }
 
@@ -379,19 +408,19 @@ static const char* ASTExpr_typeName(ASTExpr* this)
     //    }
 
     switch (this->kind) {
-    case TKNumber:
-    case TKPlus:
-    case TKMinus:
-    case TKPower:
-    case TKSlash:
-    case TKTimes:
-    case TKOpMod:
+    case tkNumber:
+    case tkPlus:
+    case tkMinus:
+    case tkPower:
+    case tkSlash:
+    case tkTimes:
+    case tkOpMod:
         return "Scalar";
-    case TKString:
+    case tkString:
         return "String";
-    case TKRegex:
+    case tkRegex:
         return "RegEx";
-    case TKFunctionCallResolved: {
+    case tkFunctionCallResolved: {
         const char* name = TypeType_name(this->func->returnType->typeType);
         if (!*name) name = this->func->returnType->type->name;
         return name;
@@ -400,29 +429,32 @@ static const char* ASTExpr_typeName(ASTExpr* this)
         //        return this->func->returnType->type->name;
         // NOO! TODO: get the name from the resolved type
         // ^^ figure it out
-    case TKIdentifierResolved:
-    case TKSubscriptResolved:
+    case tkIdentifierResolved:
+    case tkSubscriptResolved:
         // object: typetype_name will give "", then return ->type->name
         // unresolved: should not happen at this stage!
         // other: get it from typeType
         {
+            //            TypeTypes typeType =
+            //            if (!typeType) return "UnknownType";
             const char* name = TypeType_name(this->var->typeSpec->typeType);
+            if (!name) return "UnknownType";
             if (!*name) name = this->var->typeSpec->type->name;
             return name;
         }
         // same here as for resolved func
-    case TKOpEQ:
-    case TKOpNE:
-    case TKOpGE:
-    case TKOpGT:
-    case TKOpLE:
-    case TKOpLT:
-    case TKKeyword_and:
-    case TKKeyword_or:
-    case TKKeyword_not:
+    case tkOpEQ:
+    case tkOpNE:
+    case tkOpGE:
+    case tkOpGT:
+    case tkOpLE:
+    case tkOpLT:
+    case tkKeyword_and:
+    case tkKeyword_or:
+    case tkKeyword_not:
         // TODO: literals yes and no
         return "Logical";
-    case TKOpColon:
+    case tkOpColon:
         return "Range";
         // TODO: what else???
     default:
@@ -434,11 +466,11 @@ static const char* ASTExpr_typeName(ASTExpr* this)
 static void ASTExpr_catarglabels(ASTExpr* this)
 {
     switch (this->kind) {
-    case TKOpComma:
+    case tkOpComma:
         ASTExpr_catarglabels(this->left);
         ASTExpr_catarglabels(this->right);
         break;
-    case TKOpAssign:
+    case tkOpAssign:
         printf("_%s", this->left->name);
         break;
     default:
@@ -449,11 +481,11 @@ static int ASTExpr_strarglabels(ASTExpr* this, char* buf, int bufsize)
 {
     int ret = 0;
     switch (this->kind) {
-    case TKOpComma:
+    case tkOpComma:
         ret += ASTExpr_strarglabels(this->left, buf, bufsize);
         ret += ASTExpr_strarglabels(this->right, buf + ret, bufsize - ret);
         break;
-    case TKOpAssign:
+    case tkOpAssign:
         ret += snprintf(buf, bufsize, "_%s", this->left->name);
         break;
     default:
@@ -465,12 +497,12 @@ static int ASTExpr_countCommaList(ASTExpr* this)
 {
     // whAT A MESS WITH BRANCHING
     if (not this) return 0;
-    if (this->kind != TKOpComma) return 1;
+    if (this->kind != tkOpComma) return 1;
     int i = 1;
     while (this->right) {
         this = this->right;
         i++;
-        if (this->kind != TKOpComma) break;
+        if (this->kind != tkOpComma) break;
     }
     return i;
 }
@@ -622,7 +654,7 @@ static Parser* Parser_fromFile(char* filename, bool skipws)
         ret->token.pos = ret->data;
         ret->token.flags.skipWhiteSpace = skipws;
         ret->token.flags.mergeArrayDims = false;
-        ret->token.kind = TKUnknown;
+        ret->token.kind = tkUnknown;
         ret->token.line = 1;
         ret->token.col = 1;
         ret->mode = PMGenC; // parse args to set this
@@ -694,8 +726,8 @@ static void discard(Parser* this, TokenKind expected)
 
 static char* parseIdent(Parser* this)
 {
-    if (this->token.kind != TKIdentifier)
-        Parser_errorExpectedToken(this, TKIdentifier);
+    if (this->token.kind != tkIdentifier)
+        Parser_errorExpectedToken(this, tkIdentifier);
     char* p = this->token.pos;
     Token_advance(&this->token);
     return p;
@@ -816,5 +848,5 @@ int main(int argc, char* argv[])
     if (parser->warnCount)
         eprintf("\n\e[33m*** %d warnings\e[0m\n", parser->warnCount);
 
-    return (parser->errCount or parser->warnCount);
+    return (parser->errCount); // or parser->warnCount);
 }

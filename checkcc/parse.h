@@ -11,18 +11,18 @@ static ASTExpr* parseExpr(Parser* this)
     static PtrArray rpn, ops, result;
     int prec_top = 0;
     ASTExpr* p = NULL;
-    TokenKind revBrkt = TKUnknown;
+    TokenKind revBrkt = tkUnknown;
 
     // ******* STEP 1 CONVERT TOKENS INTO RPN
 
-    while (this->token.kind != TKNullChar //
-        and this->token.kind != TKNewline
-        and this->token.kind != TKLineComment) { // build RPN
+    while (this->token.kind != tkNullChar //
+        and this->token.kind != tkNewline
+        and this->token.kind != tkLineComment) { // build RPN
 
         // you have to ensure that ops have a space around them, etc.
         // so don't just skip the one spaces like you do now.
-        if (this->token.kind == TKOneSpace) Token_advance(&this->token);
-        if (this->token.kind == TKIdentifier
+        if (this->token.kind == tkOneSpace) Token_advance(&this->token);
+        if (this->token.kind == tkIdentifier
             and memchr(this->token.pos, '_', this->token.matchlen))
             Parser_errorInvalidIdent(this); // but continue parsing
 
@@ -32,15 +32,15 @@ static ASTExpr* parseExpr(Parser* this)
         char lookAheadChar = Token_peekCharAfter(&this->token);
 
         switch (expr->kind) {
-        case TKIdentifier:
+        case tkIdentifier:
             switch (lookAheadChar) {
             case '(':
-                expr->kind = TKFunctionCall;
+                expr->kind = tkFunctionCall;
                 expr->opPrec = 100;
                 PtrArray_push(&ops, expr);
                 break;
             case '[':
-                expr->kind = TKSubscript;
+                expr->kind = tkSubscript;
                 expr->opPrec = 100;
                 PtrArray_push(&ops, expr);
                 break;
@@ -50,27 +50,27 @@ static ASTExpr* parseExpr(Parser* this)
             }
             break;
 
-        case TKParenOpen:
+        case tkParenOpen:
             PtrArray_push(&ops, expr);
             if (not PtrArray_empty(&ops)
-                and PtrArray_topAs(ASTExpr*, &ops)->kind == TKFunctionCall)
+                and PtrArray_topAs(ASTExpr*, &ops)->kind == tkFunctionCall)
                 PtrArray_push(&rpn, expr);
             if (lookAheadChar == ')') PtrArray_push(&rpn, NULL);
             // for empty func() push null for no args
             break;
 
-        case TKArrayOpen:
+        case tkArrayOpen:
             PtrArray_push(&ops, expr);
             if (not PtrArray_empty(&ops)
-                and PtrArray_topAs(ASTExpr*, &ops)->kind == TKSubscript)
+                and PtrArray_topAs(ASTExpr*, &ops)->kind == tkSubscript)
                 PtrArray_push(&rpn, expr);
             if (lookAheadChar == ')') PtrArray_push(&rpn, NULL);
             // for empty arr[] push null for no args
             break;
 
-        case TKParenClose:
-        case TKArrayClose:
-        case TKBraceClose:
+        case tkParenClose:
+        case tkArrayClose:
+        case tkBraceClose:
 
             revBrkt = TokenKind_reverseBracket(expr->kind);
             if (PtrArray_empty(&ops)) {
@@ -85,25 +85,25 @@ static ASTExpr* parseExpr(Parser* this)
                     if (p->kind == revBrkt) break;
                     PtrArray_push(&rpn, p);
                 }
-            // we'll push the TKArrayOpen as well to indicate a list
+            // we'll push the tkArrayOpen as well to indicate a list
             // literal or comprehension
-            // TKArrayOpen is a unary op.
-            if ((p and p->kind == TKArrayOpen)
+            // tkArrayOpen is a unary op.
+            if ((p and p->kind == tkArrayOpen)
                 and (PtrArray_empty(&ops)
-                    or PtrArray_topAs(ASTExpr*, &ops)->kind != TKSubscript)
+                    or PtrArray_topAs(ASTExpr*, &ops)->kind != tkSubscript)
                 // don't do this if its part of a subscript
                 and (PtrArray_empty(&rpn)
-                    or PtrArray_topAs(ASTExpr*, &rpn)->kind != TKOpColon))
+                    or PtrArray_topAs(ASTExpr*, &rpn)->kind != tkOpColon))
                 // or aa range. range exprs are handled separately. by
                 // themselves they don't need a surrounding [], but for
                 // grouping like 2+[8:66] they do.
                 PtrArray_push(&rpn, p);
 
             break;
-        case TKKeyword_check:
+        case tkKeyword_check:
             PtrArray_push(&ops, expr);
             break;
-        case TKKeyword_return:
+        case tkKeyword_return:
             // for empty return, push a NULL if there is no expr coming.
             PtrArray_push(&ops, expr);
             if (lookAheadChar == '!' or lookAheadChar == '\n')
@@ -112,18 +112,18 @@ static ASTExpr* parseExpr(Parser* this)
         default:
             if (prec) {
 
-                if (expr->kind == TKOpColon) {
+                if (expr->kind == tkOpColon) {
                     if (PtrArray_empty(&rpn)
                         or (!PtrArray_top(&rpn) and !PtrArray_empty(&ops)
                             and PtrArray_topAs(ASTExpr*, &ops)->kind
-                                != TKOpColon)
+                                != tkOpColon)
                         or (PtrArray_topAs(ASTExpr*, &rpn)->kind
-                                == TKOpColon
+                                == tkOpColon
                             and !PtrArray_empty(&ops)
                             and (PtrArray_topAs(ASTExpr*, &ops)->kind
-                                    == TKOpComma
+                                    == tkOpComma
                                 or PtrArray_topAs(ASTExpr*, &ops)->kind
-                                    == TKArrayOpen)))
+                                    == tkArrayOpen)))
                         // TODO: better way to parse :, 1:, :-1, etc.
                         // while passing tokens to RPN, if you see a :
                         // with nothing on the RPN or comma or [, push a
@@ -140,19 +140,19 @@ static ASTExpr* parseExpr(Parser* this)
                     if (prec == prec_top and rassoc) break;
                     p = PtrArray_pop(&ops);
 
-                    if (p->kind != TKOpComma and p->kind != TKOpSemiColon
-                        and p->kind != TKFunctionCall
-                        and p->kind != TKSubscript
+                    if (p->kind != tkOpComma and p->kind != tkOpSemiColon
+                        and p->kind != tkFunctionCall
+                        and p->kind != tkSubscript
                         and PtrArray_topAs(ASTExpr*, &rpn)
                         and PtrArray_topAs(ASTExpr*, &rpn)->kind
-                            == TKOpComma) {
+                            == tkOpComma) {
                         Parser_errorUnexpectedToken(this);
                         goto error;
                     }
 
                     if (not(p->opPrec or p->opIsUnary)
-                        and p->kind != TKFunctionCall
-                        and p->kind != TKOpColon and p->kind != TKSubscript
+                        and p->kind != tkFunctionCall
+                        and p->kind != tkOpColon and p->kind != tkSubscript
                         and rpn.used < 2) {
                         Parser_errorUnexpectedToken(this);
                         goto error;
@@ -165,7 +165,7 @@ static ASTExpr* parseExpr(Parser* this)
                     Parser_errorUnexpectedToken(this);
                     goto error;
                 }
-                if (expr->kind == TKOpColon
+                if (expr->kind == tkOpColon
                     and (lookAheadChar == ',' or lookAheadChar == ':'
                         or lookAheadChar == ']' or lookAheadChar == ')'))
                     PtrArray_push(&rpn, NULL);
@@ -176,24 +176,24 @@ static ASTExpr* parseExpr(Parser* this)
             }
         }
         Token_advance(&this->token);
-        if (this->token.kind == TKOneSpace) Token_advance(&this->token);
+        if (this->token.kind == tkOneSpace) Token_advance(&this->token);
     }
 exitloop:
 
     while (not PtrArray_empty(&ops)) {
         p = PtrArray_pop(&ops);
 
-        if (p->kind != TKOpComma and p->kind != TKFunctionCall
-            and p->kind != TKSubscript and p->kind != TKArrayOpen
+        if (p->kind != tkOpComma and p->kind != tkFunctionCall
+            and p->kind != tkSubscript and p->kind != tkArrayOpen
             and PtrArray_topAs(ASTExpr*, &rpn)
-            and PtrArray_topAs(ASTExpr*, &rpn)->kind == TKOpComma) {
+            and PtrArray_topAs(ASTExpr*, &rpn)->kind == tkOpComma) {
             Parser_errorUnexpectedExpr(
                 this, PtrArray_topAs(ASTExpr*, &rpn));
             goto error;
         }
 
         if (not(p->opPrec or p->opIsUnary)
-            and (p->kind != TKFunctionCall and p->kind != TKSubscript)
+            and (p->kind != tkFunctionCall and p->kind != tkSubscript)
             and rpn.used < 2) {
             Parser_errorParsingExpr(this);
             goto error;
@@ -210,22 +210,22 @@ exitloop:
     for (int i = 0; i < rpn.used; i++) {
         if (not(p = rpn.ref[i])) goto justpush;
         switch (p->kind) {
-        case TKFunctionCall:
-        case TKSubscript:
+        case tkFunctionCall:
+        case tkSubscript:
             if (result.used > 0) {
                 arg = PtrArray_pop(&result);
                 p->left = arg;
             }
             break;
 
-        case TKNumber:
-        case TKString:
-        case TKRegex:
-        case TKInline:
-        case TKUnits:
-        case TKMultiDotNumber:
-        case TKIdentifier:
-        case TKParenOpen:
+        case tkNumber:
+        case tkString:
+        case tkRegex:
+        case tkInline:
+        case tkUnits:
+        case tkMultiDotNumber:
+        case tkIdentifier:
+        case tkParenOpen:
             break;
 
         default:
@@ -266,8 +266,8 @@ exitloop:
 error:
 
     while (this->token.pos < this->end
-        and (this->token.kind != TKNewline
-            and this->token.kind != TKLineComment))
+        and (this->token.kind != tkNewline
+            and this->token.kind != tkLineComment))
         Token_advance(&this->token);
 
     if (ops.used) {
@@ -330,17 +330,17 @@ static ASTTypeSpec* parseTypeSpec(Parser* this)
 
     typeSpec->name = parseIdent(this);
 
-    if (matches(this, TKArrayDims)) {
+    if (matches(this, tkArrayDims)) {
         for (int i = 0; i < this->token.matchlen; i++)
             if (this->token.pos[i] == ':') typeSpec->dims++;
         if (not typeSpec->dims) typeSpec->dims = 1;
         Token_advance(&this->token);
     }
 
-    Parser_ignore(this, TKUnits);
+    Parser_ignore(this, tkUnits);
 
-    assert(this->token.kind != TKUnits);
-    assert(this->token.kind != TKArrayDims);
+    assert(this->token.kind != tkUnits);
+    assert(this->token.kind != tkArrayDims);
 
     this->token.flags.mergeArrayDims = false;
     return typeSpec;
@@ -350,12 +350,12 @@ static ASTTypeSpec* parseTypeSpec(Parser* this)
 static ASTVar* parseVar(Parser* this)
 {
     ASTVar* var = NEW(ASTVar);
-    var->flags.isVar = (this->token.kind == TKKeyword_var);
-    var->flags.isLet = (this->token.kind == TKKeyword_let);
+    var->flags.isVar = (this->token.kind == tkKeyword_var);
+    var->flags.isLet = (this->token.kind == tkKeyword_let);
 
-    if (var->flags.isVar) discard(this, TKKeyword_var);
-    if (var->flags.isLet) discard(this, TKKeyword_let);
-    if (var->flags.isVar or var->flags.isLet) discard(this, TKOneSpace);
+    if (var->flags.isVar) discard(this, tkKeyword_var);
+    if (var->flags.isLet) discard(this, tkKeyword_let);
+    if (var->flags.isVar or var->flags.isLet) discard(this, tkOneSpace);
 
     var->line = this->token.line;
     var->col = this->token.col;
@@ -366,9 +366,9 @@ static ASTVar* parseVar(Parser* this)
         Parser_errorInvalidIdent(this);
     var->name = parseIdent(this);
 
-    if (Parser_ignore(this, TKOneSpace)
-        and Parser_ignore(this, TKKeyword_as)) {
-        discard(this, TKOneSpace);
+    if (Parser_ignore(this, tkOneSpace)
+        and Parser_ignore(this, tkKeyword_as)) {
+        discard(this, tkOneSpace);
         var->typeSpec = parseTypeSpec(this);
     } else {
         var->typeSpec = NEW(ASTTypeSpec);
@@ -377,8 +377,8 @@ static ASTVar* parseVar(Parser* this)
         var->typeSpec->name = "";
     }
 
-    Parser_ignore(this, TKOneSpace);
-    if (Parser_ignore(this, TKOpAssign)) var->init = parseExpr(this);
+    Parser_ignore(this, tkOneSpace);
+    if (Parser_ignore(this, tkOpAssign)) var->init = parseExpr(this);
 
     return var;
 }
@@ -386,16 +386,16 @@ static ASTVar* parseVar(Parser* this)
 static List(ASTVar) * parseArgs(Parser* this)
 {
     List(ASTVar)* args = NULL;
-    discard(this, TKParenOpen);
-    if (Parser_ignore(this, TKParenClose)) return args;
+    discard(this, tkParenOpen);
+    if (Parser_ignore(this, tkParenClose)) return args;
 
     ASTVar* arg;
     do {
         arg = parseVar(this);
         PtrList_append(&args, arg);
-    } while (Parser_ignore(this, TKOpComma));
+    } while (Parser_ignore(this, tkOpComma));
 
-    discard(this, TKParenClose);
+    discard(this, tkParenClose);
     return args;
 }
 
@@ -407,20 +407,20 @@ static ASTScope* parseScope(
 
     ASTVar *var = NULL, *orig = NULL;
     ASTExpr* expr = NULL;
-    TokenKind tt = TKUnknown;
+    TokenKind tt = tkUnknown;
 
     scope->parent = parent;
     bool startedElse = false;
-    while (this->token.kind != TKKeyword_end) {
+    while (this->token.kind != tkKeyword_end) {
 
         switch (this->token.kind) {
 
-        case TKNullChar:
-            Parser_errorExpectedToken(this, TKUnknown);
+        case tkNullChar:
+            Parser_errorExpectedToken(this, tkUnknown);
             goto exitloop;
 
-        case TKKeyword_var:
-        case TKKeyword_let:
+        case tkKeyword_var:
+        case tkKeyword_let:
             var = parseVar(this);
             if (not var)
                 continue;
@@ -430,7 +430,7 @@ static ASTScope* parseScope(
                 Parser_errorDuplicateVar(this, var, orig);
             // TODO: why only idents and binops for resolveVars??
             if (var->init
-                and (var->init->opPrec or var->init->kind == TKIdentifier))
+                and (var->init->opPrec or var->init->kind == tkIdentifier))
                 resolveVars(this, var->init, scope, false);
             // resolveType(var->typeSpec, scope);
             // resolve BEFORE it is added to the list! in
@@ -441,28 +441,28 @@ static ASTScope* parseScope(
             // TODO: validation should raise issue if var->init is
             // missing
             expr = NEW(ASTExpr);
-            expr->kind = TKVarAssign;
-            expr->line = var->init->line; // this->token.line;
-            expr->col = var->init->col;
-            expr->opPrec = TokenKind_getPrecedence(TKOpAssign);
+            expr->kind = tkVarAssign;
+            expr->line = var->init ? var->init->line : this->token.line;
+            expr->col = var->init ? var->init->col : 1;
+            expr->opPrec = TokenKind_getPrecedence(tkOpAssign);
             expr->var = var;
             PtrList_append(&scope->stmts, expr);
             break;
 
-        case TKKeyword_else:
+        case tkKeyword_else:
             if (not startedElse) goto exitloop;
 
-        case TKKeyword_if:
-        case TKKeyword_for:
-        case TKKeyword_while:
+        case tkKeyword_if:
+        case tkKeyword_for:
+        case tkKeyword_while:
             if (isTypeBody) Parser_errorInvalidTypeMember(this);
             tt = this->token.kind;
             expr = match(this, tt);
-            expr->left = tt != TKKeyword_else ? parseExpr(this) : NULL;
+            expr->left = tt != tkKeyword_else ? parseExpr(this) : NULL;
 
-            if (tt == TKKeyword_for) {
+            if (tt == tkKeyword_for) {
                 // TODO: new Parser_error
-                if (expr->left->kind != TKOpAssign)
+                if (expr->left->kind != tkOpAssign)
                     eprintf("Invalid for-loop condition: %s\n",
                         TokenKind_repr(expr->left->kind, false));
                 resolveVars(this, expr->left->right, scope, false);
@@ -471,12 +471,12 @@ static ASTScope* parseScope(
             } // TODO: `for` necessarily introduces a counter variable, so
             // check if that var name doesn't already exist in scope.
             // Also assert that the cond of a for expr has kind
-            // TKOpAssign.
+            // tkOpAssign.
             // insert a temp scope holding the var that for declares, then
             // later move that var to the parsed scope
             expr->body
-                = parseScope(this, scope, false, (tt == TKKeyword_if));
-            if (tt == TKKeyword_for) {
+                = parseScope(this, scope, false, (tt == tkKeyword_if));
+            if (tt == tkKeyword_for) {
                 // TODO: here it is too late to add the variable,
                 // because parseScope will call resolveVars.
                 var = NEW(ASTVar);
@@ -487,22 +487,22 @@ static ASTScope* parseScope(
                 PtrList_append(&expr->body->locals, var);
             }
 
-            if (matches(this, TKKeyword_else)) {
+            if (matches(this, tkKeyword_else)) {
                 startedElse = true;
             } else {
-                discard(this, TKKeyword_end);
-                discard(this, TKOneSpace);
-                discard(this, tt == TKKeyword_else ? TKKeyword_if : tt);
+                discard(this, tkKeyword_end);
+                discard(this, tkOneSpace);
+                discard(this, tt == tkKeyword_else ? tkKeyword_if : tt);
             }
             PtrList_append(&scope->stmts, expr);
             break;
 
-        case TKNewline:
-        case TKOneSpace:
+        case tkNewline:
+        case tkOneSpace:
             Token_advance(&this->token);
             break;
 
-        case TKLineComment:
+        case tkLineComment:
             if (this->generateCommentExprs) {
                 expr = ASTExpr_fromToken(&this->token);
                 PtrList_append(&scope->stmts, expr);
@@ -530,34 +530,34 @@ exitloop:
 #pragma mark - PARSE PARAM
 static List(ASTVar) * parseParams(Parser* this)
 {
-    discard(this, TKOpLT);
+    discard(this, tkOpLT);
     List(ASTVar) * params;
     ASTVar* param;
     do {
         param = NEW(ASTVar);
         param->name = parseIdent(this);
-        if (Parser_ignore(this, TKKeyword_as))
+        if (Parser_ignore(this, tkKeyword_as))
             param->typeSpec = parseTypeSpec(this);
-        if (Parser_ignore(this, TKOpAssign)) param->init = parseExpr(this);
+        if (Parser_ignore(this, tkOpAssign)) param->init = parseExpr(this);
         PtrList_append(&params, param);
-    } while (Parser_ignore(this, TKOpComma));
-    discard(this, TKOpGT);
+    } while (Parser_ignore(this, tkOpComma));
+    discard(this, tkOpGT);
     return params;
 }
 
 #pragma mark - PARSE FUNC / STMT-FUNC
 static ASTFunc* parseFunc(Parser* this, bool shouldParseBody)
 {
-    discard(this, TKKeyword_function);
-    discard(this, TKOneSpace);
+    discard(this, tkKeyword_function);
+    discard(this, tkOneSpace);
     ASTFunc* func = NEW(ASTFunc);
 
     func->line = this->token.line;
 
     if (memchr(this->token.pos, '_', this->token.matchlen))
         Parser_errorInvalidIdent(this);
-    if (*this->token.pos < 'a' or *this->token.pos > 'z')
-        Parser_errorInvalidIdent(this);
+    // if (*this->token.pos < 'a' or *this->token.pos > 'z')
+    //     Parser_errorInvalidIdent(this);
     func->name = parseIdent(this);
 
     func->flags.isDeclare = !shouldParseBody;
@@ -565,22 +565,22 @@ static ASTFunc* parseFunc(Parser* this, bool shouldParseBody)
     func->args = parseArgs(this);
     func->argCount = PtrList_count(func->args);
 
-    if (Parser_ignore(this, TKOneSpace)
-        and Parser_ignore(this, TKKeyword_returns)) {
-        discard(this, TKOneSpace);
+    if (Parser_ignore(this, tkOneSpace)
+        and Parser_ignore(this, tkKeyword_returns)) {
+        discard(this, tkOneSpace);
         func->returnType = parseTypeSpec(this);
     }
 
     if (shouldParseBody) {
-        discard(this, TKNewline);
+        discard(this, tkNewline);
 
         ASTScope* funcScope = NEW(ASTScope);
         funcScope->locals = func->args;
         func->body = parseScope(this, funcScope, false, false);
 
-        discard(this, TKKeyword_end);
-        discard(this, TKOneSpace);
-        discard(this, TKKeyword_function);
+        discard(this, tkKeyword_end);
+        discard(this, tkOneSpace);
+        discard(this, tkKeyword_function);
     }
 
     return func;
@@ -595,18 +595,18 @@ static ASTFunc* parseStmtFunc(Parser* this)
 
     if (memchr(this->token.pos, '_', this->token.matchlen))
         Parser_errorInvalidIdent(this);
-    if (*this->token.pos < 'a' or *this->token.pos > 'z')
-        Parser_errorInvalidIdent(this);
+    // if (*this->token.pos < 'a' or *this->token.pos > 'z')
+    //     Parser_errorInvalidIdent(this);
     func->name = parseIdent(this);
 
     func->args = parseArgs(this);
     func->argCount = PtrList_count(func->args);
 
-    if (Parser_ignore(this, TKOneSpace)
-        and Parser_ignore(this, TKKeyword_as)) {
-        discard(this, TKOneSpace);
+    if (Parser_ignore(this, tkOneSpace)
+        and Parser_ignore(this, tkKeyword_as)) {
+        discard(this, tkOneSpace);
         func->returnType = parseTypeSpec(this);
-        Parser_ignore(this, TKOneSpace);
+        Parser_ignore(this, tkOneSpace);
     } else {
         func->returnType = NEW(ASTTypeSpec);
         func->returnType->line = this->token.line;
@@ -615,8 +615,8 @@ static ASTFunc* parseStmtFunc(Parser* this)
     }
 
     ASTExpr* ret = exprFromCurrentToken(this);
-    assert(ret->kind == TKColEq);
-    ret->kind = TKKeyword_return;
+    assert(ret->kind == tkColEq);
+    ret->kind = tkKeyword_return;
     ret->opIsUnary = true;
 
     ret->right = parseExpr(this);
@@ -644,8 +644,11 @@ static ASTType* parseType(Parser* this, bool shouldParseBody)
 {
     ASTType* type = NEW(ASTType);
 
-    discard(this, TKKeyword_type);
-    discard(this, TKOneSpace);
+    discard(this, tkKeyword_type);
+    discard(this, tkOneSpace);
+
+    type->line = this->token.line;
+    type->col = this->token.col;
 
     if (memchr(this->token.pos, '_', this->token.matchlen))
         Parser_errorInvalidIdent(this);
@@ -653,9 +656,9 @@ static ASTType* parseType(Parser* this, bool shouldParseBody)
         Parser_errorInvalidIdent(this);
     type->name = parseIdent(this);
 
-    if (Parser_ignore(this, TKOneSpace)
-        and Parser_ignore(this, TKKeyword_extends)) {
-        discard(this, TKOneSpace);
+    if (Parser_ignore(this, tkOneSpace)
+        and Parser_ignore(this, tkKeyword_extends)) {
+        discard(this, tkOneSpace);
         type->super = parseTypeSpec(this);
     }
 
@@ -663,9 +666,9 @@ static ASTType* parseType(Parser* this, bool shouldParseBody)
     if (not shouldParseBody) return type;
     type->body = parseScope(this, NULL, true, false);
 
-    discard(this, TKKeyword_end);
-    discard(this, TKOneSpace);
-    discard(this, TKKeyword_type);
+    discard(this, tkKeyword_end);
+    discard(this, tkOneSpace);
+    discard(this, tkKeyword_type);
 
     return type;
 }
@@ -674,20 +677,20 @@ static ASTImport* parseImport(Parser* this)
 {
     ASTImport* import = NEW(ASTImport);
     char* tmp;
-    discard(this, TKKeyword_import);
-    discard(this, TKOneSpace);
+    discard(this, tkKeyword_import);
+    discard(this, tkOneSpace);
 
-    import->isPackage = Parser_ignore(this, TKAt);
+    import->isPackage = Parser_ignore(this, tkAt);
 
     if (memchr(this->token.pos, '_', this->token.matchlen))
         Parser_errorInvalidIdent(this);
 
     import->importFile = parseIdent(this);
     size_t len = this->token.pos - import->importFile;
-    Parser_ignore(this, TKOneSpace);
-    if (Parser_ignore(this, TKKeyword_as)) {
+    Parser_ignore(this, tkOneSpace);
+    if (Parser_ignore(this, tkKeyword_as)) {
 
-        Parser_ignore(this, TKOneSpace);
+        Parser_ignore(this, tkOneSpace);
         import->hasAlias = true;
 
         if (memchr(this->token.pos, '_', this->token.matchlen))
@@ -701,12 +704,12 @@ static ASTImport* parseImport(Parser* this)
             str_base(import->importFile, '.', len) - import->importFile);
     }
 
-    Parser_ignore(this, TKOneSpace);
+    Parser_ignore(this, tkOneSpace);
 
-    if (this->token.kind != TKLineComment and this->token.kind != TKNewline)
+    if (this->token.kind != tkLineComment and this->token.kind != tkNewline)
         Parser_errorUnexpectedToken(this);
     while (
-        this->token.kind != TKLineComment and this->token.kind != TKNewline)
+        this->token.kind != tkLineComment and this->token.kind != tkNewline)
         Token_advance(&this->token);
     return import;
 }
@@ -733,41 +736,54 @@ static PtrList* parseModule(Parser* this)
     // List(ASTFunc)** testsTop = &root->tests;
     // List(ASTVar)** globalsTop = &root->globals;
 
-    while (this->token.kind != TKNullChar) {
+    while (this->token.kind != tkNullChar) {
         if (onlyPrintTokens) {
             printf("%s %2d %3d %3d %-6s\t%.*s\n", this->moduleName,
                 this->token.line, this->token.col, this->token.matchlen,
                 TokenKind_repr(this->token.kind, false),
-                this->token.kind == TKNewline ? 0 : this->token.matchlen,
+                this->token.kind == tkNewline ? 0 : this->token.matchlen,
                 this->token.pos);
             Token_advance(&this->token);
             continue;
         }
         switch (this->token.kind) {
-        case TKKeyword_declare:
+        case tkKeyword_declare:
             Token_advance(&this->token);
-            discard(this, TKOneSpace);
-            if (this->token.kind == TKKeyword_function) {
+            discard(this, tkOneSpace);
+            if (this->token.kind == tkKeyword_function) {
                 PtrList_append(funcsTop, parseFunc(this, false));
                 if ((*funcsTop)->next) funcsTop = &(*funcsTop)->next;
             }
-            if (this->token.kind == TKKeyword_type) {
+            if (this->token.kind == tkKeyword_type) {
                 PtrList_append(typesTop, parseType(this, false));
                 if ((*typesTop)->next) typesTop = &(*typesTop)->next;
             }
             break;
 
-        case TKKeyword_function:
+        case tkKeyword_function:
             PtrList_append(funcsTop, parseFunc(this, true));
             if ((*funcsTop)->next) funcsTop = &(*funcsTop)->next;
             break;
 
-        case TKKeyword_type:
-            PtrList_append(typesTop, parseType(this, true));
+        case tkKeyword_type: {
+            ASTType* type = parseType(this, true);
+            PtrList_append(typesTop, type);
             if ((*typesTop)->next) typesTop = &(*typesTop)->next;
-            break;
+            ASTFunc* ctor = NEW(ASTFunc);
+            ctor->line = type->line;
+            ctor->flags.isDefCtor = true;
+            ctor->name = type->name;
+            char buf[128];
+            int l = snprintf(buf, 128, "%s_new_", type->name);
+            ctor->selector = pstrndup(buf, l);
+            ASTTypeSpec* tspec = ASTTypeSpec_new(TYObject, CTYNone);
+            tspec->type = type;
+            ctor->returnType = tspec;
+            PtrList_append(funcsTop, ctor);
+            if ((*funcsTop)->next) funcsTop = &(*funcsTop)->next;
+        } break;
 
-        case TKKeyword_import:
+        case tkKeyword_import:
             import = parseImport(this);
             if (import) {
                 PtrList_append(importsTop, import);
@@ -779,24 +795,24 @@ static PtrList* parseModule(Parser* this)
                 //                    PtrList_append(&modules, subMods);
             }
             break;
-        // case TKKeyword_test:
+        // case tkKeyword_test:
         //     PtrList_append(testsTop, parseTest(this));
         //     if ((*testsTop)->next) testsTop = &(*testsTop)->next;
         //     break;
-        // case TKKeyword_var:
-        // case TKKeyword_let:
+        // case tkKeyword_var:
+        // case tkKeyword_let:
         // TODO: add these to exprs
         // PtrList_append(globalsTop, parseVar(this));
         // if ((*globalsTop)->next) globalsTop =
         // &(*globalsTop)->next;
         // break;
-        case TKNewline:
-        case TKLineComment:
+        case tkNewline:
+        case tkLineComment:
         // TODO: add line comment to module exprs
-        case TKOneSpace:
+        case tkOneSpace:
             Token_advance(&this->token);
             break;
-        case TKIdentifier: // stmt funcs: f(x) := f(y, w = 4) etc.
+        case tkIdentifier: // stmt funcs: f(x) := f(y, w = 4) etc.
             if (Token_peekCharAfter(&this->token) == '(') {
                 PtrList_append(funcsTop, parseStmtFunc(this));
                 if ((*funcsTop)->next) funcsTop = &(*funcsTop)->next;
@@ -804,8 +820,8 @@ static PtrList* parseModule(Parser* this)
             }
         default:
             Parser_errorUnexpectedToken(this);
-            while (this->token.kind != TKNewline
-                and this->token.kind != TKLineComment)
+            while (this->token.kind != tkNewline
+                and this->token.kind != tkLineComment)
                 Token_advance(&this->token);
         }
     }
@@ -813,23 +829,87 @@ static PtrList* parseModule(Parser* this)
 
     // do some analysis that happens after the entire module is loaded
 
+    // now doing an O(N^2) loop over all types to check duplicates, and same
+    // for funcs. In fact, funcs should not have the same effective selector
+    // as type constructors, so they need an extra checking loop too. Later
+    // you should have 2 local dictionaries here after the type and func
+    // lists are built, and populate it with the funcs/types. then lookup
+    // from here and report the duplicates as errors. Also need to save the
+    // number of funcs and types and tests and globals etc., so that the
+    // dicts can be stack allocated with known size.
     foreach (ASTType*, type, root->types) {
-        if (type->super) resolveTypeSpec(this, type->super, root);
+        if (type->super) {
+            resolveTypeSpec(this, type->super, root);
+            if (type->super->type == type)
+                Parser_errorTypeInheritsSelf(this, type);
+        }
+        // TODO: this should be replaced by a dict query
+        foreach (ASTType*, type2, root->types) {
+            if (type2 == type) break;
+            if (not strcasecmp(type->name, type2->name))
+                Parser_errorDuplicateType(this, type, type2);
+        }
         if (not type->body) continue;
-        foreach (ASTExpr*, stmt, type->body->stmts)
+        foreach (ASTExpr*, stmt, type->body->stmts) {
             resolveFuncsAndTypes(this, stmt, root);
+            setExprTypeInfo(this, stmt, false);
+        }
     }
 
     foreach (ASTFunc*, func, root->funcs) {
+        // TODO: this should be replaced by a dict query
+        foreach (ASTType*, type, root->types) {
+            // if (func == func2) break;
+            if (not strcasecmp(func->name, type->name)) {
+                if (func->returnType
+                    and not(func->flags.isStmt or func->flags.isDefCtor))
+                    Parser_errorCtorHasType(this, func, type);
+                if (not func->returnType) {
+                    func->returnType = ASTTypeSpec_new(TYObject, CTYNone);
+                    func->returnType->type = type;
+                }
+                // TODO: isStmt Ctors should have the correct type so e.g.
+                // you cannot have
+                // Point(x as Scalar) := 3 + 5 * 12
+                // but must return a Point instead. This cannot be enforced
+                // here since type resolution hasn't been done at this
+                // stage. Check this after the type inference step when the
+                // stmt func has its return type assigned.
+                // if (func->flags.isStmt)
+                //     Parser_errorCtorHasType(this, func, type);
+                if (*func->name < 'A' or *func->name > 'Z') {
+                    Parser_warnCtorCase(this, func, type);
+                    func->name = type->name;
+                }
+                goto foundctor;
+            }
+        }
+        // TODO: here check func names that are capitalized but not type
+        // names (no match was found above) and disallow them
+        if (not func->flags.isDefCtor and *func->name >= 'A'
+            and *func->name <= 'Z') {
+            Parser_errorUnrecognizedCtor(this, func);
+        }
+
+    foundctor:
+
         foreach (ASTVar*, arg, func->args) {
             resolveTypeSpec(this, arg->typeSpec, root);
         }
+
         if (func->returnType) resolveTypeSpec(this, func->returnType, root);
         getSelector(func);
     }
 
     foreach (ASTFunc*, func, root->funcs) {
         if (func->body) {
+            // TODO: this should be replaced by a dict query
+            foreach (ASTFunc*, func2, root->funcs) {
+                if (func == func2) break;
+                if (not strcasecmp(func->selector, func2->selector))
+                    Parser_errorDuplicateFunc(this, func, func2);
+            }
+
             ASTFunc_checkUnusedVars(this, func);
             foreach (ASTExpr*, stmt, func->body->stmts) {
                 resolveFuncsAndTypes(this, stmt, root);

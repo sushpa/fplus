@@ -87,6 +87,60 @@ static void Parser_errorDuplicateVar(
     Parser_errorIncrement(this);
 }
 
+static void Parser_errorDuplicateType(Parser* const this,
+    const ASTType* const type, const ASTType* const orig)
+{
+    eprintf("\n(%d) \e[31merror:\e[0m duplicate type "
+            "\e[34m%s\e[0m at %s%s:%d:%d\n   "
+            "          already declared at %s%s:%d:%d\n",
+        this->errCount + 1, type->name, RELF(this->filename), type->line,
+        type->col, RELF(this->filename), orig->line, orig->col);
+    Parser_errorIncrement(this);
+}
+
+static void Parser_errorTypeInheritsSelf(
+    Parser* const this, const ASTType* const type)
+{
+    eprintf("\n(%d) \e[31merror:\e[0m type inherits from self "
+            "\e[34m%s\e[0m at %s%s:%d:%d\n",
+        this->errCount + 1, type->name, RELF(this->filename), type->line,
+        type->col);
+    Parser_errorIncrement(this);
+}
+static void Parser_errorCtorHasType(Parser* const this,
+    const ASTFunc* const func, const ASTType* const orig)
+{
+    eprintf("\n(%d) \e[31merror:\e[0m constructor needs no return "
+            "type: \e[34m%s\e[0m at %s%s:%d:%d\n"
+            "             type declared at %s%s:%d:%d\n"
+            "             remove the return type specification\n",
+        this->errCount + 1, func->name, RELF(this->filename), func->line, 1,
+        RELF(this->filename), orig->line, orig->col);
+    Parser_errorIncrement(this);
+}
+static void Parser_warnCtorCase(Parser* const this,
+    const ASTFunc* const func, const ASTType* const orig)
+{
+    eprintf("\n(%d) \e[33mwarning:\e[0m wrong case "
+            "\e[34m%s\e[0m for constructor at %s%s:%d:%d\n"
+            "             type declared at %s%s:%d:%d\n"
+            "             change it to \e[34m%s\e[0m or lint the file\n",
+        ++this->warnCount, func->name, RELF(this->filename), func->line, 1,
+        RELF(this->filename), orig->line, orig->col, orig->name);
+}
+
+static void Parser_errorDuplicateFunc(Parser* const this,
+    const ASTFunc* const func, const ASTFunc* const orig)
+{
+    eprintf("\n(%d) \e[31merror:\e[0m duplicate function "
+            "\e[34m%s\e[0m at %s%s:%d:%d\n"
+            "             already declared at %s%s:%d:%d\n"
+            "             selector is \e[34m%s\e[0m\n",
+        this->errCount + 1, func->name, RELF(this->filename), func->line, 1,
+        RELF(this->filename), orig->line, 1, func->selector);
+    Parser_errorIncrement(this);
+}
+
 static void Parser_errorUnrecognizedFunc(Parser* const this,
     const ASTExpr* const expr, const char* const selector)
 {
@@ -101,7 +155,7 @@ static void Parser_errorUnrecognizedFunc(Parser* const this,
 static void Parser_errorArgsCountMismatch(
     Parser* const this, const ASTExpr* const expr)
 {
-    assert(expr->kind == TKFunctionCallResolved);
+    assert(expr->kind == tkFunctionCallResolved);
     eprintf("\n(%d) \e[31merror:\e[0m arg count mismatch for "
             "\e[34m%s\e[0m at %s%s:%d:%d\n"
             "          have %d args, need %d, func defined at %s%s:%d\n",
@@ -114,7 +168,7 @@ static void Parser_errorArgsCountMismatch(
 static void Parser_errorIndexDimsMismatch(
     Parser* const this, const ASTExpr* const expr)
 {
-    assert(expr->kind == TKSubscriptResolved);
+    assert(expr->kind == tkSubscriptResolved);
     int reqdDims = expr->var->typeSpec->dims;
     if (not reqdDims)
         eprintf("\n(%d) \e[31merror:\e[0m not an array: "
@@ -138,7 +192,7 @@ static void Parser_errorIndexDimsMismatch(
 static void Parser_errorMissingInit(
     Parser* const this, const ASTExpr* const expr)
 {
-    assert(expr->kind == TKVarAssign);
+    assert(expr->kind == tkVarAssign);
     eprintf("\n(%d) \e[31merror:\e[0m missing initializer for "
             "\e[34m%s\e[0m at %s%s:%d-%d\n",
         this->errCount + 1, expr->var->name, RELF(this->filename),
@@ -156,13 +210,24 @@ static void Parser_errorUnrecognizedType(
     Parser_errorIncrement(this);
 }
 
+static void Parser_errorUnrecognizedCtor(
+    Parser* const this, const ASTFunc* const func)
+{
+    eprintf("\n(%d) \e[31merror:\e[0m unknown type \e[33m%s\e[0m "
+            "for constructor at %s%s:%d\n",
+        this->errCount + 1, func->name, RELF(this->filename), func->line);
+    Parser_errorIncrement(this);
+}
+
 static void Parser_errorTypeMismatchBinOp(
     Parser* const this, const ASTExpr* const expr)
 {
-    eprintf("\n(%d) \e[31merror:\e[0m type mismatch for operands of '"
-            "\e[34m%s\e[0m' at %s%s:%d:%d\n",
-        this->errCount + 1, TokenKind_repr(expr->kind, false),
-        RELF(this->filename), expr->line, expr->col);
+    eprintf("\n(%d) \e[31merror:\e[0m type mismatch at %s%s:%d:%d\n"
+            "             can't apply '\e[34m%s\e[0m' to \e[34m%s\e[0m"
+            " and \e[34m%s\e[0m\n",
+        this->errCount + 1, RELF(this->filename), expr->line, expr->col,
+        TokenKind_repr(expr->kind, false), ASTExpr_typeName(expr->left),
+        ASTExpr_typeName(expr->right));
     Parser_errorIncrement(this);
 }
 

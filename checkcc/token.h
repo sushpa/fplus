@@ -1,94 +1,94 @@
 
 static const uint8_t TokenKindTable[256] = {
-    /* 0 */ TKNullChar, /* 1 */ TKUnknown, /* 2 */ TKUnknown,
-    /* 3 */ TKUnknown, /* 4 */ TKUnknown, /* 5 */ TKUnknown,
-    /* 6 */ TKUnknown, /* 7 */ TKUnknown, /* 8 */ TKUnknown,
-    /* 9 */ TKUnknown, /* 10 */ TKNewline, /* 11 */ TKUnknown,
-    /* 12 */ TKUnknown, /* 13 */ TKUnknown, /* 14 */ TKUnknown,
-    /* 15 */ TKUnknown, /* 16 */ TKUnknown, /* 17 */ TKUnknown,
-    /* 18 */ TKUnknown, /* 19 */ TKUnknown, /* 20 */ TKUnknown,
-    /* 21 */ TKUnknown, /* 22 */ TKUnknown, /* 23 */ TKUnknown,
-    /* 24 */ TKUnknown, /* 25 */ TKUnknown, /* 26 */ TKUnknown,
-    /* 27 */ TKUnknown, /* 28 */ TKUnknown, /* 29 */ TKUnknown,
-    /* 30 */ TKUnknown, /* 31 */ TKUnknown,
-    /* 32   */ TKSpaces, /* 33 ! */ TKExclamation,
-    /* 34 " */ TKStringBoundary, /* 35 # */ TKHash, /* 36 $ */ TKDollar,
-    /* 37 % */ TKOpMod, /* 38 & */ TKAmpersand, /* 39 ' */ TKRegexBoundary,
-    /* 40 ( */ TKParenOpen, /* 41 ) */ TKParenClose, /* 42 * */ TKTimes,
-    /* 43 + */ TKPlus, /* 44 , */ TKOpComma, /* 45 - */ TKMinus,
-    /* 46 . */ TKPeriod, /* 47 / */ TKSlash, /* 48 0 */ TKDigit,
-    /* 49 1 */ TKDigit, /* 50 2 */ TKDigit, /* 51 3 */ TKDigit,
-    /* 52 4 */ TKDigit, /* 53 5 */ TKDigit, /* 54 6 */ TKDigit,
-    /* 55 7 */ TKDigit, /* 56 8 */ TKDigit, /* 57 9 */ TKDigit,
-    /* 58 : */ TKOpColon, /* 59 ; */ TKOpSemiColon, /* 60 < */ TKOpLT,
-    /* 61 = */ TKOpAssign, /* 62 > */ TKOpGT, /* 63 ? */ TKQuestion,
-    /* 64 @ */ TKAt,
-    /* 65 A */ TKAlphabet, /* 66 B */ TKAlphabet, /* 67 C */ TKAlphabet,
-    /* 68 D */ TKAlphabet, /* 69 E */ TKAlphabet, /* 70 F */ TKAlphabet,
-    /* 71 G */ TKAlphabet, /* 72 H */ TKAlphabet, /* 73 I */ TKAlphabet,
-    /* 74 J */ TKAlphabet, /* 75 K */ TKAlphabet, /* 76 L */ TKAlphabet,
-    /* 77 M */ TKAlphabet, /* 78 N */ TKAlphabet, /* 79 O */ TKAlphabet,
-    /* 80 P */ TKAlphabet, /* 81 Q */ TKAlphabet, /* 82 R */ TKAlphabet,
-    /* 83 S */ TKAlphabet, /* 84 T */ TKAlphabet, /* 85 U */ TKAlphabet,
-    /* 86 V */ TKAlphabet, /* 87 W */ TKAlphabet, /* 88 X */ TKAlphabet,
-    /* 89 Y */ TKAlphabet, /* 90 Z */ TKAlphabet,
-    /* 91 [ */ TKArrayOpen, /* 92 \ */ TKBackslash, /* 93 ] */ TKArrayClose,
-    /* 94 ^ */ TKPower, /* 95 _ */ TKUnderscore,
-    /* 96 ` */ TKInlineBoundary,
-    /* 97 a */ TKAlphabet, /* 98 b */ TKAlphabet, /* 99 c */ TKAlphabet,
-    /* 100 d */ TKAlphabet, /* 101 e */ TKAlphabet, /* 102 f */ TKAlphabet,
-    /* 103 g */ TKAlphabet, /* 104 h */ TKAlphabet, /* 105 i */ TKAlphabet,
-    /* 106 j */ TKAlphabet, /* 107 k */ TKAlphabet, /* 108 l */ TKAlphabet,
-    /* 109 m */ TKAlphabet, /* 110 n */ TKAlphabet, /* 111 o */ TKAlphabet,
-    /* 112 p */ TKAlphabet, /* 113 q */ TKAlphabet, /* 114 r */ TKAlphabet,
-    /* 115 s */ TKAlphabet, /* 116 t */ TKAlphabet, /* 117 u */ TKAlphabet,
-    /* 118 v */ TKAlphabet, /* 119 w */ TKAlphabet, /* 120 x */ TKAlphabet,
-    /* 121 y */ TKAlphabet, /* 122 z */ TKAlphabet,
-    /* 123 { */ TKBraceOpen, /* 124 | */ TKPipe, /* 125 } */ TKBraceClose,
-    /* 126 ~ */ TKTilde,
-    /* 127 */ TKUnknown, /* 128 */ TKUnknown, /* 129 */ TKUnknown,
-    /* 130 */ TKUnknown, /* 131 */ TKUnknown, /* 132 */ TKUnknown,
-    /* 133 */ TKUnknown, /* 134 */ TKUnknown, /* 135 */ TKUnknown,
-    /* 136 */ TKUnknown, /* 137 */ TKUnknown, /* 138 */ TKUnknown,
-    /* 139 */ TKUnknown, /* 140 */ TKUnknown, /* 141 */ TKUnknown,
-    /* 142 */ TKUnknown, /* 143 */ TKUnknown, /* 144 */ TKUnknown,
-    /* 145 */ TKUnknown, /* 146 */ TKUnknown, /* 147 */ TKUnknown,
-    /* 148 */ TKUnknown, /* 149 */ TKUnknown, /* 150 */ TKUnknown,
-    /* 151 */ TKUnknown, /* 152 */ TKUnknown, /* 153 */ TKUnknown,
-    /* 154 */ TKUnknown, /* 155 */ TKUnknown, /* 156 */ TKUnknown,
-    /* 157 */ TKUnknown, /* 158 */ TKUnknown, /* 159 */ TKUnknown,
-    /* 160 */ TKUnknown, /* 161 */ TKUnknown, /* 162 */ TKUnknown,
-    /* 163 */ TKUnknown, /* 164 */ TKUnknown, /* 165 */ TKUnknown,
-    /* 166 */ TKUnknown, /* 167 */ TKUnknown, /* 168 */ TKUnknown,
-    /* 169 */ TKUnknown, /* 170 */ TKUnknown, /* 171 */ TKUnknown,
-    /* 172 */ TKUnknown, /* 173 */ TKUnknown, /* 174 */ TKUnknown,
-    /* 175 */ TKUnknown, /* 176 */ TKUnknown, /* 177 */ TKUnknown,
-    /* 178 */ TKUnknown, /* 179 */ TKUnknown, /* 180 */ TKUnknown,
-    /* 181 */ TKUnknown, /* 182 */ TKUnknown, /* 183 */ TKUnknown,
-    /* 184 */ TKUnknown, /* 185 */ TKUnknown, /* 186 */ TKUnknown,
-    /* 187 */ TKUnknown, /* 188 */ TKUnknown, /* 189 */ TKUnknown,
-    /* 190 */ TKUnknown, /* 191 */ TKUnknown, /* 192 */ TKUnknown,
-    /* 193 */ TKUnknown, /* 194 */ TKUnknown, /* 195 */ TKUnknown,
-    /* 196 */ TKUnknown, /* 197 */ TKUnknown, /* 198 */ TKUnknown,
-    /* 199 */ TKUnknown, /* 200 */ TKUnknown, /* 201 */ TKUnknown,
-    /* 202 */ TKUnknown, /* 203 */ TKUnknown, /* 204 */ TKUnknown,
-    /* 205 */ TKUnknown, /* 206 */ TKUnknown, /* 207 */ TKUnknown,
-    /* 208 */ TKUnknown, /* 209 */ TKUnknown, /* 210 */ TKUnknown,
-    /* 211 */ TKUnknown, /* 212 */ TKUnknown, /* 213 */ TKUnknown,
-    /* 214 */ TKUnknown, /* 215 */ TKUnknown, /* 216 */ TKUnknown,
-    /* 217 */ TKUnknown, /* 218 */ TKUnknown, /* 219 */ TKUnknown,
-    /* 220 */ TKUnknown, /* 221 */ TKUnknown, /* 222 */ TKUnknown,
-    /* 223 */ TKUnknown, /* 224 */ TKUnknown, /* 225 */ TKUnknown,
-    /* 226 */ TKUnknown, /* 227 */ TKUnknown, /* 228 */ TKUnknown,
-    /* 229 */ TKUnknown, /* 230 */ TKUnknown, /* 231 */ TKUnknown,
-    /* 232 */ TKUnknown, /* 233 */ TKUnknown, /* 234 */ TKUnknown,
-    /* 235 */ TKUnknown, /* 236 */ TKUnknown, /* 237 */ TKUnknown,
-    /* 238 */ TKUnknown, /* 239 */ TKUnknown, /* 240 */ TKUnknown,
-    /* 241 */ TKUnknown, /* 242 */ TKUnknown, /* 243 */ TKUnknown,
-    /* 244 */ TKUnknown, /* 245 */ TKUnknown, /* 246 */ TKUnknown,
-    /* 247 */ TKUnknown, /* 248 */ TKUnknown, /* 249 */ TKUnknown,
-    /* 250 */ TKUnknown, /* 251 */ TKUnknown, /* 252 */ TKUnknown,
-    /* 253 */ TKUnknown, /* 254 */ TKUnknown, /* 255 */ TKUnknown
+    /* 0 */ tkNullChar, /* 1 */ tkUnknown, /* 2 */ tkUnknown,
+    /* 3 */ tkUnknown, /* 4 */ tkUnknown, /* 5 */ tkUnknown,
+    /* 6 */ tkUnknown, /* 7 */ tkUnknown, /* 8 */ tkUnknown,
+    /* 9 */ tkUnknown, /* 10 */ tkNewline, /* 11 */ tkUnknown,
+    /* 12 */ tkUnknown, /* 13 */ tkUnknown, /* 14 */ tkUnknown,
+    /* 15 */ tkUnknown, /* 16 */ tkUnknown, /* 17 */ tkUnknown,
+    /* 18 */ tkUnknown, /* 19 */ tkUnknown, /* 20 */ tkUnknown,
+    /* 21 */ tkUnknown, /* 22 */ tkUnknown, /* 23 */ tkUnknown,
+    /* 24 */ tkUnknown, /* 25 */ tkUnknown, /* 26 */ tkUnknown,
+    /* 27 */ tkUnknown, /* 28 */ tkUnknown, /* 29 */ tkUnknown,
+    /* 30 */ tkUnknown, /* 31 */ tkUnknown,
+    /* 32   */ tkSpaces, /* 33 ! */ tkExclamation,
+    /* 34 " */ tkStringBoundary, /* 35 # */ tkHash, /* 36 $ */ tkDollar,
+    /* 37 % */ tkOpMod, /* 38 & */ tkAmpersand, /* 39 ' */ tkRegexBoundary,
+    /* 40 ( */ tkParenOpen, /* 41 ) */ tkParenClose, /* 42 * */ tkTimes,
+    /* 43 + */ tkPlus, /* 44 , */ tkOpComma, /* 45 - */ tkMinus,
+    /* 46 . */ tkPeriod, /* 47 / */ tkSlash, /* 48 0 */ tkDigit,
+    /* 49 1 */ tkDigit, /* 50 2 */ tkDigit, /* 51 3 */ tkDigit,
+    /* 52 4 */ tkDigit, /* 53 5 */ tkDigit, /* 54 6 */ tkDigit,
+    /* 55 7 */ tkDigit, /* 56 8 */ tkDigit, /* 57 9 */ tkDigit,
+    /* 58 : */ tkOpColon, /* 59 ; */ tkOpSemiColon, /* 60 < */ tkOpLT,
+    /* 61 = */ tkOpAssign, /* 62 > */ tkOpGT, /* 63 ? */ tkQuestion,
+    /* 64 @ */ tkAt,
+    /* 65 A */ tkAlphabet, /* 66 B */ tkAlphabet, /* 67 C */ tkAlphabet,
+    /* 68 D */ tkAlphabet, /* 69 E */ tkAlphabet, /* 70 F */ tkAlphabet,
+    /* 71 G */ tkAlphabet, /* 72 H */ tkAlphabet, /* 73 I */ tkAlphabet,
+    /* 74 J */ tkAlphabet, /* 75 K */ tkAlphabet, /* 76 L */ tkAlphabet,
+    /* 77 M */ tkAlphabet, /* 78 N */ tkAlphabet, /* 79 O */ tkAlphabet,
+    /* 80 P */ tkAlphabet, /* 81 Q */ tkAlphabet, /* 82 R */ tkAlphabet,
+    /* 83 S */ tkAlphabet, /* 84 T */ tkAlphabet, /* 85 U */ tkAlphabet,
+    /* 86 V */ tkAlphabet, /* 87 W */ tkAlphabet, /* 88 X */ tkAlphabet,
+    /* 89 Y */ tkAlphabet, /* 90 Z */ tkAlphabet,
+    /* 91 [ */ tkArrayOpen, /* 92 \ */ tkBackslash, /* 93 ] */ tkArrayClose,
+    /* 94 ^ */ tkPower, /* 95 _ */ tkUnderscore,
+    /* 96 ` */ tkInlineBoundary,
+    /* 97 a */ tkAlphabet, /* 98 b */ tkAlphabet, /* 99 c */ tkAlphabet,
+    /* 100 d */ tkAlphabet, /* 101 e */ tkAlphabet, /* 102 f */ tkAlphabet,
+    /* 103 g */ tkAlphabet, /* 104 h */ tkAlphabet, /* 105 i */ tkAlphabet,
+    /* 106 j */ tkAlphabet, /* 107 k */ tkAlphabet, /* 108 l */ tkAlphabet,
+    /* 109 m */ tkAlphabet, /* 110 n */ tkAlphabet, /* 111 o */ tkAlphabet,
+    /* 112 p */ tkAlphabet, /* 113 q */ tkAlphabet, /* 114 r */ tkAlphabet,
+    /* 115 s */ tkAlphabet, /* 116 t */ tkAlphabet, /* 117 u */ tkAlphabet,
+    /* 118 v */ tkAlphabet, /* 119 w */ tkAlphabet, /* 120 x */ tkAlphabet,
+    /* 121 y */ tkAlphabet, /* 122 z */ tkAlphabet,
+    /* 123 { */ tkBraceOpen, /* 124 | */ tkPipe, /* 125 } */ tkBraceClose,
+    /* 126 ~ */ tkTilde,
+    /* 127 */ tkUnknown, /* 128 */ tkUnknown, /* 129 */ tkUnknown,
+    /* 130 */ tkUnknown, /* 131 */ tkUnknown, /* 132 */ tkUnknown,
+    /* 133 */ tkUnknown, /* 134 */ tkUnknown, /* 135 */ tkUnknown,
+    /* 136 */ tkUnknown, /* 137 */ tkUnknown, /* 138 */ tkUnknown,
+    /* 139 */ tkUnknown, /* 140 */ tkUnknown, /* 141 */ tkUnknown,
+    /* 142 */ tkUnknown, /* 143 */ tkUnknown, /* 144 */ tkUnknown,
+    /* 145 */ tkUnknown, /* 146 */ tkUnknown, /* 147 */ tkUnknown,
+    /* 148 */ tkUnknown, /* 149 */ tkUnknown, /* 150 */ tkUnknown,
+    /* 151 */ tkUnknown, /* 152 */ tkUnknown, /* 153 */ tkUnknown,
+    /* 154 */ tkUnknown, /* 155 */ tkUnknown, /* 156 */ tkUnknown,
+    /* 157 */ tkUnknown, /* 158 */ tkUnknown, /* 159 */ tkUnknown,
+    /* 160 */ tkUnknown, /* 161 */ tkUnknown, /* 162 */ tkUnknown,
+    /* 163 */ tkUnknown, /* 164 */ tkUnknown, /* 165 */ tkUnknown,
+    /* 166 */ tkUnknown, /* 167 */ tkUnknown, /* 168 */ tkUnknown,
+    /* 169 */ tkUnknown, /* 170 */ tkUnknown, /* 171 */ tkUnknown,
+    /* 172 */ tkUnknown, /* 173 */ tkUnknown, /* 174 */ tkUnknown,
+    /* 175 */ tkUnknown, /* 176 */ tkUnknown, /* 177 */ tkUnknown,
+    /* 178 */ tkUnknown, /* 179 */ tkUnknown, /* 180 */ tkUnknown,
+    /* 181 */ tkUnknown, /* 182 */ tkUnknown, /* 183 */ tkUnknown,
+    /* 184 */ tkUnknown, /* 185 */ tkUnknown, /* 186 */ tkUnknown,
+    /* 187 */ tkUnknown, /* 188 */ tkUnknown, /* 189 */ tkUnknown,
+    /* 190 */ tkUnknown, /* 191 */ tkUnknown, /* 192 */ tkUnknown,
+    /* 193 */ tkUnknown, /* 194 */ tkUnknown, /* 195 */ tkUnknown,
+    /* 196 */ tkUnknown, /* 197 */ tkUnknown, /* 198 */ tkUnknown,
+    /* 199 */ tkUnknown, /* 200 */ tkUnknown, /* 201 */ tkUnknown,
+    /* 202 */ tkUnknown, /* 203 */ tkUnknown, /* 204 */ tkUnknown,
+    /* 205 */ tkUnknown, /* 206 */ tkUnknown, /* 207 */ tkUnknown,
+    /* 208 */ tkUnknown, /* 209 */ tkUnknown, /* 210 */ tkUnknown,
+    /* 211 */ tkUnknown, /* 212 */ tkUnknown, /* 213 */ tkUnknown,
+    /* 214 */ tkUnknown, /* 215 */ tkUnknown, /* 216 */ tkUnknown,
+    /* 217 */ tkUnknown, /* 218 */ tkUnknown, /* 219 */ tkUnknown,
+    /* 220 */ tkUnknown, /* 221 */ tkUnknown, /* 222 */ tkUnknown,
+    /* 223 */ tkUnknown, /* 224 */ tkUnknown, /* 225 */ tkUnknown,
+    /* 226 */ tkUnknown, /* 227 */ tkUnknown, /* 228 */ tkUnknown,
+    /* 229 */ tkUnknown, /* 230 */ tkUnknown, /* 231 */ tkUnknown,
+    /* 232 */ tkUnknown, /* 233 */ tkUnknown, /* 234 */ tkUnknown,
+    /* 235 */ tkUnknown, /* 236 */ tkUnknown, /* 237 */ tkUnknown,
+    /* 238 */ tkUnknown, /* 239 */ tkUnknown, /* 240 */ tkUnknown,
+    /* 241 */ tkUnknown, /* 242 */ tkUnknown, /* 243 */ tkUnknown,
+    /* 244 */ tkUnknown, /* 245 */ tkUnknown, /* 246 */ tkUnknown,
+    /* 247 */ tkUnknown, /* 248 */ tkUnknown, /* 249 */ tkUnknown,
+    /* 250 */ tkUnknown, /* 251 */ tkUnknown, /* 252 */ tkUnknown,
+    /* 253 */ tkUnknown, /* 254 */ tkUnknown, /* 255 */ tkUnknown
 };
 #define Token_matchesKeyword(tok)                                          \
     if (sizeof(#tok) - 1 == l and not strncmp(#tok, s, l)) return true;
@@ -156,7 +156,7 @@ static char Token_peekCharAfter(Token* this)
 
 #define Token_compareKeyword(tok)                                          \
     if (sizeof(#tok) - 1 == l and not strncmp(#tok, s, l)) {               \
-        this->kind = TKKeyword_##tok;                                      \
+        this->kind = tkKeyword_##tok;                                      \
         return;                                                            \
     }
 
@@ -165,7 +165,7 @@ static char Token_peekCharAfter(Token* this)
 static void Token_tryKeywordMatch(Token* this)
 {
     // TODO: USE A DICT OR MPH FOR THIS!
-    if (this->kind != TKIdentifier) return;
+    if (this->kind != tkIdentifier) return;
 
     const char* s = this->pos;
     const int l = this->matchlen;
@@ -200,7 +200,7 @@ static void Token_tryKeywordMatch(Token* this)
     //        Token_compareKeyword(print);
     //     if (sizeof("else if") - 1 == l and not strncmp("else if", s, l))
     // {
-    //     this->kind = TKKeyword_elseif;
+    //     this->kind = tkKeyword_elseif;
     //     return;
     // }
 }
@@ -216,74 +216,74 @@ static TokenKind Token_getType(Token* this, const size_t offset)
     case '<':
         switch (cn) {
         case '=':
-            return TKOpLE;
+            return tkOpLE;
         default:
-            return TKOpLT;
+            return tkOpLT;
         }
     case '>':
         switch (cn) {
         case '=':
-            return TKOpGE;
+            return tkOpGE;
         default:
-            return TKOpGT;
+            return tkOpGT;
         }
     case '=':
         switch (cn) {
         case '=':
-            return TKOpEQ;
+            return tkOpEQ;
         case '>':
-            return TKOpResults;
+            return tkOpResults;
         default:
-            return TKOpAssign;
+            return tkOpAssign;
         }
     case '+':
         switch (cn) {
         case '=':
-            return TKPlusEq;
+            return tkPlusEq;
         }
-        return TKPlus;
+        return tkPlus;
     case '-':
         switch (cn) {
         case '=':
-            return TKMinusEq;
+            return tkMinusEq;
         }
-        return TKMinus;
+        return tkMinus;
     case '*':
         switch (cn) {
         case '=':
-            return TKTimesEq;
+            return tkTimesEq;
         }
-        return TKTimes;
+        return tkTimes;
     case '/':
         switch (cn) {
         case '=':
-            return TKSlashEq;
+            return tkSlashEq;
         }
-        return TKSlash;
+        return tkSlash;
     case '^':
         switch (cn) {
         case '=':
-            return TKPowerEq;
+            return tkPowerEq;
         }
-        return TKPower;
+        return tkPower;
     case '%':
         switch (cn) {
         case '=':
-            return TKOpModEq;
+            return tkOpModEq;
         }
-        return TKOpMod;
+        return tkOpMod;
     case '!':
         switch (cn) {
         case '=':
-            return TKOpNE;
+            return tkOpNE;
         }
-        return TKExclamation;
+        return tkExclamation;
     case ':':
         switch (cn) {
         case '=':
-            return TKColEq;
+            return tkColEq;
         default:
-            return TKOpColon;
+            return tkOpColon;
         }
     default:
         return ret;
@@ -293,153 +293,153 @@ static TokenKind Token_getType(Token* this, const size_t offset)
 static void Token_detect(Token* this)
 {
     TokenKind tt = Token_getType(this, 0);
-    TokenKind tt_ret = TKUnknown; // = tt;
+    TokenKind tt_ret = tkUnknown; // = tt;
     static TokenKind tt_last
-        = TKUnknown; // the previous this->token that was found
+        = tkUnknown; // the previous this->token that was found
     static TokenKind tt_lastNonSpace
-        = TKUnknown; // the last non-space this->token found
+        = tkUnknown; // the last non-space this->token found
     TokenKind tmp;
     char* start = this->pos;
     bool found_e = false, found_dot = false, found_cmt = false;
     uint8_t found_spc = 0;
 
     switch (tt) {
-    case TKStringBoundary:
-    case TKInlineBoundary:
-    case TKRegexBoundary:
+    case tkStringBoundary:
+    case tkInlineBoundary:
+    case tkRegexBoundary:
         tmp = tt; // remember which it is exactly
 
         // Incrementing pos is a side effect of getTypeAtCurrentPos(...)
-        while (tt != TKNullChar) {
+        while (tt != tkNullChar) {
             // here we want to consume the ending " so we move next
             // before
             this->pos++;
             tt = Token_getType(this, 0);
-            if (tt == TKNullChar or tt == tmp) {
+            if (tt == tkNullChar or tt == tmp) {
                 *this->pos++ = 0;
                 break;
             }
-            if (tt == TKBackslash)
+            if (tt == tkBackslash)
                 if (Token_getType(this, 1) == tmp) { // why if?
                     this->pos++;
                 }
         }
         switch (tmp) {
-        case TKStringBoundary:
-            tt_ret = TKString;
+        case tkStringBoundary:
+            tt_ret = tkString;
             break;
-        case TKInlineBoundary:
-            tt_ret = TKInline;
+        case tkInlineBoundary:
+            tt_ret = tkInline;
             break;
-        case TKRegexBoundary:
-            tt_ret = TKRegex;
+        case tkRegexBoundary:
+            tt_ret = tkRegex;
             break;
         default:
-            tt_ret = TKUnknown;
+            tt_ret = tkUnknown;
             printf("unreachable %s:%d\n", __FILE__, __LINE__);
         }
         break;
 
-    case TKSpaces:
-        if (tt_last == TKOneSpace) // if prev char was a space return
+    case tkSpaces:
+        if (tt_last == tkOneSpace) // if prev char was a space return
                                    // this as a run of spaces
-            while (tt != TKNullChar) {
+            while (tt != tkNullChar) {
                 // here we dont want to consume the end char, so break
                 // before
                 tt = Token_getType(this, 1);
                 this->pos++;
-                if (tt != TKSpaces) break;
+                if (tt != tkSpaces) break;
             }
         else
             this->pos++;
         // else its a single space
-        tt_ret = TKSpaces;
+        tt_ret = tkSpaces;
         break;
 
-    case TKOpComma:
-    case TKOpSemiColon:
+    case tkOpComma:
+    case tkOpSemiColon:
         //        line continuation tokens
         tt_ret = tt;
 
-        while (tt != TKNullChar) {
+        while (tt != tkNullChar) {
             tt = Token_getType(this, 1);
             this->pos++;
             // line number should be incremented for line continuations
-            if (tt == TKSpaces) {
+            if (tt == tkSpaces) {
                 found_spc++;
             }
-            if (tt == TKExclamation) {
+            if (tt == tkExclamation) {
                 found_cmt = true;
             }
-            if (tt == TKNewline) {
+            if (tt == tkNewline) {
                 this->line++;
                 this->col = -found_spc - 1; // account for extra spaces
                                             // after , and for nl itself
                 found_spc = 0;
             }
-            if (found_cmt and tt != TKNewline) {
+            if (found_cmt and tt != tkNewline) {
                 found_spc++;
                 continue;
             }
-            if (tt != TKSpaces and tt != TKNewline) break;
+            if (tt != tkSpaces and tt != tkNewline) break;
         }
         break;
 
-    case TKArrayOpen:
+    case tkArrayOpen:
         // mergearraydims should be set only when reading func args
         if (not this->flags.mergeArrayDims) goto defaultToken;
 
-        while (tt != TKNullChar) {
+        while (tt != tkNullChar) {
             tt = Token_getType(this, 1);
             this->pos++;
-            if (tt != TKOpColon and tt != TKOpComma) break;
+            if (tt != tkOpColon and tt != tkOpComma) break;
         }
         tt = Token_getType(this, 0);
-        if (tt != TKArrayClose) {
+        if (tt != tkArrayClose) {
             eprintf(
                 "expected a ']', found a '%c'. now what?\n", *this->pos);
         }
         this->pos++;
-        tt_ret = TKArrayDims;
+        tt_ret = tkArrayDims;
         break;
 
-    case TKAlphabet:
-    case TKPeriod:
-    case TKUnderscore:
-        while (tt != TKNullChar) {
+    case tkAlphabet:
+    case tkPeriod:
+    case tkUnderscore:
+        while (tt != tkNullChar) {
             tt = Token_getType(this, 1);
             this->pos++;
-            if (tt != TKAlphabet and tt != TKDigit and tt != TKUnderscore
-                and tt != TKPeriod)
+            if (tt != tkAlphabet and tt != tkDigit and tt != tkUnderscore
+                and tt != tkPeriod)
                 break; /// validate in parser not here
         }
-        tt_ret = TKIdentifier;
+        tt_ret = tkIdentifier;
         break;
 
-    case TKHash: // TKExclamation:
-        while (tt != TKNullChar) {
+    case tkHash: // tkExclamation:
+        while (tt != tkNullChar) {
             tt = Token_getType(this, 1);
             this->pos++;
-            if (tt == TKNewline) break;
+            if (tt == tkNewline) break;
         }
-        tt_ret = TKLineComment;
+        tt_ret = tkLineComment;
         break;
 
-    case TKPipe:
-        while (tt != TKNullChar) {
+    case tkPipe:
+        while (tt != tkNullChar) {
             tt = Token_getType(this, 1);
             this->pos++;
-            if (tt != TKAlphabet and tt != TKDigit and tt != TKSlash
-                and tt != TKPeriod)
+            if (tt != tkAlphabet and tt != tkDigit and tt != tkSlash
+                and tt != tkPeriod)
                 break;
         }
-        tt_ret = TKUnits;
+        tt_ret = tkUnits;
         break;
 
-    case TKDigit:
-        tt_ret = TKNumber;
+    case tkDigit:
+        tt_ret = tkNumber;
 
-        while (tt != TKNullChar) // EOF, basically null char
+        while (tt != tkNullChar) // EOF, basically null char
         {
             tt = Token_getType(this, 1);
             // numbers such as 1234500.00 are allowed
@@ -455,51 +455,51 @@ static void Token_detect(Token* this)
                 found_e = false;
                 continue;
             }
-            if (tt == TKPeriod) {
+            if (tt == tkPeriod) {
                 found_dot = true;
                 continue;
             }
-            if (found_dot and tt == TKPeriod) tt_ret = TKMultiDotNumber;
+            if (found_dot and tt == tkPeriod) tt_ret = tkMultiDotNumber;
 
-            if (tt != TKDigit and tt != TKPeriod and *this->pos != 'i')
+            if (tt != tkDigit and tt != tkPeriod and *this->pos != 'i')
                 break;
         }
         break;
 
-    case TKMinus:
+    case tkMinus:
 
         switch (tt_lastNonSpace) {
-        case TKParenClose:
-        case TKIdentifier: // TODO: keywords too?
-        case TKNumber:
-        case TKArrayClose:
-        case TKArrayDims:
-        case TKMultiDotNumber:
+        case tkParenClose:
+        case tkIdentifier: // TODO: keywords too?
+        case tkNumber:
+        case tkArrayClose:
+        case tkArrayDims:
+        case tkMultiDotNumber:
             tt_ret = tt;
             break;
         default:
-            tt_ret = TKUnaryMinus;
+            tt_ret = tkUnaryMinus;
             break;
         }
         this->pos++;
         break;
 
-    case TKOpNotResults:
+    case tkOpNotResults:
         // 3-char tokens
         this->pos++;
-    case TKOpEQ:
-    case TKOpGE:
-    case TKOpLE:
-    case TKOpNE:
-    case TKOpResults:
-    case TKBackslash:
-    case TKColEq:
-    case TKPlusEq:
-    case TKMinusEq:
-    case TKTimesEq:
-    case TKSlashEq:
-    case TKPowerEq:
-    case TKOpModEq:
+    case tkOpEQ:
+    case tkOpGE:
+    case tkOpLE:
+    case tkOpNE:
+    case tkOpResults:
+    case tkBackslash:
+    case tkColEq:
+    case tkPlusEq:
+    case tkMinusEq:
+    case tkTimesEq:
+    case tkSlashEq:
+    case tkPowerEq:
+    case tkOpModEq:
 
         // 2-char tokens
         this->pos++;
@@ -514,13 +514,13 @@ static void Token_detect(Token* this)
     this->pos = start;
     this->kind = tt_ret;
 
-    if (this->kind == TKIdentifier) Token_tryKeywordMatch(this);
+    if (this->kind == tkIdentifier) Token_tryKeywordMatch(this);
 
-    if (this->kind == TKSpaces and this->matchlen == 1)
-        this->kind = TKOneSpace;
+    if (this->kind == tkSpaces and this->matchlen == 1)
+        this->kind = tkOneSpace;
 
     tt_last = this->kind;
-    if (tt_last != TKOneSpace and tt_last != TKSpaces)
+    if (tt_last != tkOneSpace and tt_last != tkSpaces)
         tt_lastNonSpace = tt_last;
 }
 
@@ -528,39 +528,39 @@ static void Token_detect(Token* this)
 static void Token_advance(Token* this)
 {
     switch (this->kind) {
-    case TKIdentifier:
-    case TKString:
-    case TKNumber:
-    case TKMultiDotNumber:
-    case TKFunctionCall:
-    case TKSubscript:
-    case TKDigit:
-    case TKAlphabet:
-    case TKRegex:
-    case TKInline:
-    case TKUnits:
-    case TKKeyword_cheater:
-    case TKKeyword_for:
-    case TKKeyword_while:
-    case TKKeyword_if:
-    case TKKeyword_end:
-    case TKKeyword_function:
-    case TKKeyword_test:
-    case TKKeyword_not:
-    case TKKeyword_and:
-    case TKKeyword_or:
-    case TKKeyword_in:
-    case TKKeyword_do:
-    case TKKeyword_then:
-    case TKKeyword_as:
-    case TKKeyword_else:
-    case TKKeyword_type:
-    case TKKeyword_return:
-    case TKKeyword_extends:
-    case TKKeyword_var:
-    case TKKeyword_let:
-    case TKKeyword_import:
-    case TKUnknown: // bcz start of the file is this
+    case tkIdentifier:
+    case tkString:
+    case tkNumber:
+    case tkMultiDotNumber:
+    case tkFunctionCall:
+    case tkSubscript:
+    case tkDigit:
+    case tkAlphabet:
+    case tkRegex:
+    case tkInline:
+    case tkUnits:
+    case tkKeyword_cheater:
+    case tkKeyword_for:
+    case tkKeyword_while:
+    case tkKeyword_if:
+    case tkKeyword_end:
+    case tkKeyword_function:
+    case tkKeyword_test:
+    case tkKeyword_not:
+    case tkKeyword_and:
+    case tkKeyword_or:
+    case tkKeyword_in:
+    case tkKeyword_do:
+    case tkKeyword_then:
+    case tkKeyword_as:
+    case tkKeyword_else:
+    case tkKeyword_type:
+    case tkKeyword_return:
+    case tkKeyword_extends:
+    case tkKeyword_var:
+    case tkKeyword_let:
+    case tkKeyword_import:
+    case tkUnknown: // bcz start of the file is this
         break;
     default:
         *this->pos = 0; // trample it so that idents etc. can be assigned
@@ -572,14 +572,14 @@ static void Token_advance(Token* this)
     this->matchlen = 0;
     Token_detect(this);
 
-    if (this->kind == TKNewline) {
+    if (this->kind == tkNewline) {
         // WHY don't you do this->token advance here?
         this->line++;
         this->col = 0; // position of the nl itself is 0
     }
     if (this->flags.skipWhiteSpace
-        and (this->kind == TKSpaces
-            or (this->flags.strictSpacing and this->kind == TKOneSpace)))
+        and (this->kind == tkSpaces
+            or (this->flags.strictSpacing and this->kind == tkOneSpace)))
         Token_advance(this);
 }
 //

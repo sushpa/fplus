@@ -1,7 +1,10 @@
 all: checkc.bin
 
-CCFLAGS=-std=c99 -Werror
+CCFLAGS=-std=c99 -Werror -march=native -funroll-loops -ffast-math
 CPP=gcc
+
+TokenKindDefs.h: makeTokens.sh
+	./makeTokens.sh
 
 checkc.bin: main.c chstd.h cycle.h errors.h gen.h genc.h gencpp.h genlua.h hash.h resolve.h   token.h tokenKind.h typecheck.h   parse.h TokenKindDefs.h types.h stats.h
 	$(CPP) -O3 $(CCFLAGS) $< -lc -o $@

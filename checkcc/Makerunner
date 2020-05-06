@@ -1,15 +1,18 @@
 # at some point checkc should output to a file not stdout
 DIAG=
 
+CFLOPT=-O3 -Wall
+CFLDBG=-O0 -g -Werror -DDEBUG
+CFLFAST=-O3 -march=native -ffast-math -funroll-loops -DNOSTACKCHECK -DNONULLCHECK -DNOBOUNDSCHECK
 
 %.bin: %.ch chstd.h checkstd.h
-	./comp $< $(DIAG) > $@.c && cc -O0 $@.c -o $@
+	./comp $< $(DIAG) > $@.c && cc $(CFLOPT) $@.c -o $@
 #	rm $@.c
 
 %-d.bin: %.ch chstd.h checkstd.h
-	./comp $< $(DIAG) > $@.c && cc -O0 -g -Werror -DDEBUG $@.c -o $@
+	./comp $< $(DIAG) > $@.c && cc $(CFLDBG) $@.c -o $@
 #	rm $@.c
 
 %-f.bin: %.ch chstd.h checkstd.h
-	./comp $< $(DIAG) > $@.c && cc -O3 -DNOSTACKCHECK -DNONULLCHECK -DNOBOUNDSCHECK $@.c -o $@
+	./comp $< $(DIAG) > $@.c && cc $(CFLFAST) $@.c -o $@
 #	rm $@.c

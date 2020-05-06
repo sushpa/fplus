@@ -13,19 +13,20 @@ static void setStmtFuncTypeInfo(Parser* self, ASTFunc* func)
 static void setExprTypeInfo(Parser* self, ASTExpr* expr, bool inFuncArgs)
 { // return;
     switch (expr->kind) {
-    case TKIdentifierResolved:
+    case tkIdentifierResolved:
         expr->typeType = expr->var->typeSpec->typeType;
         expr->isElementalOp = false;
         break;
-    case TKSubscriptResolved:
+    case tkSubscriptResolved:
         expr->typeType = expr->var->typeSpec->typeType;
         setExprTypeInfo(self, expr->left, false); // check args
         expr->isElementalOp = expr->left->isElementalOp;
         // TODO: check args in the same way as for funcs below, not directly
         // checking expr->left.
         break;
-    case TKFunctionCallResolved: { // TODO: so many ifs and buts. Just
-                                   // create a typeSpec for the func
+    case tkFunctionCallResolved: {
+        // TODO: so many ifs and buts. Just
+        // create a typeSpec for the func
         // while parsing it and set it to unresolved.
         if (expr->func->returnType)
             expr->typeType = expr->func->returnType->typeType;
@@ -33,8 +34,8 @@ static void setExprTypeInfo(Parser* self, ASTExpr* expr, bool inFuncArgs)
             expr->typeType = TYUnresolved; // should actually be TYVoid
 
         if (expr->left) {
-            setExprTypeInfo(
-                self, expr->left, true); // but this call shouldn't check
+            setExprTypeInfo(self, expr->left, true);
+            // but this call shouldn't check
             // for equal types on both sides of a comma
 
             expr->isElementalOp = expr->left->isElementalOp
@@ -47,45 +48,54 @@ static void setExprTypeInfo(Parser* self, ASTExpr* expr, bool inFuncArgs)
             ASTExpr* currArg = expr->left;
             foreach (ASTVar*, arg, expr->func->args) {
                 ASTExpr* cArg
-                    = currArg->kind == TKOpComma ? currArg->left : currArg;
-                if (cArg->kind == TKOpAssign) cArg = cArg->right;
+                    = currArg->kind == tkOpComma ? currArg->left : currArg;
+                if (cArg->kind == tkOpAssign) cArg = cArg->right;
                 if (cArg->typeType != arg->typeSpec->typeType)
                     Parser_errorArgTypeMismatch(self, cArg, arg);
                 if (not(currArg = currArg->right)) break;
             }
         }
     } break;
-    case TKIdentifier:
+    case tkIdentifier:
         break;
-    case TKSubscript:
-    case TKFunctionCall:
-        eprintf(
-            "\nissue in setExprTypeInfo: can't handle unresolved '%s'\n",
-            expr->name);
+    case tkSubscript:
+    case tkFunctionCall:
+        // eprintf(
+        //     "\nissue in setExprTypeInfo: can't handle unresolved '%s'\n",
+        //     expr->name);
         break;
-    case TKString:
+    case tkString:
         expr->typeType = TYString;
         expr->isElementalOp = false;
         break;
-    case TKNumber:
+    case tkNumber:
         expr->typeType = TYReal64;
         expr->isElementalOp = false;
         break;
-    case TKVarAssign:
+    case tkVarAssign:
         setExprTypeInfo(self, expr->var->init, false);
         expr->typeType = expr->var->init->typeType;
         expr->isElementalOp = expr->var->init->isElementalOp;
 
-        if (not expr->var->typeSpec->typeType)
+        if (not expr->var->typeSpec->typeType) {
             expr->var->typeSpec->typeType = expr->var->init->typeType;
-        else if (expr->var->typeSpec->typeType != expr->var->init->typeType)
+            if (expr->var->init->typeType == TYObject) {
+                if (expr->var->init->kind == tkFunctionCallResolved)
+                    expr->var->typeSpec->type
+                        = expr->var->init->func->returnType->type;
+                else if (expr->var->init->kind == tkIdentifierResolved)
+                    expr->var->typeSpec->type
+                        = expr->var->init->var->typeSpec->type;
+            }
+        } else if (expr->var->typeSpec->typeType
+            != expr->var->init->typeType)
             Parser_errorTypeMismatchBinOp(self, expr);
         break;
 
-    case TKKeyword_if: // elemental ops in if cond?
-    case TKKeyword_for:
-    case TKKeyword_else:
-    case TKKeyword_while: {
+    case tkKeyword_if: // elemental ops in if cond?
+    case tkKeyword_for:
+    case tkKeyword_else:
+    case tkKeyword_while: {
         if (expr->left) setExprTypeInfo(self, expr->left, false);
         foreach (ASTExpr*, stmt, expr->body->stmts)
             setExprTypeInfo(self, stmt, false);
@@ -97,22 +107,22 @@ static void setExprTypeInfo(Parser* self, ASTExpr* expr, bool inFuncArgs)
                 setExprTypeInfo(self, expr->left, inFuncArgs);
             setExprTypeInfo(self, expr->right, inFuncArgs);
 
-            if (expr->kind == TKKeyword_or
+            if (expr->kind == tkKeyword_or
                 and expr->left->typeType != TYBool) {
                 ; // this is the x = func(...) or break / or continue / or
                   // return (null handling)
-            } else if (expr->kind == TKOpLE or expr->kind == TKOpLT
-                or expr->kind == TKOpGT or expr->kind == TKOpGE
-                or expr->kind == TKOpEQ or expr->kind == TKOpNE
-                or expr->kind == TKKeyword_and or expr->kind == TKKeyword_or
-                or expr->kind == TKKeyword_not
-                or expr->kind == TKKeyword_in)
+            } else if (expr->kind == tkOpLE or expr->kind == tkOpLT
+                or expr->kind == tkOpGT or expr->kind == tkOpGE
+                or expr->kind == tkOpEQ or expr->kind == tkOpNE
+                or expr->kind == tkKeyword_and or expr->kind == tkKeyword_or
+                or expr->kind == tkKeyword_not
+                or expr->kind == tkKeyword_in)
                 expr->typeType = TYBool;
             else
                 expr->typeType = expr->right->typeType;
 
             expr->isElementalOp
-                = expr->right->isElementalOp or expr->kind == TKOpColon;
+                = expr->right->isElementalOp or expr->kind == tkOpColon;
             // TODO: actually, indexing by an array of integers is also an
             // indication of an elemental op
             if (not expr->opIsUnary)
@@ -121,8 +131,8 @@ static void setExprTypeInfo(Parser* self, ASTExpr* expr, bool inFuncArgs)
 
             if (not expr->opIsUnary
                 and not(inFuncArgs
-                    and (expr->kind == TKOpComma
-                        or expr->kind == TKOpAssign))) {
+                    and (expr->kind == tkOpComma
+                        or expr->kind == tkOpAssign))) {
                 TypeTypes leftType = expr->left->typeType;
                 TypeTypes rightType = expr->right->typeType;
 
@@ -132,7 +142,7 @@ static void setExprTypeInfo(Parser* self, ASTExpr* expr, bool inFuncArgs)
                 // their args, unset inFuncArgs.
 
                 if (leftType == TYBool
-                    and (expr->kind == TKOpLE or expr->kind == TKOpLT))
+                    and (expr->kind == tkOpLE or expr->kind == tkOpLT))
                     ;
                 else if (leftType != rightType)
                     Parser_errorTypeMismatchBinOp(self, expr);
@@ -141,15 +151,15 @@ static void setExprTypeInfo(Parser* self, ASTExpr* expr, bool inFuncArgs)
                 // that operator: in general operators are defined only for
                 // numeric types and some keywords for logicals.
                 else if (leftType == TYString and //
-                    (expr->kind == TKOpAssign //
-                        or expr->kind == TKOpEQ //
-                        or expr->kind == TKPlusEq))
+                    (expr->kind == tkOpAssign //
+                        or expr->kind == tkOpEQ //
+                        or expr->kind == tkPlusEq))
                     ;
                 else if (leftType == TYBool and //
-                    (expr->kind == TKOpAssign //
-                        or expr->kind == TKOpEQ
-                        or expr->kind == TKKeyword_and
-                        or expr->kind == TKKeyword_or))
+                    (expr->kind == tkOpAssign //
+                        or expr->kind == tkOpEQ
+                        or expr->kind == tkKeyword_and
+                        or expr->kind == tkKeyword_or))
                     ;
                 else if (not TypeType_isnum(leftType))
                     Parser_errorInvalidTypeForOp(self, expr);

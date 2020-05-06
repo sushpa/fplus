@@ -30,7 +30,7 @@ static void ASTVar_gen(ASTVar* this, int level)
     printf("%.*s%s%s", level, spaces,
         this->flags.isVar ? "var " : this->flags.isLet ? "let " : "",
         this->name);
-    if (not(this->init and this->init->kind == TKFunctionCall
+    if (not(this->init and this->init->kind == tkFunctionCall
             and !strcmp(this->init->name, this->typeSpec->name))) {
         printf(" as ");
         ASTTypeSpec_gen(this->typeSpec, level + STEP);
@@ -41,11 +41,11 @@ static void ASTVar_gen(ASTVar* this, int level)
     //     for
     //     // [, etc
     //     const char* ctyp = TokenKind_defaultType(
-    //         this->init ? this->init->kind : TKUnknown);
-    //     if (this->init and this->init->kind == TKArrayOpen)
+    //         this->init ? this->init->kind : tkUnknown);
+    //     if (this->init and this->init->kind == tkArrayOpen)
     //         ctyp = TokenKind_defaultType(
-    //             this->init->right ? this->init->right->kind : TKUnknown);
-    //     if (this->init and this->init->kind == TKFunctionCall
+    //             this->init->right ? this->init->right->kind : tkUnknown);
+    //     if (this->init and this->init->kind == tkFunctionCall
     //         and *this->init->name >= 'A' and *this->init->name <= 'Z')
     //         ctyp = NULL;
     //     if (ctyp) printf(" as %s", ctyp);
@@ -124,36 +124,36 @@ static void ASTExpr_gen(
     printf("%.*s", level, spaces);
 
     switch (this->kind) {
-    case TKNumber:
-    case TKMultiDotNumber:
+    case tkNumber:
+    case tkMultiDotNumber:
         printf("%s", this->string);
         break;
-    case TKRegex:
+    case tkRegex:
         printf("'%s'", this->string + 1);
         break;
-    case TKInline:
+    case tkInline:
         printf("`%s`", this->string + 1);
         break;
 
-    case TKIdentifier:
-    case TKIdentifierResolved: {
-        char* tmp = (this->kind == TKIdentifierResolved) ? this->var->name
+    case tkIdentifier:
+    case tkIdentifierResolved: {
+        char* tmp = (this->kind == tkIdentifierResolved) ? this->var->name
                                                          : this->name;
         printf("%s", tmp);
     } break;
 
-    case TKString:
+    case tkString:
         printf(escapeStrings ? "\\%s\\\"" : "%s\"", this->string);
         break;
 
-    case TKLineComment:
-        printf("%s%s", TokenKind_repr(TKLineComment, *this->string != ' '),
+    case tkLineComment:
+        printf("%s%s", TokenKind_repr(tkLineComment, *this->string != ' '),
             this->string);
         break;
 
-    case TKFunctionCall:
-    case TKFunctionCallResolved: {
-        char* tmp = (this->kind == TKFunctionCallResolved)
+    case tkFunctionCall:
+    case tkFunctionCallResolved: {
+        char* tmp = (this->kind == tkFunctionCallResolved)
             ? this->func->name
             : this->name;
         printf("%s(", tmp);
@@ -161,25 +161,25 @@ static void ASTExpr_gen(
         printf(")");
     } break;
 
-    case TKSubscript:
-    case TKSubscriptResolved: {
-        char* tmp = (this->kind == TKSubscriptResolved) ? this->var->name
+    case tkSubscript:
+    case tkSubscriptResolved: {
+        char* tmp = (this->kind == tkSubscriptResolved) ? this->var->name
                                                         : this->name;
         printf("%s[", tmp);
         if (this->left) ASTExpr_gen(this->left, 0, false, escapeStrings);
         printf("]");
     } break;
 
-    case TKVarAssign:
+    case tkVarAssign:
         // var x as XYZ = abc... -> becomes an ASTVar and an ASTExpr
         // (to keep location). Send it to ASTVar_gen.
         assert(this->var != NULL);
         ASTVar_gen(this->var, 0);
         break;
 
-    case TKKeyword_for:
-    case TKKeyword_if:
-    case TKKeyword_while:
+    case tkKeyword_for:
+    case tkKeyword_if:
+    case tkKeyword_while:
         printf("%s ", TokenKind_repr(this->kind, false));
         if (this->left) ASTExpr_gen(this->left, 0, true, escapeStrings);
         puts("");
@@ -197,47 +197,47 @@ static void ASTExpr_gen(
             and this->left->opPrec < this->opPrec;
         bool rightBr = this->right and this->right->opPrec
             and this->right->kind
-                != TKKeyword_return // found in 'or return'
+                != tkKeyword_return // found in 'or return'
             and this->right->opPrec < this->opPrec;
 
-        if (this->kind == TKOpColon) {
+        if (this->kind == tkOpColon) {
             // expressions like arr[a:x-3:2] should become
             // arr[a:(x-3):2]
             // or list literals [8, 9, 6, 77, sin(c)]
             if (this->left) switch (this->left->kind) {
-                case TKNumber:
-                case TKIdentifier:
-                case TKString:
-                case TKOpColon:
-                case TKMultiDotNumber:
-                case TKUnaryMinus:
+                case tkNumber:
+                case tkIdentifier:
+                case tkString:
+                case tkOpColon:
+                case tkMultiDotNumber:
+                case tkUnaryMinus:
                     break;
                 default:
                     leftBr = true;
                 }
             if (this->right) switch (this->right->kind) {
-                case TKNumber:
-                case TKIdentifier:
-                case TKString:
-                case TKOpColon:
-                case TKMultiDotNumber:
-                case TKUnaryMinus:
+                case tkNumber:
+                case tkIdentifier:
+                case tkString:
+                case tkOpColon:
+                case tkMultiDotNumber:
+                case tkUnaryMinus:
                     break;
                 default:
                     rightBr = true;
                 }
         }
 
-        //        if (false and this->kind == TKKeyword_return and
+        //        if (false and this->kind == tkKeyword_return and
         //        this->right) {
         //            switch (this->right->kind) {
-        //            case TKString:
-        //            case TKNumber:
-        //            case TKIdentifier:
-        //            case TKFunctionCall:
-        //            case TKSubscript:
-        //            case TKRegex:
-        //            case TKMultiDotNumber:
+        //            case tkString:
+        //            case tkNumber:
+        //            case tkIdentifier:
+        //            case tkFunctionCall:
+        //            case tkSubscript:
+        //            case tkRegex:
+        //            case tkMultiDotNumber:
         //                break;
         //            default:
         //                rightBr = true;
@@ -245,30 +245,30 @@ static void ASTExpr_gen(
         //            }
         //        }
 
-        if (this->kind == TKPower and not spacing) putc('(', stdout);
+        if (this->kind == tkPower and not spacing) putc('(', stdout);
 
-        char lpo = leftBr and this->left->kind == TKOpColon ? '[' : '(';
-        char lpc = leftBr and this->left->kind == TKOpColon ? ']' : ')';
+        char lpo = leftBr and this->left->kind == tkOpColon ? '[' : '(';
+        char lpc = leftBr and this->left->kind == tkOpColon ? ']' : ')';
         if (leftBr) putc(lpo, stdout);
         if (this->left)
             ASTExpr_gen(this->left, 0,
-                spacing and !leftBr and this->kind != TKOpColon,
+                spacing and !leftBr and this->kind != tkOpColon,
                 escapeStrings);
         if (leftBr) putc(lpc, stdout);
 
         printf("%s", TokenKind_repr(this->kind, spacing));
 
-        char rpo = rightBr and this->right->kind == TKOpColon ? '[' : '(';
-        char rpc = rightBr and this->right->kind == TKOpColon ? ']' : ')';
+        char rpo = rightBr and this->right->kind == tkOpColon ? '[' : '(';
+        char rpc = rightBr and this->right->kind == tkOpColon ? ']' : ')';
         if (rightBr) putc(rpo, stdout);
         if (this->right)
             ASTExpr_gen(this->right, 0,
-                spacing and !rightBr and this->kind != TKOpColon,
+                spacing and !rightBr and this->kind != tkOpColon,
                 escapeStrings);
         if (rightBr) putc(rpc, stdout);
 
-        if (this->kind == TKPower and not spacing) putc(')', stdout);
-        if (this->kind == TKArrayOpen) putc(']', stdout);
+        if (this->kind == tkPower and not spacing) putc(')', stdout);
+        if (this->kind == tkArrayOpen) putc(']', stdout);
     }
 }
 

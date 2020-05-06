@@ -55,34 +55,37 @@ static void ASTFunc_checkUnusedVars(Parser* this, ASTFunc* func)
 
 static void resolveFuncsAndTypes(
     Parser* this, ASTExpr* expr, ASTModule* mod)
-{ // TODO: what happens if you get a TKSubscriptResolved?
+{ // TODO: what happens if you get a tkSubscriptResolved?
 
     switch (expr->kind) {
-    case TKFunctionCallResolved:
+    case tkFunctionCallResolved:
         if (ASTExpr_countCommaList(expr->left) != expr->func->argCount)
             Parser_errorArgsCountMismatch(this, expr);
         break;
 
-    case TKSubscriptResolved:
-    case TKSubscript:
+    case tkSubscriptResolved:
+    case tkSubscript:
         if (expr->left) resolveFuncsAndTypes(this, expr->left, mod);
         break;
 
-    case TKFunctionCall: {
-        char buf[128];
+    case tkFunctionCall: {
+        char buf[128]={};
         char* bufp = buf;
         if (expr->left) resolveFuncsAndTypes(this, expr->left, mod);
 
         ASTExpr* arg1 = expr->left;
 
-        if (arg1 and arg1->kind == TKOpComma) arg1 = arg1->left;
-        if (arg1) bufp += sprintf(bufp, "%s_", ASTExpr_typeName(arg1));
+        if (arg1 and arg1->kind == tkOpComma)
+            arg1 = arg1->left;
+        if (arg1)
+          { const char* tyname=ASTExpr_typeName(arg1);
+            bufp += sprintf(bufp, "%s_", tyname);}
         bufp += sprintf(bufp, "%s", expr->name);
-        ASTExpr_strarglabels(expr->left, bufp, 128 - ((int)(bufp - buf)));
+        if (expr->left) ASTExpr_strarglabels(expr->left, bufp, 128 - ((int)(bufp - buf)));
 
         foreach (ASTFunc*, func, mod->funcs) {
             if (not strcasecmp(buf, func->selector)) {
-                expr->kind = TKFunctionCallResolved;
+                expr->kind = tkFunctionCallResolved;
                 expr->func = func;
                 resolveFuncsAndTypes(this, expr, mod);
                 return;
@@ -93,7 +96,7 @@ static void resolveFuncsAndTypes(
         // but still check nested func calls
     } break;
 
-    case TKVarAssign:
+    case tkVarAssign:
         if (not expr->var->init)
             Parser_errorMissingInit(this, expr);
         else {
@@ -102,10 +105,10 @@ static void resolveFuncsAndTypes(
         }
         break;
 
-    case TKKeyword_else:
-    case TKKeyword_if:
-    case TKKeyword_for:
-    case TKKeyword_while: {
+    case tkKeyword_else:
+    case tkKeyword_if:
+    case tkKeyword_for:
+    case tkKeyword_while: {
         if (expr->left) resolveFuncsAndTypes(this, expr->left, mod);
         foreach (ASTExpr*, stmt, expr->body->stmts)
             resolveFuncsAndTypes(this, stmt, mod);
@@ -135,13 +138,13 @@ static void resolveVars(
 
     if (not expr) return;
     switch (expr->kind) {
-    case TKIdentifierResolved:
+    case tkIdentifierResolved:
         break;
 
-    case TKIdentifier:
-    case TKSubscript: {
-        TokenKind ret = (expr->kind == TKIdentifier) ? TKIdentifierResolved
-                                                     : TKSubscriptResolved;
+    case tkIdentifier:
+    case tkSubscript: {
+        TokenKind ret = (expr->kind == tkIdentifier) ? tkIdentifierResolved
+                                                     : tkSubscriptResolved;
         ASTScope* scp = scope;
         do {
             foreach (ASTVar*, local, scp->locals) {
@@ -156,49 +159,49 @@ static void resolveVars(
         Parser_errorUnrecognizedVar(this, expr);
     getout:
         expr->var->flags.used = true;
-        if (ret == TKSubscriptResolved) {
+        if (ret == tkSubscriptResolved) {
             resolveVars(this, expr->left, scope, inFuncCall);
             // check subscript argument count
             // recheck kind since the var may have failed resolution
-            if (expr->kind == TKSubscriptResolved
+            if (expr->kind == tkSubscriptResolved
                 and ASTExpr_countCommaList(expr->left)
                     != expr->var->typeSpec->dims)
                 Parser_errorIndexDimsMismatch(this, expr);
         }
         break;
     }
-    case TKFunctionCall:
+    case tkFunctionCall:
         if (expr->left) resolveVars(this, expr->left, scope, true);
         break;
 
-        // case TKOpAssign:
+        // case tkOpAssign:
         //         // behaves differently inside a func call and otherwise
 
         //         if (not inFuncCall)
         //             resolveVars(this, expr->left, scope, inFuncCall);
         //     resolveVars(this, expr->right, scope, inFuncCall);
-        //             if (expr->kind == TKPlusEq or expr->kind == TKMinusEq
-        //         or expr->kind == TKSlashEq or expr->kind == TKTimesEq
-        //         or expr->kind == TKPowerEq
-        //         or expr->kind == TKOpModEq
-        //             and (expr->left->kind == TKIdentifierResolved
-        //                 or expr->left->kind == TKSubscriptResolved))
+        //             if (expr->kind == tkPlusEq or expr->kind == tkMinusEq
+        //         or expr->kind == tkSlashEq or expr->kind == tkTimesEq
+        //         or expr->kind == tkPowerEq
+        //         or expr->kind == tkOpModEq
+        //             and (expr->left->kind == tkIdentifierResolved
+        //                 or expr->left->kind == tkSubscriptResolved))
         //         expr->var->flags.changed = true;
         //     break;
 
     default:
         if (expr->opPrec) {
             if (not expr->opIsUnary
-                and not(inFuncCall and expr->kind == TKOpAssign))
+                and not(inFuncCall and expr->kind == tkOpAssign))
                 resolveVars(this, expr->left, scope, inFuncCall);
             resolveVars(this, expr->right, scope, inFuncCall);
         }
-        if (expr->kind == TKPlusEq or expr->kind == TKMinusEq
-            or expr->kind == TKSlashEq or expr->kind == TKTimesEq
-            or expr->kind == TKPowerEq or expr->kind == TKOpModEq
-            or expr->kind == TKOpAssign
-                and (expr->left->kind == TKIdentifierResolved
-                    or expr->left->kind == TKSubscriptResolved)) {
+        if (expr->kind == tkPlusEq or expr->kind == tkMinusEq
+            or expr->kind == tkSlashEq or expr->kind == tkTimesEq
+            or expr->kind == tkPowerEq or expr->kind == tkOpModEq
+            or expr->kind == tkOpAssign
+                and (expr->left->kind == tkIdentifierResolved
+                    or expr->left->kind == tkSubscriptResolved)) {
             expr->left->var->flags.changed = true;
             if (not expr->left->var->flags.isVar)
                 Parser_errorReadOnlyVar(this, expr->left);

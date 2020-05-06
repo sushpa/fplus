@@ -61,6 +61,25 @@ static const char* TypeType_name(TypeTypes tyty)
     }
 }
 
+static const char* TypeType_c_name[] = {
+    [TYUnresolved] = "<unresolved>",
+    [TYErrorType] = "<invalid>",
+    [TYString] = "String",
+    [TYBool] = "bool",
+    [TYObject] = "<object>",
+    [TYSize] = "SizeT",
+    [TYInt8] = "Int8",
+    [TYUInt8] = "UInt8",
+    [TYInt16] = "Int16",
+    [TYUInt16] = "UInt16",
+    [TYInt32] = "Int32",
+    [TYUInt32] = "UInt32",
+    [TYInt64] = "Int64",
+    [TYUInt64] = "UInt64",
+    [TYReal32] = "Float",
+    [TYReal64] = "Double",
+};
+
 // these are DEFAULTS
 static const char* TypeType_format(TypeTypes tyty, bool quoted)
 {
