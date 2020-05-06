@@ -216,14 +216,63 @@ static void sempass(
 
 static void sempassType(Parser* self, ASTType* type, ASTModule* mod)
 {
+    if (type->super) {
+        resolveTypeSpec(self, type->super, mod);
+        if (type->super->type == type)
+            Parser_errorTypeInheritsSelf(self, type);
+    }
+    // TODO: this should be replaced by a dict query
+    foreach (ASTType*, type2, mod->types) {
+        if (type2 == type) break;
+        if (not strcasecmp(type->name, type2->name))
+            Parser_errorDuplicateType(self, type, type2);
+    }
     // nothing to do for declared/empty types etc. with no body
     if (type->body) foreach (ASTExpr*, stmt, type->body->stmts)
             sempass(self, stmt, mod, false);
 }
 
 static void sempassFunc(Parser* self, ASTFunc* func, ASTModule* mod)
+
 {
+    bool foundCtor = false;
+    // Check if the function is a constructor call and identify the type.
+    // TODO: this should be replaced by a dict query
+    foreach (ASTType*, type, mod->types) {
+        if (not strcasecmp(func->name, type->name)) {
+            if (func->returnType
+                and not(func->flags.isStmt or func->flags.isDefCtor))
+                Parser_errorCtorHasType(self, func, type);
+            if (not func->returnType) {
+                func->returnType = ASTTypeSpec_new(TYObject, CTYNone);
+                func->returnType->type = type;
+            }
+            // TODO: isStmt Ctors should have the correct type so e.g.
+            // you cannot have
+            // Point(x as Scalar) := 3 + 5 * 12
+            // but must return a Point instead. This cannot be enforced
+            // here since type resolution hasn't been done at this
+            // stage. Check this after the type inference step when the
+            // stmt func has its return type assigned.
+            // if (func->flags.isStmt)
+            //     Parser_errorCtorHasType(this, func, type);
+            if (*func->name < 'A' or *func->name > 'Z')
+                Parser_warnCtorCase(self, func, type);
+
+            func->name = type->name;
+            foundCtor = true;
+        }
+    }
+
+    // Capitalized names are not allowed unless they are constructors.
+    if (not func->flags.isDefCtor and not foundCtor //
+        and *func->name >= 'A' and *func->name <= 'Z')
+        Parser_errorUnrecognizedCtor(self, func);
+
+    // The rest of the processing is on the contents of the function.
     if (not func->body) return;
+
+    // Check for duplicate functions (same selectors) and report errors.
     // TODO: this should be replaced by a dict query
     foreach (ASTFunc*, func2, mod->funcs) {
         if (func == func2) break;
@@ -231,14 +280,26 @@ static void sempassFunc(Parser* self, ASTFunc* func, ASTModule* mod)
             Parser_errorDuplicateFunc(self, func, func2);
     }
 
+    // Check unused variables in the function and report warnings.
     ASTFunc_checkUnusedVars(self, func);
+
+    // Run the statement-level semantic pass on the function body.
     foreach (ASTExpr*, stmt, func->body->stmts)
         sempass(self, stmt, mod, false);
 
+    // Statement functions are written without an explicit return type.
+    // Figure out the type (now that the body has been analyzed).
     if (func->flags.isStmt) setStmtFuncTypeInfo(self, func);
+    // TODO: for normal funcs, sempass should check return statements to
+    // have the same type as the declared return type.
 
+    // Do optimisations or ANY lowering only if there are no errors
     if (not self->errCount) {
+        // Handle elemental operations like arr[4:50] = mx[14:60] + 3
         ASTScope_lowerElementalOps(func->body);
+        // Extract subexprs like count(arr[arr<1e-15]) and promote them to
+        // full statements corresponding to their C macros e.g.
+        // Scalar _1; Array_count_filter(arr, arr<1e-15, _1);
         ASTScope_promoteCandidates(func->body);
     }
 }

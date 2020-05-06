@@ -11,6 +11,14 @@ declare function describe(what as Scalar)
 declare function json(p as Point)
 # declare function Point_new_()
 
+# need an inheritance graph to avoid two types inheriting from each other or generally mutually recursive inheritance
+# need a call graph to understand recursion patterns etc. and more imp. to avoid runaway recursion in the compiler when e.g. a constructor and a function depend on each other
+
+# when do you run sempass on a type? when an instance of it is used in a func (vars or args)
+# and on a func? whenever it is encountered.
+# start processing at main, and see where you go.
+# that means dead code will not be analyzed, but what the heck, not my problem.
+
 type Other
     var m = 43
     # var po = Point()

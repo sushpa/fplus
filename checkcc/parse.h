@@ -845,58 +845,18 @@ void analyseModule(Parser* this, ASTModule* mod)
     // from here and report the duplicates as errors. Also need to save the
     // number of funcs and types and tests and globals etc., so that the
     // dicts can be stack allocated with known size.
-    foreach (ASTType*, type, mod->types) {
-        if (type->super) {
-            resolveTypeSpec(this, type->super, mod);
-            if (type->super->type == type)
-                Parser_errorTypeInheritsSelf(this, type);
-        }
-        // TODO: this should be replaced by a dict query
-        foreach (ASTType*, type2, mod->types) {
-            if (type2 == type) break;
-            if (not strcasecmp(type->name, type2->name))
-                Parser_errorDuplicateType(this, type, type2);
-        }
-    }
+    // foreach (ASTType*, type, mod->types) {
 
+    // }
+
+    // If function calls are going to be resolved based on the type of
+    // first arg, then ALL functions must be visited in order to
+    // generate their selectors and resolve their typespecs. (this does
+    // not set the resolved flag on the func -- that is done by the
+    // semantic pass)
     foreach (ASTFunc*, func, mod->funcs) {
-        // TODO: this should be replaced by a dict query
-        foreach (ASTType*, type, mod->types) {
-            if (not strcasecmp(func->name, type->name)) {
-                if (func->returnType
-                    and not(func->flags.isStmt or func->flags.isDefCtor))
-                    Parser_errorCtorHasType(this, func, type);
-                if (not func->returnType) {
-                    func->returnType = ASTTypeSpec_new(TYObject, CTYNone);
-                    func->returnType->type = type;
-                }
-                // TODO: isStmt Ctors should have the correct type so e.g.
-                // you cannot have
-                // Point(x as Scalar) := 3 + 5 * 12
-                // but must return a Point instead. This cannot be enforced
-                // here since type resolution hasn't been done at this
-                // stage. Check this after the type inference step when the
-                // stmt func has its return type assigned.
-                // if (func->flags.isStmt)
-                //     Parser_errorCtorHasType(this, func, type);
-                if (*func->name < 'A' or *func->name > 'Z')
-                    Parser_warnCtorCase(this, func, type);
-
-                func->name = type->name;
-                goto foundctor;
-            }
-        }
-        // TODO: here check func names that are capitalized but not type
-        // names (no match was found above) and disallow them
-        if (not func->flags.isDefCtor //
-            and *func->name >= 'A' and *func->name <= 'Z')
-            Parser_errorUnrecognizedCtor(this, func);
-
-    foundctor:
-
         foreach (ASTVar*, arg, func->args)
             resolveTypeSpec(this, arg->typeSpec, mod);
-
         if (func->returnType) resolveTypeSpec(this, func->returnType, mod);
         getSelector(func);
     }
