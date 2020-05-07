@@ -125,11 +125,16 @@ typedef bool Logical;
 #define Scalar_json_(x, _) printf("%g", x)
 #define String_json_(x, _) printf("\"%s\"", x) // should be escape(x)
 
+#define Logical_json(x) printf("\"%s\": %s\n", #x, x ? "true" : "false")
+#define Scalar_json(x) printf("\"%s\": %g\n", #x, x)
+#define String_json(x)                                                     \
+    printf("\"%s\": \"%s\"\n", #x, x) // should be escape(x)
+
 static const char* _spaces_ = //
     "                                                                    ";
 
-#define MAKE_json(T)                                                       \
-    static void T##_json(const T this)                                     \
+#define MAKE_json_wrap_(T)                                                 \
+    static void T##_json_wrap_(const T this)                               \
     {                                                                      \
         T##_json_(this, 0);                                                \
         puts("");                                                          \

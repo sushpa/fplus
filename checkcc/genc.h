@@ -437,8 +437,11 @@ static void ASTType_genJson(ASTType* type)
         printf("\\n\");\n");
     }
     printf("    printf(\"%%.*s}\", nspc, _spaces_);\n");
-    printf(
-        "}\nMAKE_json(%s)\n//MAKE_json_file(%s)\n", type->name, type->name);
+    printf("}\nMAKE_json_wrap_(%s)\n//MAKE_json_file(%s)\n", type->name,
+        type->name);
+    printf("#define %s_json(x) { printf(\"\\\"%%s\\\": \",#x); "
+           "%s_json_wrap_(x); }\n\n",
+        type->name, type->name);
 }
 static void ASTType_genJsonReader(ASTType* type) {}
 

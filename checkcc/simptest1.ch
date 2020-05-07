@@ -9,6 +9,8 @@ declare function print(what as Scalar)
 declare function describe(what as String)
 declare function describe(what as Scalar)
 declare function json(p as Point)
+declare function json(p as String)
+declare function json(p as Logical)
 # declare function Point_new_()
 
 # need an inheritance graph to avoid two types inheriting from each other or generally mutually recursive inheritance
@@ -61,6 +63,9 @@ function main(args as Strings) returns Scalar
     let pcx = Point(78)
     let mg = args
     json(po)
+    var nuk = "hurritu"
+    var mk = 3 < 6 <= 5
+    json(mk)
     funky()
     # print(pcx)
     # po = 0
