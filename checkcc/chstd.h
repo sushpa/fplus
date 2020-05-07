@@ -44,6 +44,9 @@ typedef int Int;
 typedef double Scalar;
 typedef char** CStrings;
 
+// use this in switches to indicate explicit fallthrough
+#define fallthrough
+
 #pragma mark - Variant
 
 union Value {

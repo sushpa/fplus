@@ -444,7 +444,7 @@ static const char* ASTExpr_typeName(ASTExpr* this)
             if (!name) {
                 unreachable("unresolved: %s %s",
                     TokenKind_repr(this->kind, false), this->name);
-                return "UnknownType";
+                return "<unknown>";
             }
             if (!*name) name = this->var->typeSpec->type->name;
             return name;
@@ -463,12 +463,14 @@ static const char* ASTExpr_typeName(ASTExpr* this)
         return "Logical";
     case tkOpColon:
         return "Range";
-        // TODO: what else???
+    // TODO: what else???
+    case tkPeriod:
+        return ASTExpr_typeName(this->right);
     default:
         unreachable("unexpected: %s %s", TokenKind_repr(this->kind, false),
             this->name);
     }
-    return "UnknownType";
+    return "<unknown>";
 }
 
 static void ASTExpr_catarglabels(ASTExpr* this)
@@ -523,7 +525,7 @@ static ASTType* ASTModule_getType(ASTModule* this, const char* name)
     // module mm instead. actually the caller should have bothered about
     // that.
     foreach (ASTType*, type, this->types)
-        if (not strcmp(type->name, name)) return type;
+        if (not strcasecmp(type->name, name)) return type;
     // type specs must be fully qualified, so there's no need to look in
     // other modules.
     return NULL;
@@ -542,12 +544,12 @@ static bool ASTModule_hasImportAlias(ASTModule* this, const char* alias)
     return false;
 }
 
-ASTFunc* ASTModule_getFunc(ASTModule* this, const char* name)
+ASTFunc* ASTModule_getFunc(ASTModule* this, const char* selector)
 {
     // figure out how to deal with overloads. or set a selector field in
     // each astfunc.
     foreach (ASTFunc*, func, this->funcs)
-        if (not strcmp(func->name, name)) return func;
+        if (not strcasecmp(func->selector, selector)) return func;
     // again no looking anywhere else. If the name is of the form
     // "mm.func" you should have bothered to look in mm instead.
     return NULL;
@@ -585,8 +587,10 @@ typedef struct Parser {
     uint16_t errLimit;
 
     ParserMode mode : 8;
-    bool generateCommentExprs; // set to false when compiling, set to
-                               // true when linting
+    bool generateCommentExprs : 1, // set to false when compiling, set to
+                                   // true when linting
+        warnUnusedVar : 1, warnUnusedFunc : 1, warnUnusedType : 1,
+        warnUnusedArg : 1;
 
 } Parser;
 
@@ -814,6 +818,8 @@ int main(int argc, char* argv[])
 
     parser = Parser_fromFile(argv[1], true);
     if (not parser) return 2;
+    if (argc > 3 && *argv[3] == 'l') parser->mode = PMLint;
+    if (argc > 2 && *argv[2] == 'l') parser->mode = PMLint;
 
     modules = parseModule(parser);
 

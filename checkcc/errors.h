@@ -57,9 +57,20 @@ static void Parser_errorUnrecognizedVar(
     Parser_errorIncrement(this);
 }
 
+static void Parser_errorUnrecognizedMember(Parser* const this,
+    const ASTType* const type, const ASTExpr* const expr)
+{
+    eprintf("\n(%d) \e[31merror:\e[0m type \e[34m%s\e[0m has no member "
+            "\e[34m%s\e[0m at %s%s:%d:%d\n",
+        this->errCount + 1, type->name, expr->string, RELF(this->filename),
+        expr->line, expr->col);
+    Parser_errorIncrement(this);
+}
+
 static void Parser_warnUnusedArg(
     Parser* const this, const ASTVar* const var)
 {
+    if (not this->warnUnusedArg) return;
     eprintf("\n(%d) \e[33mwarning:\e[0m unused argument "
             "\e[34m%s\e[0m at %s%s:%d:%d\n",
         ++this->warnCount, var->name, RELF(this->filename), var->line,
@@ -69,6 +80,7 @@ static void Parser_warnUnusedArg(
 static void Parser_warnUnusedVar(
     Parser* const this, const ASTVar* const var)
 {
+    if (not this->warnUnusedVar) return;
     eprintf("\n(%d) \e[33mwarning:\e[0m unused variable "
             "\e[34m%s\e[0m at %s%s:%d:%d\n",
         ++this->warnCount, var->name, RELF(this->filename), var->line,
@@ -78,6 +90,7 @@ static void Parser_warnUnusedVar(
 static void Parser_warnUnusedFunc(
     Parser* const this, const ASTFunc* const func)
 {
+    if (not this->warnUnusedFunc) return;
     eprintf("\n(%d) \e[33mwarning:\e[0m unused function "
             "\e[34m%s\e[0m at %s%s:%d\n"
             "            selector is \e[34m%s\e[0m\n",
@@ -88,6 +101,7 @@ static void Parser_warnUnusedFunc(
 static void Parser_warnUnusedType(
     Parser* const this, const ASTType* const type)
 {
+    if (not this->warnUnusedType) return;
     eprintf("\n(%d) \e[33mwarning:\e[0m unused type "
             "\e[34m%s\e[0m at %s%s:%d:%d\n",
         ++this->warnCount, type->name, RELF(this->filename), type->line,
@@ -136,9 +150,10 @@ static void Parser_errorCtorHasType(Parser* const this,
         RELF(this->filename), orig->line, orig->col);
     Parser_errorIncrement(this);
 }
-static void Parser_warnCtorCase(Parser* const this,
-    const ASTFunc* const func, const ASTType* const orig)
+static void Parser_warnCtorCase(
+    Parser* const this, const ASTFunc* const func)
 {
+    const ASTType* const orig = func->returnType->type;
     eprintf("\n(%d) \e[33mwarning:\e[0m wrong case "
             "\e[34m%s\e[0m for constructor at %s%s:%d:%d\n"
             "             type declared at %s%s:%d:%d\n"

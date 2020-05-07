@@ -8,9 +8,12 @@ declare function print(what as String)
 declare function print(what as Scalar)
 declare function describe(what as String)
 declare function describe(what as Scalar)
+declare function describe(what as Logical)
 declare function json(p as Point)
+declare function json(p as Scalar)
 declare function json(p as String)
 declare function json(p as Logical)
+declare function json(p as Other)
 # declare function Point_new_()
 
 # need an inheritance graph to avoid two types inheriting from each other or generally mutually recursive inheritance
@@ -21,8 +24,19 @@ declare function json(p as Logical)
 # start processing at main, and see where you go.
 # that means dead code will not be analyzed, but what the heck, not my problem.
 
+type Expr
+    var meg = 33.2
+    var bx = 4 < 5
+end type
+
+type Another
+    var g = 12
+    var exp = Expr()
+end type
+
 type Other
     var m = 43
+    var we = Another()
     # var po = Point()
 end type
 # - parse, resolve, distribute/check types.
@@ -38,8 +52,9 @@ type Point
     # var p = Other()
     var x = fxfunc(3) # fxfunc(p, p.po)
     var y = 69.6723
-    var z = y + 5.6 * x
     var o = Other()
+    var z = y + 5.6 * x + o.we.g
+    # var o = nil(other) + 6
     var cstr = "xyz"
 end type
 
@@ -53,7 +68,7 @@ fxfunc(x as Scalar) := x * 1.5
 function Point(x as Scalar)
     let p = Point()
     # json(p)
-    # p.x = x
+    p.y = x
     describe(x)
     return p #+ 5
 end function
@@ -63,9 +78,15 @@ function main(args as Strings) returns Scalar
     let pcx = Point(78)
     let mg = args
     json(po)
+    json(pcx)
     var nuk = "hurritu"
     var mk = 3 < 6 <= 5
     json(mk)
+    var sd = po.o
+    json(sd)
+    describe(po.o.we.exp.bx)
+    json(po.o)
+    describe(mk)
     funky()
     # print(pcx)
     # po = 0
@@ -112,6 +133,9 @@ function joyce()
     var x = fxfunc(3 + 5 + 4)
     describe(x)
     describe(x+5)
+    let point = point()
+    let joyce = 55.3
+    describe(joyce)
     var y = 3-x * 2.5 / x
     # check 7 < 7-x < x+y
     # check x + fxfuNC(y) - fxfunc(x) >=  3*y + 5 + 2*x

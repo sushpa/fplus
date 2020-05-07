@@ -25,6 +25,7 @@ end enum
 
 var en2 as MyNumEnum = .odds
 print(en2) # prints ".odds"
+print(en2.num) # prints 1
 print(en2.value) # prints [1, 3, 5, 7]
 
 # comparisons use the numeric value

@@ -738,9 +738,9 @@ static PtrList* parseModule(Parser* this)
 
     while (this->token.kind != tkNullChar) {
         if (onlyPrintTokens) {
-            printf("%s %2d %3d %3d %-6s\t%.*s\n", this->moduleName,
+            printf("%s %2d %3d %3d %-20s\t%.*s\n", this->moduleName,
                 this->token.line, this->token.col, this->token.matchlen,
-                TokenKind_repr(this->token.kind, false),
+                TokenKind_str[this->token.kind],
                 this->token.kind == tkNewline ? 0 : this->token.matchlen,
                 this->token.pos);
             Token_advance(&this->token);
@@ -889,8 +889,7 @@ void analyseModule(Parser* this, ASTModule* mod)
         foreach (ASTType*, type, mod->types)
             if (not type->flags.sempassDone)
                 Parser_warnUnusedType(this, type);
-    } else
-    {// TODO: new error, unless you want to get rid of main
+    } else { // TODO: new error, unless you want to get rid of main
         eputs("\e[31m*** error:\e[0m cannot find function 'main'.");
     }
 }

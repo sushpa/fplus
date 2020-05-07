@@ -17,6 +17,22 @@
     name @str := ""
     ptx @vec:r8 := [0, ix, 0]
     lsm @vec:box := boxes(ix)
+
+vector<string>
+map<string, int>
+vector<vector<string>>
+vector<vector, string>>
+
+vector_string
+
+x_y_z
+
+
+map_string_int
+
+
+vector_vector__string
+
 # collections themselves are not Myabe types, only their containees may be
 
 # @mytype(ix @i8, name @str, ptx @vec:r8, lsm @vec:box?) :=

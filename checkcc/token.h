@@ -316,7 +316,8 @@ static void Token_detect(Token* this)
             this->pos++;
             tt = Token_getType(this, 0);
             if (tt == tkNullChar or tt == tmp) {
-                *this->pos++ = 0;
+                *this->pos = 0;
+                this->pos++;
                 break;
             }
             if (tt == tkBackslash)
@@ -404,13 +405,13 @@ static void Token_detect(Token* this)
         break;
 
     case tkAlphabet:
-    case tkPeriod:
+        // case tkPeriod:
     case tkUnderscore:
         while (tt != tkNullChar) {
             tt = Token_getType(this, 1);
             this->pos++;
-            if (tt != tkAlphabet and tt != tkDigit and tt != tkUnderscore
-                and tt != tkPeriod)
+            if (tt != tkAlphabet and tt != tkDigit and tt != tkUnderscore)
+                // and tt != tkPeriod)
                 break; /// validate in parser not here
         }
         tt_ret = tkIdentifier;

@@ -916,6 +916,7 @@ static void ASTExpr_genc(ASTExpr* expr, int level, bool spacing,
             }
             break;
         case tkIdentifierResolved:
+        case tkPeriod:
             ASTExpr_genc(expr->left, 0, spacing, inFuncArgs, escStrings);
             printf("%s", TokenKind_repr(tkOpAssign, spacing));
             ASTExpr_genc(expr->right, 0, spacing, inFuncArgs, escStrings);
@@ -1102,6 +1103,13 @@ static void ASTExpr_genc(ASTExpr* expr, int level, bool spacing,
         printf("\n%.*s}\n", level, spaces);
         printf("%.*s}", level, spaces);
     } break;
+
+    case tkPeriod:
+        ASTExpr_genc(expr->left, 0, spacing, inFuncArgs, escStrings);
+        printf("->"); // may be . if right is embedded and not a reference
+        ASTExpr_genc(expr->right, 0, spacing, inFuncArgs, escStrings);
+        break;
+
     case tkOpEQ:
     case tkOpNE:
     case tkOpGE:
@@ -1131,8 +1139,7 @@ static void ASTExpr_genc(ASTExpr* expr, int level, bool spacing,
             printf(")");
             break;
         }
-    default:
-        if (not expr->opPrec) break;
+        fallthrough default : if (not expr->opPrec) break;
         // not an operator, but this should be error if you reach here
         bool leftBr = expr->left and expr->left->opPrec
             and expr->left->opPrec < expr->opPrec;

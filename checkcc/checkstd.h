@@ -180,6 +180,7 @@ MAKE_cmp3way(Scalar)
 #define Scalar_print(x) printf("%g\n", x)
 #define String_describe(x) printf("%s = \"%s\"\n", #x, x)
 #define Scalar_describe(x) printf("%s = %g\n", #x, x)
+#define Logical_describe(x) printf("%s = %s\n", #x, x ? "true" : "false")
 
     static Scalar Strings_main(const Strings a
 #ifdef DEBUG

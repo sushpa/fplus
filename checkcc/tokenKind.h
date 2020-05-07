@@ -12,6 +12,7 @@ static const char* TokenKind_repr(const TokenKind kind, bool spacing)
 // and the macro will deal with it. usually 3way_lt_le(a,b,c) can be same as
 // 3way(<, <=, a, b, c) even for string e.g. < implies cmp(a,b) < 0
 // TODO: get rid of this func
+
 static const char* TokenKind_ascrepr(const TokenKind kind, bool spacing)
 {
     switch (kind) {

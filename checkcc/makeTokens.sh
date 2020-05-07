@@ -5,20 +5,23 @@ function start() {
     echo "typedef enum TokenKind {" >> tklist.h
     echo "static const char* const tkrepr[] = {" > tkrepr.h
     echo "static const char* const tksrepr[] = {" > tksrepr.h
+    echo "static const char* const TokenKind_str[] = {" > tkstr.h
 }
 
 function finish() {
     echo "};\n" >> tkrepr.h
     echo "};\n" >> tksrepr.h
+    echo "};\n" >> tkstr.h
     echo "} TokenKind;\n" >> tklist.h
-    cat tklist.h tkrepr.h tksrepr.h > TokenKindDefs.h
-    rm tklist.h tkrepr.h tksrepr.h
+    cat tklist.h tkstr.h tkrepr.h tksrepr.h > TokenKindDefs.h
+    rm tklist.h tkstr.h tkrepr.h tksrepr.h
 }
 
 function add() {
     srepr=${2}
     repr=${3:-$2}
     echo "    $1," >> tklist.h
+    echo "    [$1] = \"$1\"," >> tkstr.h
     echo "    [$1] = \"$srepr\"," >> tksrepr.h
     echo "    [$1] = \"$repr\"," >> tkrepr.h
 }

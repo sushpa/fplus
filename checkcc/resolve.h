@@ -13,17 +13,24 @@ static void resolveTypeSpec(
     if (tyty) { // can be member of ASTTypeSpec!
         typeSpec->typeType = tyty;
     } else {
-        foreach (ASTType*, type, mod->types) {
-            if (not strcasecmp(typeSpec->name, type->name)) {
-                // so what do you do  if types are "resolved"? Set
-                // typeType and collectionType?
-                //                printf("%s matched")
-                typeSpec->typeType = TYObject;
-                typeSpec->type = type;
-                // sempassType(this, type, mod);
-                return;
-            }
+        ASTType* type = ASTModule_getType(mod, typeSpec->name);
+        if (type) {
+            typeSpec->typeType = TYObject;
+            typeSpec->type = type;
+            // sempassType(this, type, mod);
+            return;
         }
+        // foreach (ASTType*, type, mod->types) {
+        //     if (not strcasecmp(typeSpec->name, type->name)) {
+        //         // so what do you do  if types are "resolved"? Set
+        //         // typeType and collectionType?
+        //         //                printf("%s matched")
+        //         typeSpec->typeType = TYObject;
+        //         typeSpec->type = type;
+        //         // sempassType(this, type, mod);
+        //         return;
+        //     }
+        // }
         Parser_errorUnrecognizedType(this, typeSpec);
         return;
     }
@@ -144,6 +151,22 @@ static void resolveFuncCalls(
 }
 #endif
 
+static void resolveMember(Parser* self, ASTExpr* expr, ASTType* type)
+
+{
+    assert(expr->kind == tkIdentifier or expr->kind == tkSubscript);
+    TokenKind ret = (expr->kind == tkIdentifier) ? tkIdentifierResolved
+                                                 : tkSubscriptResolved;
+    ASTVar* found = ASTScope_getVar(type->body, expr->name);
+    if (found) {
+        expr->kind = ret;
+        expr->var = found;
+        expr->var->flags.used = true;
+    } else {
+        Parser_errorUnrecognizedMember(self, type, expr);
+    }
+}
+
 // This function is called in one pass, during the line-by-line parsing.
 // (since variables cannot be "forward-declared").
 static void resolveVars(
@@ -168,21 +191,29 @@ static void resolveVars(
     case tkSubscript: {
         TokenKind ret = (expr->kind == tkIdentifier) ? tkIdentifierResolved
                                                      : tkSubscriptResolved;
-        ASTScope* scp = scope;
-        do {
-            foreach (ASTVar*, local, scp->locals) {
-                if (not strcasecmp(expr->name, local->name)) {
-                    expr->kind = ret;
-                    expr->var = local; // this overwrites name btw
-                    goto getout;
-                }
-            }
-            scp = scp->parent;
-        } while (scp);
-        Parser_errorUnrecognizedVar(this, expr);
-    getout:
-        expr->var->flags.used = true;
-        if (ret == tkSubscriptResolved) {
+        // ASTScope* scp = scope;
+        ASTVar* found = ASTScope_getVar(scope, expr->name);
+        if (found) {
+            expr->kind = ret;
+            expr->var = found;
+            expr->var->flags.used = true;
+
+        }
+        // do {
+        //     foreach (ASTVar*, local, scp->locals) {
+        //         if (not strcasecmp(expr->name, local->name)) {
+        //             expr->kind = ret;
+        //             expr->var = local; // this overwrites name btw
+        //             goto getout;
+        //         }
+        //     }
+        //     scp = scp->parent;
+        // } while (scp);
+        else {
+            Parser_errorUnrecognizedVar(this, expr);
+        } // getout:
+        if (expr->kind == tkSubscriptResolved
+            or expr->kind == tkSubscript) {
             resolveVars(this, expr->left, scope, inFuncCall);
             // check subscript argument count
             // recheck kind since the var may have failed resolution
@@ -197,13 +228,36 @@ static void resolveVars(
         if (expr->left) resolveVars(this, expr->left, scope, true);
         break;
 
+    case tkPeriod:
+        if (expr->left) resolveVars(this, expr->left, scope, inFuncCall);
+        // expr->right is not to be resolved in the same scope, but in
+        // the type body of the type of expr->left. So you cannot call
+        // resolveVars on expr->right from here. Neither can you assume
+        // that types have been resolved, because name resolution
+        // happens as the file is read, while type resolution happens
+        // only after the tree is fully built. The way to fix it is to
+        // have sempass call the name resolution (as it already does for
+        // exprs like a.b but not a.b.c) for expr->right, AFTER the type
+        // for expr->left has been resolved.
+        //        if (expr->right->kind==tkPeriod) resolveVars(this,
+        //        expr->right, scope, inFuncCall);
+        // besides an ident, the ->right of a . can be either another
+        // dot, a subscript, or a func call if we allow member funcs
+        if (expr->right->kind == tkSubscript
+            or expr->right->kind == tkSubscriptResolved)
+            resolveVars(this, expr->right->left, scope, inFuncCall);
+
+        break;
+
         // case tkOpAssign:
-        //         // behaves differently inside a func call and otherwise
+        //         // behaves differently inside a func call and
+        //         otherwise
 
         //         if (not inFuncCall)
         //             resolveVars(this, expr->left, scope, inFuncCall);
         //     resolveVars(this, expr->right, scope, inFuncCall);
-        //             if (expr->kind == tkPlusEq or expr->kind == tkMinusEq
+        //             if (expr->kind == tkPlusEq or expr->kind ==
+        //             tkMinusEq
         //         or expr->kind == tkSlashEq or expr->kind == tkTimesEq
         //         or expr->kind == tkPowerEq
         //         or expr->kind == tkOpModEq

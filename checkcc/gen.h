@@ -85,6 +85,7 @@ static void ASTType_gen(ASTType* this, int level)
 
 static void ASTFunc_gen(ASTFunc* this, int level)
 {
+    if (this->flags.isDefCtor) return;
     if (this->flags.isDeclare) printf("declare ");
 
     printf("%s%s(", this->flags.isStmt ? "\n" : "function ", this->name);
