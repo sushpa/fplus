@@ -133,6 +133,8 @@ typedef bool Logical;
 static const char* _spaces_ = //
     "                                                                    ";
 
+#define DECL_json_wrap_(T) static void T##_json_wrap_(const T this);
+
 #define MAKE_json_wrap_(T)                                                 \
     static void T##_json_wrap_(const T this)                               \
     {                                                                      \

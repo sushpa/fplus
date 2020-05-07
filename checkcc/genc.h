@@ -439,9 +439,9 @@ static void ASTType_genJson(ASTType* type)
     printf("    printf(\"%%.*s}\", nspc, _spaces_);\n");
     printf("}\nMAKE_json_wrap_(%s)\n//MAKE_json_file(%s)\n", type->name,
         type->name);
-    printf("#define %s_json(x) { printf(\"\\\"%%s\\\": \",#x); "
-           "%s_json_wrap_(x); }\n\n",
-        type->name, type->name);
+    // printf("#define %s_json(x) { printf(\"\\\"%%s\\\": \",#x); "
+    //        "%s_json_wrap_(x); }\n\n",
+    //     type->name, type->name);
 }
 static void ASTType_genJsonReader(ASTType* type) {}
 
@@ -506,7 +506,18 @@ static void ASTType_genc(ASTType* type, int level)
 static void ASTType_genh(ASTType* type, int level)
 {
     if (not type->body or not type->flags.sempassDone) return;
-    printf("typedef struct %s* %s; struct %s;\n", type->name, type->name,
+    printf("typedef struct %s* %s;\nstruct %s;\n", type->name, type->name,
+        type->name);
+    printf("static %s %s_alloc_(); \n", type->name, type->name);
+    printf("static %s %s_init_(%s this);\n", type->name, type->name,
+        type->name);
+    printf("%s %s_new_(); \n", type->name, type->name);
+    printf("\nDECL_json_wrap_(%s)\n//DECL_json_file(%s)\n", type->name,
+        type->name);
+    printf("#define %s_json(x) { printf(\"\\\"%%s\\\": \",#x); "
+           "%s_json_wrap_(x); }\n\n",
+        type->name, type->name);
+    printf("static void %s_json_(const %s this, int nspc);\n", type->name,
         type->name);
 }
 
