@@ -31,7 +31,7 @@ static void ASTVar_gen(ASTVar* this, int level)
         this->flags.isVar ? "var " : this->flags.isLet ? "let " : "",
         this->name);
     if (not(this->init and this->init->kind == tkFunctionCall
-            and !strcmp(this->init->name, this->typeSpec->name))) {
+            and !strcmp(this->init->string, this->typeSpec->name))) {
         printf(" as ");
         ASTTypeSpec_gen(this->typeSpec, level + STEP);
     }
@@ -139,7 +139,7 @@ static void ASTExpr_gen(
     case tkIdentifier:
     case tkIdentifierResolved: {
         char* tmp = (this->kind == tkIdentifierResolved) ? this->var->name
-                                                         : this->name;
+                                                         : this->string;
         printf("%s", tmp);
     } break;
 
@@ -156,7 +156,7 @@ static void ASTExpr_gen(
     case tkFunctionCallResolved: {
         char* tmp = (this->kind == tkFunctionCallResolved)
             ? this->func->name
-            : this->name;
+            : this->string;
         printf("%s(", tmp);
         if (this->left) ASTExpr_gen(this->left, 0, spacing, escapeStrings);
         printf(")");
@@ -165,7 +165,7 @@ static void ASTExpr_gen(
     case tkSubscript:
     case tkSubscriptResolved: {
         char* tmp = (this->kind == tkSubscriptResolved) ? this->var->name
-                                                        : this->name;
+                                                        : this->string;
         printf("%s[", tmp);
         if (this->left) ASTExpr_gen(this->left, 0, false, escapeStrings);
         printf("]");
@@ -192,14 +192,14 @@ static void ASTExpr_gen(
         break;
 
     default:
-        if (not this->opPrec) break;
+        if (not this->prec) break;
         // not an operator, but this should be error if you reach here
-        bool leftBr = this->left and this->left->opPrec
-            and this->left->opPrec < this->opPrec;
-        bool rightBr = this->right and this->right->opPrec
+        bool leftBr = this->left and this->left->prec
+            and this->left->prec < this->prec;
+        bool rightBr = this->right and this->right->prec
             and this->right->kind
                 != tkKeyword_return // found in 'or return'
-            and this->right->opPrec < this->opPrec;
+            and this->right->prec < this->prec;
 
         if (this->kind == tkOpColon) {
             // expressions like arr[a:x-3:2] should become

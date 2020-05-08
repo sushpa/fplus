@@ -63,43 +63,42 @@ typedef struct ASTVar {
             changed : 1, //
             isLet : 1, //
             isVar : 1, //
+            stackAlloc : 1, // this var is of a ref type, but it will be
+                            // stack allocated. it will be passed around by
+                            // reference as usual.
             isTarget : 1, // x = f(x,y)
             printed : 1, // for checks, used to avoid printing this var more
                          // than once.
-            escapesFunc : 1; // for func args, does it escape the func?
-                             // (returned etc.)
-
+            escapes : 1; // does it escape the owning SCOPE?
     } flags;
 } ASTVar;
 
 typedef struct ASTExpr {
     struct {
         uint16_t line;
-        struct {
-            uint16_t typeType : 5, isElementalOp : 1, canThrow : 1,
-                opIsUnary : 1, collectionType : 6, mayNeedPromotion : 1,
-                opIsRightAssociative : 1;
-        };
-        uint8_t opPrec;
+        // struct {
+        uint16_t typeType : 5, elemental : 1, throws : 1, unary : 1,
+            collectionType : 5, pure : 1, // for opt
+            promote : 1, rassoc : 1;
+        // };
+        uint8_t prec;
         uint8_t col;
         TokenKind kind : 8;
     };
     struct ASTExpr* left;
     union {
-        // union {
         char* string;
         double real;
         int64_t integer;
         uint64_t uinteger;
-        //} value; // for terminals
-        char* name; // for idents or unresolved call or subscript
+        // char* name; // for idents or unresolved call or subscript
         struct ASTFunc* func; // for functioncall
         struct ASTVar* var; // for array subscript, or a tkVarAssign
         struct ASTScope* body; // for if/for/while
         struct ASTExpr* right;
     };
     // TODO: the code motion routine should skip over exprs with
-    // mayNeedPromotion=false this is set for exprs with func calls or array
+    // promote=false this is set for exprs with func calls or array
     // filtering etc...
 } ASTExpr;
 
@@ -118,7 +117,10 @@ typedef struct ASTType {
     uint16_t line;
     uint8_t col;
     struct {
-        bool sempassDone;
+        bool sempassDone : 1,
+            isValueType : 1; // all vars of this type will be stack
+                             // allocated and passed around by value.
+
     } flags;
 } ASTType;
 
@@ -246,10 +248,10 @@ static ASTExpr* ASTExpr_fromToken(const Token* this)
     ret->line = this->line;
     ret->col = this->col;
 
-    ret->opPrec = TokenKind_getPrecedence(ret->kind);
-    if (ret->opPrec) {
-        ret->opIsRightAssociative = TokenKind_isRightAssociative(ret->kind);
-        ret->opIsUnary = TokenKind_isUnary(ret->kind);
+    ret->prec = TokenKind_getPrecedence(ret->kind);
+    if (ret->prec) {
+        ret->rassoc = TokenKind_isRightAssociative(ret->kind);
+        ret->unary = TokenKind_isUnary(ret->kind);
     }
 
     exprsAllocHistogram[ret->kind]++;
@@ -277,8 +279,8 @@ static ASTExpr* ASTExpr_fromToken(const Token* this)
     return ret;
 }
 
-static bool ASTExpr_canThrow(ASTExpr* this)
-{ // NOOO REMOVE This func and set the canThrow flag recursively like the
+static bool ASTExpr_throws(ASTExpr* this)
+{ // NOOO REMOVE This func and set the throws flag recursively like the
   // other flags (during e.g. the type resolution dive)
     if (not this) return false;
     switch (this->kind) {
@@ -297,17 +299,16 @@ static bool ASTExpr_canThrow(ASTExpr* this)
         // actually  only if the func really throws
     case tkSubscript:
     case tkSubscriptResolved:
-        return ASTExpr_canThrow(this->left);
+        return ASTExpr_throws(this->left);
     case tkVarAssign:
-        return ASTExpr_canThrow(this->var->init);
+        return ASTExpr_throws(this->var->init);
     case tkKeyword_for:
     case tkKeyword_if:
     case tkKeyword_while:
         return false; // actually the condition could throw.
     default:
-        if (not this->opPrec) return false;
-        return ASTExpr_canThrow(this->left)
-            or ASTExpr_canThrow(this->right);
+        if (not this->prec) return false;
+        return ASTExpr_throws(this->left) or ASTExpr_throws(this->right);
     }
 }
 
@@ -409,68 +410,39 @@ static const char* ASTExpr_typeName(ASTExpr* this)
     //    default:
     //        return TypeType_name(this->typeType);
     //    }
+    const char * ret = TypeType_name(this->typeType);
+    if (!ret) return "<unknown>"; // unresolved
+    if (*ret) return ret; // primitive type
 
+    // all that is left is object
     switch (this->kind) {
-    case tkNumber:
-    case tkPlus:
-    case tkMinus:
-    case tkPower:
-    case tkSlash:
-    case tkTimes:
-    case tkOpMod:
-        return "Scalar";
-    case tkString:
-        return "String";
-    case tkRegex:
-        return "RegEx";
-    case tkFunctionCallResolved: {
-        const char* name = TypeType_name(this->func->returnType->typeType);
-        if (!*name) name = this->func->returnType->type->name;
-        return name;
-    }
-
-        //        return this->func->returnType->type->name;
-        // NOO! TODO: get the name from the resolved type
-        // ^^ figure it out
+     case tkFunctionCallResolved:
+         return this->func->returnType->type->name;
     case tkIdentifierResolved:
     case tkSubscriptResolved:
-        // object: typetype_name will give "", then return ->type->name
-        // unresolved: should not happen at this stage!
-        // other: get it from typeType
-        {
-            //            TypeTypes typeType =
-            //            if (!typeType) return "UnknownType";
-            const char* name = TypeType_name(this->var->typeSpec->typeType);
-            if (!name) {
-                unreachable("unresolved: %s %s",
-                    TokenKind_repr(this->kind, false), this->name);
-                return "<unknown>";
-            }
-            if (!*name) name = this->var->typeSpec->type->name;
-            return name;
-        }
-        // same here as for resolved func
-    case tkOpEQ:
-    case tkOpNE:
-    case tkOpGE:
-    case tkOpGT:
-    case tkOpLE:
-    case tkOpLT:
-    case tkKeyword_and:
-    case tkKeyword_or:
-    case tkKeyword_not:
-        // TODO: literals yes and no
-        return "Logical";
-    case tkOpColon:
-        return "Range";
+//        {
+//             const char* name = TypeType_name(this->var->typeSpec->typeType);
+//            if (!name) {
+//                unreachable("unresolved: %s %s",
+//                    TokenKind_repr(this->kind, false), this->string);
+//                return "<unknown>";
+//            }
+//            if (!*name) name = ;
+            return this->var->typeSpec->type->name;
+//        }
+        // TODO: tkOpColon should be handled separately in the semantic pass, and should be assigned either TYObject or make a dedicated TYRange
+//     case tkOpColon:
+//        return "Range";
     // TODO: what else???
     case tkPeriod:
         return ASTExpr_typeName(this->right);
     default:
-        unreachable("unexpected: %s %s", TokenKind_repr(this->kind, false),
-            this->name);
+        break;
+        // unreachable("unexpected: %s %s", TokenKind_repr(this->kind,
+        // false),
+        //     this->string);
     }
-    return "<unknown>";
+    return "<invalid>";
 }
 
 static void ASTExpr_catarglabels(ASTExpr* this)
@@ -481,7 +453,7 @@ static void ASTExpr_catarglabels(ASTExpr* this)
         ASTExpr_catarglabels(this->right);
         break;
     case tkOpAssign:
-        printf("_%s", this->left->name);
+        printf("_%s", this->left->string);
         break;
     default:
         break;
@@ -496,7 +468,7 @@ static int ASTExpr_strarglabels(ASTExpr* this, char* buf, int bufsize)
         ret += ASTExpr_strarglabels(this->right, buf + ret, bufsize - ret);
         break;
     case tkOpAssign:
-        ret += snprintf(buf, bufsize, "_%s", this->left->name);
+        ret += snprintf(buf, bufsize, "_%s", this->left->string);
         break;
     default:
         break;

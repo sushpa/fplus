@@ -189,12 +189,11 @@ void ASTExpr_gencpp(ASTExpr* this, int level, bool spacing, bool inFuncArgs,
     switch (this->kind) {
     case TKNumber:
     case TKMultiDotNumber:
-        printf("%s",   this->string);
+        printf("%s", this->string);
         break;
 
     case TKString:
-        printf(escapeStrings ? "\\%s\\\"" : "%s\"",
-            this->string);
+        printf(escapeStrings ? "\\%s\\\"" : "%s\"", this->string);
         break;
 
     case TKIdentifier:
@@ -222,24 +221,24 @@ void ASTExpr_gencpp(ASTExpr* this, int level, bool spacing, bool inFuncArgs,
         break;
 
     case TKRegex:
-//        this->string[0] = '"';
-//        this->string[this->strLen - 1] = '"';
-        printf("\"%s\"",   this->string+1);
-//        this->string[0] = '\'';
-//        this->string[this->strLen - 1] = '\'';
+        //        this->string[0] = '"';
+        //        this->string[this->strLen - 1] = '"';
+        printf("\"%s\"", this->string + 1);
+        //        this->string[0] = '\'';
+        //        this->string[this->strLen - 1] = '\'';
         break;
 
     case TKInline:
-//        this->string[0] = '"';
-//        this->string[this->strLen - 1] = '"';
-        printf("mkRe_(\"%s\")",   this->string+1);
-//        this->string[0] = '`';
-//        this->string[this->strLen - 1] = '`';
+        //        this->string[0] = '"';
+        //        this->string[this->strLen - 1] = '"';
+        printf("mkRe_(\"%s\")", this->string + 1);
+        //        this->string[0] = '`';
+        //        this->string[this->strLen - 1] = '`';
         break;
 
     case TKLineComment:
         // TODO: skip  comments in generated code
-        printf("// %s",  this->string);
+        printf("// %s", this->string);
         break;
 
     case TKFunctionCall:
@@ -377,14 +376,14 @@ void ASTExpr_gencpp(ASTExpr* this, int level, bool spacing, bool inFuncArgs,
         break;
 
     default:
-        if (not this->opPrec) break;
+        if (not this->prec) break;
         // not an operator, but this should be error if you reach here
-        bool leftBr = this->left and this->left->opPrec
-            and this->left->opPrec < this->opPrec;
-        bool rightBr = this->right and this->right->opPrec
+        bool leftBr = this->left and this->left->prec
+            and this->left->prec < this->prec;
+        bool rightBr = this->right and this->right->prec
             and this->right->kind
                 != TKKeyword_return // found in 'or return'
-            and this->right->opPrec < this->opPrec;
+            and this->right->prec < this->prec;
 
         char lpo = '(';
         char lpc = ')';

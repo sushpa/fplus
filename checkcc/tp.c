@@ -37,12 +37,12 @@ int main()
     printarrd((int[]) { 3, 4, 6 }, 3);
 }
 
-// var x as Scalar[] = [   3, 4, 5, sin(x) ]
+// var x as Number[] = [   3, 4, 5, sin(x) ]
 // -----------------------------------------------
-// Scalar _1[]  = { 3, 4, 5, sin(x) };
-// Array_initWith_cArray(Scalar)(x, _1, countof(_1));
+// Number _1[]  = { 3, 4, 5, sin(x) };
+// Array_initWith_cArray(Number)(x, _1, countof(_1));
 
 // x = [ 1, 2,    cos(x) ]
 // -----------------------------------------------
-// Scalar _2[]    = { 1, 2, cos(x) };
-// Array_initWith_cArray(Scalar)(_x, countof(_x));
+// Number _2[]    = { 1, 2, cos(x) };
+// Array_initWith_cArray(Number)(_x, countof(_x));

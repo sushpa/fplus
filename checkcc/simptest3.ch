@@ -1,5 +1,5 @@
 
-function start(args as Strs) returns Scalar
+function start(args as Strs) returns Number
     check 0 < proc < 65536
     var strTable = [ "first" = 4, "second" = 5, "third" = 42 ]
     var list = [ 1, 2, 3, 4, 5; 6, 7, 8, 9, 0 ]

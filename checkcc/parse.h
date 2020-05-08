@@ -27,8 +27,8 @@ static ASTExpr* parseExpr(Parser* this)
             Parser_errorInvalidIdent(this); // but continue parsing
 
         ASTExpr* expr = ASTExpr_fromToken(&this->token); // dont advance yet
-        int prec = expr->opPrec;
-        bool rassoc = prec ? expr->opIsRightAssociative : false;
+        int prec = expr->prec;
+        bool rassoc = prec ? expr->rassoc : false;
         char lookAheadChar = Token_peekCharAfter(&this->token);
 
         switch (expr->kind) {
@@ -36,12 +36,12 @@ static ASTExpr* parseExpr(Parser* this)
             switch (lookAheadChar) {
             case '(':
                 expr->kind = tkFunctionCall;
-                expr->opPrec = 100;
+                expr->prec = 100;
                 PtrArray_push(&ops, expr);
                 break;
             case '[':
                 expr->kind = tkSubscript;
-                expr->opPrec = 100;
+                expr->prec = 100;
                 PtrArray_push(&ops, expr);
                 break;
             default:
@@ -134,7 +134,7 @@ static ASTExpr* parseExpr(Parser* this)
                     // indicates empty operand
                 }
                 while (not PtrArray_empty(&ops)) {
-                    prec_top = PtrArray_topAs(ASTExpr*, &ops)->opPrec;
+                    prec_top = PtrArray_topAs(ASTExpr*, &ops)->prec;
                     if (not prec_top) break; // left parenthesis
                     if (prec > prec_top) break;
                     if (prec == prec_top and rassoc) break;
@@ -150,7 +150,7 @@ static ASTExpr* parseExpr(Parser* this)
                         goto error;
                     }
 
-                    if (not(p->opPrec or p->opIsUnary)
+                    if (not(p->prec or p->unary)
                         and p->kind != tkFunctionCall
                         and p->kind != tkOpColon and p->kind != tkSubscript
                         and rpn.used < 2) {
@@ -192,7 +192,7 @@ exitloop:
             goto error;
         }
 
-        if (not(p->opPrec or p->opIsUnary)
+        if (not(p->prec or p->unary)
             and (p->kind != tkFunctionCall and p->kind != tkSubscript)
             and rpn.used < 2) {
             Parser_errorParsingExpr(this);
@@ -230,7 +230,7 @@ exitloop:
 
         default:
             // everything else is a nonterminal, needs left/right
-            if (not p->opPrec) {
+            if (not p->prec) {
                 Parser_errorParsingExpr(this);
                 goto error;
             }
@@ -242,7 +242,7 @@ exitloop:
 
             p->right = PtrArray_pop(&result);
 
-            if (not p->opIsUnary) {
+            if (not p->unary) {
                 if (PtrArray_empty(&result)) {
                     Parser_errorParsingExpr(this);
                     goto error;
@@ -286,7 +286,7 @@ error:
             else {
                 ASTExpr* e = rpn.ref[i];
                 printf("%s ",
-                    e->opPrec ? TokenKind_repr(e->kind, false) : e->name);
+                    e->prec ? TokenKind_repr(e->kind, false) : e->string);
             }
         puts("");
     }
@@ -299,14 +299,14 @@ error:
             else {
                 ASTExpr* e = result.ref[i];
                 printf("%s ",
-                    e->opPrec ? TokenKind_repr(e->kind, false) : e->name);
+                    e->prec ? TokenKind_repr(e->kind, false) : e->string);
             }
         puts("");
     }
 
     if (p) {
         printf("      p: %s ",
-            p->opPrec ? TokenKind_repr(p->kind, false) : p->name);
+            p->prec ? TokenKind_repr(p->kind, false) : p->string);
         puts("");
     }
 
@@ -430,7 +430,7 @@ static ASTScope* parseScope(
                 Parser_errorDuplicateVar(this, var, orig);
             // TODO: why only idents and binops for resolveVars??
             if (var->init
-                and (var->init->opPrec or var->init->kind == tkIdentifier))
+                and (var->init->prec or var->init->kind == tkIdentifier))
                 resolveVars(this, var->init, scope, false);
             // resolveType(var->typeSpec, scope);
             // resolve BEFORE it is added to the list! in
@@ -444,7 +444,7 @@ static ASTScope* parseScope(
             expr->kind = tkVarAssign;
             expr->line = var->init ? var->init->line : this->token.line;
             expr->col = var->init ? var->init->col : 1;
-            expr->opPrec = TokenKind_getPrecedence(tkOpAssign);
+            expr->prec = TokenKind_getPrecedence(tkOpAssign);
             expr->var = var;
             PtrList_append(&scope->stmts, expr);
             break;
@@ -480,7 +480,7 @@ static ASTScope* parseScope(
                 // TODO: here it is too late to add the variable,
                 // because parseScope will call resolveVars.
                 var = NEW(ASTVar);
-                var->name = expr->left->left->name;
+                var->name = expr->left->left->string;
                 var->init = expr->left->right;
                 var->typeSpec = NEW(ASTTypeSpec);
                 var->typeSpec->typeType = TYUInt32;
@@ -616,7 +616,7 @@ static ASTFunc* parseStmtFunc(Parser* this)
     ASTExpr* ret = exprFromCurrentToken(this);
     assert(ret->kind == tkColEq);
     ret->kind = tkKeyword_return;
-    ret->opIsUnary = true;
+    ret->unary = true;
 
     ret->right = parseExpr(this);
     ASTScope* scope = NEW(ASTScope);

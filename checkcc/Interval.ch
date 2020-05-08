@@ -13,7 +13,7 @@ end type
 products(a as Interval, b as Interval) :=
     [ a.lo*b.lo, a.lo*b.hi, a.hi*b.lo, a.hi*b.hi ]
 
-Interval(x as Scalar) :=
+Interval(x as Number) :=
     Interval(lo = x, hi = x)
 
 add(a as Interval, b as Interval) :=

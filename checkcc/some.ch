@@ -8,14 +8,14 @@ function unsetPrinted(expr @ASTExpr)
          .keywordElse, .keywordWhile
         unsetPrintedVarsFlag(expr.left)
     case else
-        if expr.opPrec
-            if not expr.opIsUnary then unsetPrintedVarsFlag(expr.left)
+        if expr.prec
+            if not expr.unary then unsetPrintedVarsFlag(expr.left)
             unsetPrintedVarsFlag(expr.right)
         end if
     end match
 end function
 
-function genPrintVars(expr @ASTExpr, level @Scalar)
+function genPrintVars(expr @ASTExpr, level @Number)
     let spc @String = repeat("    ", times = level)
     match expr.kind
     case .identResolved, .varAssign
@@ -30,8 +30,8 @@ function genPrintVars(expr @ASTExpr, level @Scalar)
          .keywordFor, .keywordWhile
         genPrintVars(expr.left, level = level)
     case else
-        if expr.opPrec
-            if not expr.opIsUnary then genPrintVars(expr.left, level = level)
+        if expr.prec
+            if not expr.unary then genPrintVars(expr.left, level = level)
             genPrintVars(expr.right, level = level)
         end if
     end match
@@ -51,11 +51,11 @@ function promotionCandidate(expr @ASTExpr) returns (ret @ASTExpr)
     case .varAssign
         ret = promotionCandidate(expr.left) or throw
     case else
-        if expr.opPrec
+        if expr.prec
             try
                 ret = promotionCandidate(expr.right)
             catch Error.notFound
-                if not expr.opIsUnary
+                if not expr.unary
                     ret = promotionCandidate(expr.right) or throw
                 end if
             end try
@@ -81,9 +81,9 @@ function promotionCandidate(expr @ASTExpr) returns (ret @ASTExpr)
          .varAssign
         ret = promotionCandidate(expr.left)
     case else
-        if expr.opPrec
+        if expr.prec
             ret = promotionCandidate(expr.right)
-            if ret == nil and not expr.opIsUnary
+            if ret == nil and not expr.unary
                 ret = promotionCandidate(expr.right)
             end if
         end if

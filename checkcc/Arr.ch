@@ -30,14 +30,14 @@ function insert(self as Array, item as T, before as T)
 function insert(self as Array, item as T, after as T)
 function remove(self as Array, atIndex as I)
 function remove(self as Array, item as T)
-function contains(self as Array, item as T) as Logical
+function contains(self as Array, item as T) as Boolean
 function count(self as Array, ) as I
 function count(self as Array, filter as Expr) as I
-function any(self as Array, ) as Logical
-function all(self as Array, ) as Logical
+function any(self as Array, ) as Boolean
+function all(self as Array, ) as Boolean
 function copy(self as Array, ) as Array
-function any(self as Array, filter as Expr) as Logical
-function all(self as Array, filter as Expr) as Logical
+function any(self as Array, filter as Expr) as Boolean
+function all(self as Array, filter as Expr) as Boolean
 function copy(self as Array, filter as Expr) as Array
 
 
@@ -48,7 +48,7 @@ function write(self as Array, )
 function write(self as Array, filter as Expr)
 function get(self as Array, atIndex as I) as T
 function getSafely(self as Array, atIndex as I) as T
-function inbounds(self as Array, atIndex as I) as Logical
+function inbounds(self as Array, atIndex as I) as Boolean
 function realIndex(self as Array, atIndex as I) as I # +ve, in n-d all dims collapsed
 function set(self as Array, atIndex as I)
 function setSafely(self as Array, atIndex as I)
@@ -63,7 +63,7 @@ function shuffleKnuth(self as Array, )
 function searchBinary(self as Array, forValue as T)
 function clone(self as Array, ) Array
 function getFullSlice(self as Array, ) Slice
-function equals(self as Array, otherArray as Array) as Logical
+function equals(self as Array, otherArray as Array) as Boolean
 
 # filter/map -- but it should be impl as a macro. besides funcs r elemental
 function String joinToString(self as Array, sep as String)

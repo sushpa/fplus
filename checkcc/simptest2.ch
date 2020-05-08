@@ -1,16 +1,16 @@
 declare type Strings
 declare type Range
-declare function print(wf as Scalar)
-declare function print(ws as Strings, filter as Scalar)
+declare function print(wf as Number)
+declare function print(ws as Strings, filter as Number)
 declare function random(wr as Range)
 
-function start(args as Strings) returns Scalar
-    var arr as Scalar[] = [1, 2, 3, 4, 5]
+function start(args as Strings) returns Number
+    var arr as Number[] = [1, 2, 3, 4, 5]
     print(arr[3])
     print(arr)
     arr += 3
     print(arr)
-    var mx as Scalar[] = arr[1:3]
+    var mx as Number[] = arr[1:3]
     # create lets by ref and vars by copy. SIMPLE!
     # random (int) takes a range;
     # float is always no args -> 0 to 1

@@ -121,9 +121,8 @@ static void ASTExpr_unsetPrintedVarsFlag(ASTExpr* expr)
         ASTExpr_unsetPrintedVarsFlag(expr->left);
         break;
     default:
-        if (expr->opPrec) {
-            if (not expr->opIsUnary)
-                ASTExpr_unsetPrintedVarsFlag(expr->left);
+        if (expr->prec) {
+            if (not expr->unary) ASTExpr_unsetPrintedVarsFlag(expr->left);
             ASTExpr_unsetPrintedVarsFlag(expr->right);
         }
     }
@@ -161,9 +160,8 @@ static void ASTExpr_genPrintVars(ASTExpr* expr, int level)
         break;
 
     default:
-        if (expr->opPrec) {
-            if (not expr->opIsUnary)
-                ASTExpr_genPrintVars(expr->left, level);
+        if (expr->prec) {
+            if (not expr->unary) ASTExpr_genPrintVars(expr->left, level);
             ASTExpr_genPrintVars(expr->right, level);
         }
     }
@@ -209,9 +207,9 @@ static ASTExpr* ASTExpr_promotionCandidate(ASTExpr* expr)
         break;
 
     default:
-        if (expr->opPrec) {
+        if (expr->prec) {
             if ((ret = ASTExpr_promotionCandidate(expr->right))) return ret;
-            if (not expr->opIsUnary)
+            if (not expr->unary)
                 if ((ret = ASTExpr_promotionCandidate(expr->left)))
                     return ret;
         }
@@ -243,7 +241,7 @@ static void ASTScope_lowerElementalOps(ASTScope* scope)
         if (isCtrlExpr(stmt) and stmt->body)
             ASTScope_lowerElementalOps(stmt->body);
 
-        if (not stmt->isElementalOp) continue;
+        if (not stmt->elemental) continue;
 
         // wrap it in an empty block (or use if true)
         ASTExpr* ifblk = NEW(ASTExpr);
@@ -253,7 +251,7 @@ static void ASTScope_lowerElementalOps(ASTScope* scope)
         ifblk->string = "1";
 
         // look top-down for subscripts. if you encounter a node with
-        // isElementalOp=false, don't process it further even if it may have
+        // elemental=false, don't process it further even if it may have
         // ranges inside. e.g.
         // vec[7:9] = arr2[6:8] + sin(arr2[-6:-1:-4]) + test[[8,6,5]]
         // + 3 + count(vec[vec < 5]) + M ** x[-8:-1:-4]
@@ -261,7 +259,7 @@ static void ASTScope_lowerElementalOps(ASTScope* scope)
         // elemental, but the range inside it is.
         // the Array_count_filter will be promoted and isnt elemental
         // (unless you plan to set elemental op on boolean subscripts.)
-        // Even so, count is a reduce op and will unset isElementalOp.
+        // Even so, count is a reduce op and will unset elemental.
         // --
         // as you find each subscript, add 2 local vars to the ifblk body
         // so then you might have for the above example :
@@ -293,7 +291,7 @@ static void ASTScope_lowerElementalOps(ASTScope* scope)
         // are generated they will refer to the current item of that array.
         // then wrap the stmt in a for expr 'forblk'. put the for expr in
         // ifblk. the active scope is now the for's body. generate the stmt.
-        // it should come out in scalar form if all went well.. add
+        // it should come out in Number form if all went well.. add
         // increments for each ptr. vec_p1 += vec_d1; arr2_p1 += arr2_d1;
         // arr2_p2 += arr2_d2;
         // ...
@@ -310,7 +308,7 @@ static void ASTScope_promoteCandidates(ASTScope* scope)
     foreachn(ASTExpr*, stmt, stmts, scope->stmts)
     {
         // TODO:
-        // if (not stmt->flags.mayNeedPromotion) {prev=stmts;continue;}
+        // if (not stmt->flags.promote) {prev=stmts;continue;}
 
         if (isCtrlExpr(stmt) and stmt->body)
             ASTScope_promoteCandidates(stmt->body);
@@ -341,7 +339,7 @@ static void ASTScope_promoteCandidates(ASTScope* scope)
 
         // 2. change the original to an ident
         pc->kind = tkIdentifierResolved;
-        pc->opPrec = 0;
+        pc->prec = 0;
         pc->var = tmpvar;
 
         // 3. insert the tmp var as an additional argument into the call
@@ -352,7 +350,7 @@ static void ASTScope_promoteCandidates(ASTScope* scope)
             // single arg
             ASTExpr* com = NEW(ASTExpr);
             // TODO: really should have an astexpr ctor
-            com->opPrec = TokenKind_getPrecedence(tkOpComma);
+            com->prec = TokenKind_getPrecedence(tkOpComma);
             com->kind = tkOpComma;
             com->left = pcClone->left;
             com->right = pc;
@@ -364,7 +362,7 @@ static void ASTScope_promoteCandidates(ASTScope* scope)
                 argn = argn->right;
             ASTExpr* com = NEW(ASTExpr);
             // TODO: really should have an astexpr ctor
-            com->opPrec = TokenKind_getPrecedence(tkOpComma);
+            com->prec = TokenKind_getPrecedence(tkOpComma);
             com->kind = tkOpComma;
             com->left = argn->right;
             com->right = pc;
@@ -409,7 +407,7 @@ static void ASTScope_genc(ASTScope* scope, int level)
         else
             puts("");
         // convert this into a flag which is set in the resolution pass
-        if (ASTExpr_canThrow(stmt))
+        if (ASTExpr_throws(stmt))
             puts("    if (_err_ == ERROR_TRACE) goto backtrace;");
     }
 }
@@ -445,6 +443,58 @@ static void ASTType_genJson(ASTType* type)
 }
 static void ASTType_genJsonReader(ASTType* type) {}
 
+static const char* functionEntryStuff_UNESCAPED
+    = "#ifndef NOSTACKCHECK\n"
+      "    STACKDEPTH_UP\n"
+      "//printf(\"%8lu %8lu\\n\",_scUsage_, _scSize_);\n"
+      "    if (_scUsage_ >= _scSize_) {\n"
+      "#ifdef DEBUG\n"
+      "        _scPrintAbove_ = _scDepth_ - _btLimit_;\n"
+      "        printf(\"\\e[31mfatal: stack overflow at call depth "
+      "%lu.\\n   "
+      " in %s\\e[0m\\n\", _scDepth_, sig_);\n"
+      "        printf(\"\\e[90mBacktrace (innermost first):\\n\");\n"
+      "        if (_scDepth_ > 2*_btLimit_)\n        "
+      "printf(\"    limited to %d outer and %d inner entries.\\n\", "
+      "_btLimit_, _btLimit_);\n"
+      "        printf(\"[%lu] "
+      "\\e[36m%s\\n\", _scDepth_, callsite_);\n"
+      "#else\n"
+      "        printf(\"\\e[31mfatal: stack "
+      "overflow at call depth %lu.\\e[0m\\n\",_scDepth_);\n"
+      "#endif\n"
+      "        DONE\n    }\n"
+      "#endif\n";
+static const char* functionExitStuff_UNESCAPED
+    = "    // ------------ error handling\n"
+      "    return DEFAULT_VALUE;\n    assert(0);\n"
+      "error:\n"
+      "#ifdef DEBUG\n"
+      "    eprintf(\"error: %s\\n\",_err_);\n"
+      "#endif\n"
+      "backtrace:\n"
+      "#ifdef DEBUG\n"
+
+      "    if (_scDepth_ <= _btLimit_ || _scDepth_ > _scPrintAbove_)\n"
+      "        printf(\"\\e[90m[%lu] \\e[36m"
+      "%s\\n\", _scDepth_, callsite_);\n"
+      "    else if (_scDepth_ == _scPrintAbove_)\n"
+      "        printf(\"\\e[90m... truncated ...\\e[0m\\n\");\n"
+      "#endif\n"
+      "done:\n"
+      "#ifndef NOSTACKCHECK\n"
+      "    STACKDEPTH_DOWN\n"
+      "#endif\n"
+      "    return DEFAULT_VALUE;";
+static void ASTFunc_printStackUsageDef(size_t stackUsage)
+{
+    printf("#ifdef DEBUG\n"
+           "#define MYSTACKUSAGE (%lu + 6*sizeof(void*) + sizeof(char*))\n"
+           "#else\n"
+           "#define MYSTACKUSAGE (%lu + 6*sizeof(void*))\n"
+           "#endif\n",
+        stackUsage, stackUsage);
+}
 static void ASTType_genc(ASTType* type, int level)
 {
     if (not type->body or not type->flags.sempassDone) return;
@@ -480,15 +530,30 @@ static void ASTType_genc(ASTType* type, int level)
         printf("%.*s%s = ", level + STEP, spaces, stmt->var->name);
         ASTExpr_genc(stmt->var->init, 0, true, false, false);
         puts(";");
+        if (ASTExpr_throws(stmt->var->init))
+            puts("    if (_err_ == ERROR_TRACE) return NULL;");
     }
     foreach (ASTVar*, var, type->body->locals) {
         printf("#undef %s \n", var->name);
     }
 
     printf("    return this;\n}\n");
-    printf("%s %s_new_() {\n    return "
-           "%s_init_(%s_alloc_());\n}\n",
-        type->name, type->name, type->name, type->name);
+    printf("%s %s_new_(\n#ifdef DEBUG\n    const char* "
+           "callsite_\n#endif\n) {\n",
+        type->name, type->name);
+    printf(
+        "#define DEFAULT_VALUE NULL\n#ifdef DEBUG\n    static const char* "
+        "sig_ = \"%s()\";\n#endif\n",
+        type->name);
+    ASTFunc_printStackUsageDef(48);
+    puts(functionEntryStuff_UNESCAPED);
+    printf(
+        "    %s ret = %s_alloc_(); %s_init_(ret); if (_err_==ERROR_TRACE) "
+        "goto backtrace;return ret;",
+        type->name, type->name, type->name);
+    puts(functionExitStuff_UNESCAPED);
+    puts("#undef DEFAULT_VALUE\n#undef MYSTACKUSAGE");
+    puts("}");
     printf("#define %s_print_(p) %s_print__(p, STR(p))\n", type->name,
         type->name);
     printf("void %s_print__(%s this, const char* name) {\n    printf(\"<%s "
@@ -511,7 +576,9 @@ static void ASTType_genh(ASTType* type, int level)
     printf("static %s %s_alloc_(); \n", type->name, type->name);
     printf("static %s %s_init_(%s this);\n", type->name, type->name,
         type->name);
-    printf("%s %s_new_(); \n", type->name, type->name);
+    printf("%s %s_new_(\n#ifdef DEBUG\n    const char* "
+           "callsite_\n#endif\n); \n",
+        type->name, type->name);
     printf("\nDECL_json_wrap_(%s)\n//DECL_json_file(%s)\n", type->name,
         type->name);
     printf("#define %s_json(x) { printf(\"\\\"%%s\\\": \",#x); "
@@ -525,17 +592,12 @@ static void ASTFunc_genc(ASTFunc* func, int level)
 {
     if (not func->body or not func->flags.semPassDone)
         return; // declares, default ctors
-    size_t stackUsage = ASTFunc_calcSizeUsage(func);
 
     // it seems that actual stack usage is higher due to stack protection,
     // frame bookkeeping whatever, and in debug mode the callsite needs
     // sizeof(char*) more.
-    printf("#ifdef DEBUG\n"
-           "#define MYSTACKUSAGE (%lu + 6*sizeof(void*) + sizeof(char*))\n"
-           "#else\n"
-           "#define MYSTACKUSAGE (%lu + 6*sizeof(void*))\n"
-           "#endif\n",
-        stackUsage, stackUsage);
+    size_t stackUsage = ASTFunc_calcSizeUsage(func);
+    ASTFunc_printStackUsageDef(stackUsage);
 
     printf("#define DEFAULT_VALUE %s\n",
         getDefaultValueForType(func->returnType));
@@ -574,52 +636,11 @@ static void ASTFunc_genc(ASTFunc* func, int level)
     }
     puts("\";\n#endif");
 
-    printf("%s",
-        "#ifndef NOSTACKCHECK\n"
-        "    STACKDEPTH_UP\n"
-        "//printf(\"%8lu %8lu\\n\",_scUsage_, _scSize_);\n"
-        "    if (_scUsage_ >= _scSize_) {\n"
-        "#ifdef DEBUG\n"
-        "        _scPrintAbove_ = _scDepth_ - _btLimit_;\n"
-        "        printf(\"\\e[31mfatal: stack overflow at call depth "
-        "%lu.\\n   "
-        " in %s\\e[0m\\n\", _scDepth_, sig_);\n"
-        "        printf(\"\\e[90mBacktrace (innermost first):\\n\");\n"
-        "        if (_scDepth_ > 2*_btLimit_)\n        "
-        "printf(\"    limited to %d outer and %d inner entries.\\n\", "
-        "_btLimit_, _btLimit_);\n"
-        "        printf(\"[%lu] "
-        "\\e[36m%s\\n\", _scDepth_, callsite_);\n"
-        "#else\n"
-        "        printf(\"\\e[31mfatal: stack "
-        "overflow at call depth %lu.\\e[0m\\n\",_scDepth_);\n"
-        "#endif\n"
-        "        DONE\n    }\n"
-        "#endif\n");
+    puts(functionEntryStuff_UNESCAPED);
 
     ASTScope_genc(func->body, level + STEP);
 
-    puts("    // ------------ error handling\n"
-         "    return DEFAULT_VALUE;\n    assert(0);\n"
-         "error:\n"
-         "#ifdef DEBUG\n"
-         "    eprintf(\"error: %s\\n\",_err_);\n"
-         "#endif\n"
-         "backtrace:\n"
-         "#ifdef DEBUG\n"
-
-         "    if (_scDepth_ <= _btLimit_ || "
-         "_scDepth_ > _scPrintAbove_)\n"
-         "        printf(\"\\e[90m[%lu] \\e[36m"
-         "%s\\n\", _scDepth_, callsite_);\n"
-         "    else if (_scDepth_ == _scPrintAbove_)\n"
-         "        printf(\"\\e[90m... truncated ...\\e[0m\\n\");\n"
-         "#endif\n"
-         "done:\n"
-         "#ifndef NOSTACKCHECK\n"
-         "    STACKDEPTH_DOWN\n"
-         "#endif\n"
-         "    return DEFAULT_VALUE;");
+    puts(functionExitStuff_UNESCAPED);
     puts("}\n#undef DEFAULT_VALUE");
     puts("#undef MYSTACKUSAGE");
 }
@@ -668,7 +689,7 @@ static void ASTExpr_genc(ASTExpr* expr, int level, bool spacing,
         {
             char* tmp = (expr->kind == tkIdentifierResolved)
                 ? expr->var->name
-                : expr->name;
+                : expr->string;
             int8_t dotCount = 0, i = 0;
             for (i = 0; tmp[i]; i++) {
                 if (tmp[i] == '.') {
@@ -734,8 +755,7 @@ static void ASTExpr_genc(ASTExpr* expr, int level, bool spacing,
         if (expr->left)
             ASTExpr_genc(expr->left, 0, false, true, escStrings);
 
-        if (expr->func->body) { // expr->func->flags.isDeclare and not
-                                // expr->func->flags.isDeclare) {
+        if (not expr->func->flags.isDeclare) {
             printf("\n#ifdef DEBUG\n"
                    "      %c \"./\" THISFILE \":%d:%d:\\e[0m ",
                 expr->left ? ',' : ' ', expr->line, expr->col);
@@ -812,7 +832,7 @@ static void ASTExpr_genc(ASTExpr* expr, int level, bool spacing,
         case tkKeyword_and:
         case tkKeyword_or:
         case tkKeyword_not:
-            // indexing by a logical expression (filter)
+            // indexing by a Boolean expression (filter)
             // by default this implies a copy, but certain funcs e.g. print
             // min max sum count etc. can be done in-place without a copy
             // since they are not mutating the array. That requires either
@@ -820,7 +840,7 @@ static void ASTExpr_genc(ASTExpr* expr, int level, bool spacing,
             // print(arr[arr < 5]), or the compiler to transform the second
             // into the first transparently.
             // Probably the tkFunctionCall should check if its argument is
-            // a tkSubscript with a logical index, and then tip the user
+            // a tkSubscript with a Boolean index, and then tip the user
             // to call the optimised function instead (or just generate it).
             // For now, and in the absence of more context, this is a copy.
             // Array_copy_filter is implemented as a C macro for loop, as
@@ -903,7 +923,7 @@ static void ASTExpr_genc(ASTExpr* expr, int level, bool spacing,
             // there should be a RangeND just like TensorND and SliceND
             // then you can just pass that to _setSlice
             case tkIdentifierResolved:
-                // lookup the var type. note that it need not be scalar,
+                // lookup the var type. note that it need not be Number,
                 // string, range etc. it could be an arbitrary object in
                 // case you are indexing a Dict with keys of that type.
 
@@ -1023,7 +1043,7 @@ static void ASTExpr_genc(ASTExpr* expr, int level, bool spacing,
         ASTExpr* lhsExpr = checkExpr->left;
         ASTExpr* rhsExpr = checkExpr->right;
         printf("{\n");
-        if (not checkExpr->opIsUnary) {
+        if (not checkExpr->unary) {
             printf(
                 "%.*s%s _lhs = ", level, spaces, ASTExpr_typeName(lhsExpr));
             ASTExpr_genc(lhsExpr, 0, spacing, false, false);
@@ -1051,7 +1071,7 @@ static void ASTExpr_genc(ASTExpr* expr, int level, bool spacing,
         // (genPrintVars uses this to avoid printing the same var
         // twice). This should be unset after every toplevel call to
         // genPrintVars.
-        if (not checkExpr->opIsUnary) {
+        if (not checkExpr->unary) {
             // dont print literals or arrays
             if (lhsExpr->collectionType == CTYNone
                 and lhsExpr->kind != tkString and lhsExpr->kind != tkNumber
@@ -1139,14 +1159,14 @@ static void ASTExpr_genc(ASTExpr* expr, int level, bool spacing,
             printf(")");
             break;
         }
-        fallthrough default : if (not expr->opPrec) break;
+        fallthrough default : if (not expr->prec) break;
         // not an operator, but this should be error if you reach here
-        bool leftBr = expr->left and expr->left->opPrec
-            and expr->left->opPrec < expr->opPrec;
-        bool rightBr = expr->right and expr->right->opPrec
+        bool leftBr = expr->left and expr->left->prec
+            and expr->left->prec < expr->prec;
+        bool rightBr = expr->right and expr->right->prec
             and expr->right->kind != tkKeyword_return
             // found in 'or return'
-            and expr->right->opPrec < expr->opPrec;
+            and expr->right->prec < expr->prec;
 
         char lpo = '(';
         char lpc = ')';

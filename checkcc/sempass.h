@@ -29,10 +29,10 @@ static void sempass(
         // but this call shouldn't check
         // for equal types on both sides of a comma
 
-        expr->isElementalOp = expr->left->isElementalOp
-            and expr->func->flags.isElementalFunc;
+        expr->elemental
+            = expr->left->elemental and expr->func->flags.isElementalFunc;
         // isElementalFunc means the func is only defined for (all)
-        // scalar arguments and another definition for vector args
+        // Number arguments and another definition for vector args
         // doesn't exist. Basically during typecheck this should see
         // if a type mismatch is only in terms of collectionType.
 
@@ -59,7 +59,7 @@ static void sempass(
             const char* tyname = ASTExpr_typeName(arg1);
             bufp += sprintf(bufp, "%s_", tyname);
         }
-        bufp += sprintf(bufp, "%s", expr->name);
+        bufp += sprintf(bufp, "%s", expr->string);
         if (expr->left)
             ASTExpr_strarglabels(
                 expr->left, bufp, 128 - ((int)(bufp - buf)));
@@ -89,7 +89,7 @@ static void sempass(
         // no need to scan others if function has not been found
         Parser_errorUnrecognizedFunc(self, expr, buf);
         foreach (ASTFunc*, func, mod->funcs)
-            if (not strcasecmp(expr->name, func->name))
+            if (not strcasecmp(expr->string, func->name))
                 eprintf("        \e[;2mnot viable: \e[34m%s\e[0;2m (%d "
                         "args) at ./%s:%d\e[0m\n",
                     func->selector, func->argCount, self->filename,
@@ -101,16 +101,18 @@ static void sempass(
         if (not expr->var->init)
             Parser_errorMissingInit(self, expr);
         else {
-            if (!*expr->var->typeSpec->name)
+            if (expr->var->typeSpec->typeType == TYUnresolved)
                 resolveTypeSpec(self, expr->var->typeSpec, mod);
+            //            else eprintf("tspec:
+            //            %d\n",expr->var->typeSpec->typeType)
             // sempass(self, expr->var->init, mod, inFuncArgs);
 
             sempass(self, expr->var->init, mod, false);
 
             expr->typeType = expr->var->init->typeType;
-            expr->isElementalOp = expr->var->init->isElementalOp;
+            expr->elemental = expr->var->init->elemental;
 
-            if (not expr->var->typeSpec->typeType) {
+            if (expr->var->typeSpec->typeType == TYUnresolved) {
                 expr->var->typeSpec->typeType = expr->var->init->typeType;
                 if (expr->var->init->typeType == TYObject) {
                     if (expr->var->init->kind == tkFunctionCallResolved)
@@ -126,13 +128,16 @@ static void sempass(
                         // at this point, it must be a resolved ident or
                         // subscript
                         expr->var->typeSpec->type = e->var->typeSpec->type;
-                    } else
+                    } else {
                         unreachable("%s", "var type inference failed");
+                    }
                     sempassType(self, expr->var->typeSpec->type, mod);
                 }
             } else if (expr->var->typeSpec->typeType
-                != expr->var->init->typeType)
-                Parser_errorTypeMismatchBinOp(self, expr);
+                != expr->var->init->typeType) {
+                Parser_errorInitMismatch(self, expr);
+                expr->typeType = TYErrorType;
+            }
         }
     } break;
 
@@ -151,7 +156,7 @@ static void sempass(
         if (expr->kind == tkSubscriptResolved) {
             expr->typeType = expr->var->typeSpec->typeType;
             // setExprTypeInfo(self, expr->left, false); // check args
-            expr->isElementalOp = expr->left->isElementalOp;
+            expr->elemental = expr->left->elemental;
             // TODO: check args in the same way as for funcs below, not
             // directly checking expr->left.}
         }
@@ -159,23 +164,27 @@ static void sempass(
 
     case tkString:
         expr->typeType = TYString;
-        expr->isElementalOp = false;
+        // expr->elemental = false;
         break;
 
     case tkNumber:
         expr->typeType = TYReal64;
-        expr->isElementalOp = false;
+        // expr->elemental = false;
         break;
 
     case tkIdentifier:
-        unreachable("running semantic pass on unresolved '%s' at %s:%d:%d",
-            expr->name, self->filename, expr->line, expr->col);
-        assert(0);
+        expr->typeType = TYErrorType;
+        // expr->elemental = false;
+
+        // unreachable("running semantic pass on unresolved '%s' at
+        // %s:%d:%d",
+        //     expr->string, self->filename, expr->line, expr->col);
+        // assert(0);
         break;
 
     case tkIdentifierResolved:
         expr->typeType = expr->var->typeSpec->typeType;
-        expr->isElementalOp = false;
+        expr->elemental = false;
         break;
 
     case tkPeriod: {
@@ -211,7 +220,10 @@ static void sempass(
         // Resolve the member in the scope of the type definition.
         resolveMember(self, member, type);
         // Name resolution may fail...
-        if (member->kind != tkIdentifierResolved) break;
+        if (member->kind != tkIdentifierResolved) {
+            expr->typeType = TYErrorType;
+            break;
+        }
         sempass(self, member, mod, inFuncArgs);
 
         if (expr->right->kind == tkPeriod)
@@ -220,13 +232,12 @@ static void sempass(
         // TODO: exprs like a.b.c.d.e are not handled yet, only a.b
 
         expr->typeType = expr->right->typeType;
-        expr->isElementalOp = expr->right->isElementalOp;
+        expr->elemental = expr->right->elemental;
     } break;
 
     default:
-        if (expr->opPrec) {
-            if (not expr->opIsUnary)
-                sempass(self, expr->left, mod, inFuncArgs);
+        if (expr->prec) {
+            if (not expr->unary) sempass(self, expr->left, mod, inFuncArgs);
             sempass(self, expr->right, mod, inFuncArgs);
 
             if (expr->kind == tkKeyword_or
@@ -236,19 +247,23 @@ static void sempass(
             } else if (isCmpOp(expr) or expr->kind == tkKeyword_and
                 or expr->kind == tkKeyword_or or expr->kind == tkKeyword_not
                 or expr->kind == tkKeyword_in)
-                expr->typeType = TYBool;
+                expr->typeType = expr->left->typeType == TYErrorType
+                        or expr->right->typeType == TYErrorType
+                    ? TYErrorType
+                    : TYBool;
+
             else
+                // if an error type is on the right, this is accounted for
                 expr->typeType = expr->right->typeType;
 
-            expr->isElementalOp
-                = expr->right->isElementalOp or expr->kind == tkOpColon;
+            expr->elemental
+                = expr->right->elemental or expr->kind == tkOpColon;
             // TODO: actually, indexing by an array of integers is also an
             // indication of an elemental op
-            if (not expr->opIsUnary)
-                expr->isElementalOp
-                    = expr->isElementalOp or expr->left->isElementalOp;
+            if (not expr->unary)
+                expr->elemental = expr->elemental or expr->left->elemental;
 
-            if (not expr->opIsUnary
+            if (not expr->unary
                 and not(inFuncArgs
                     and (expr->kind == tkOpComma
                         or expr->kind == tkOpAssign))) {
@@ -263,12 +278,13 @@ static void sempass(
                 if (leftType == TYBool
                     and (expr->kind == tkOpLE or expr->kind == tkOpLT))
                     ;
-                else if (leftType != rightType)
+                else if (leftType != rightType) {
                     Parser_errorTypeMismatchBinOp(self, expr);
-                // TODO: as it stands, "x" + "y" wont be an error because
-                // types are consistent. BUT types should also be valid for
-                // that operator: in general operators are defined only for
-                // numeric types and some keywords for logicals.
+                    expr->typeType = TYErrorType;
+                } // TODO: as it stands, "x" + "y" wont be an error because
+                  // types are consistent. BUT types should also be valid
+                  // for that operator: in general operators are defined
+                  // only for numeric types and some keywords for logicals.
                 else if (leftType == TYString and //
                     (expr->kind == tkOpAssign //
                         or expr->kind == tkOpEQ //
@@ -283,7 +299,8 @@ static void sempass(
                 else if (not TypeType_isnum(leftType))
                     Parser_errorInvalidTypeForOp(self, expr);
 
-                // expr->typeType = leftType;
+                // check if an error type is on the left
+                if (leftType == TYErrorType) expr->typeType = leftType;
             }
             // TODO: here statements like return etc. that are not binary
             // but need to have their types checked w.r.t. an expected type
@@ -349,7 +366,7 @@ static void sempassFunc(Parser* self, ASTFunc* func, ASTModule* mod)
             }
             // TODO: isStmt Ctors should have the correct type so e.g.
             // you cannot have
-            // Point(x as Scalar) := 3 + 5 * 12
+            // Point(x as Number) := 3 + 5 * 12
             // but must return a Point instead. This cannot be enforced
             // here since type resolution hasn't been done at this
             // stage. Check this after the type inference step when the
@@ -406,7 +423,7 @@ static void sempassFunc(Parser* self, ASTFunc* func, ASTModule* mod)
         ASTScope_lowerElementalOps(func->body);
         // Extract subexprs like count(arr[arr<1e-15]) and promote them to
         // full statements corresponding to their C macros e.g.
-        // Scalar _1; Array_count_filter(arr, arr<1e-15, _1);
+        // Number _1; Array_count_filter(arr, arr<1e-15, _1);
         ASTScope_promoteCandidates(func->body);
     }
 }

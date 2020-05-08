@@ -223,7 +223,7 @@ template <class T> static Int count(Array<T>& vec)
     for (Int i = 0; i < vec.len; i++)                                      \
         ans[i] = expr;
 
-// like map, but instead of returning vec, returns a scalar
+// like map, but instead of returning vec, returns a Number
 // useful for reductions like min,max,sum etc.
 // func is sum,min,max,stddev,mean,prod,...
 // that func should be defined for scalars.
@@ -470,7 +470,7 @@ template <class T> static void equals_filter() {}
 // vec[vec>4] += rnds
 // - NOOOOOOOOOOOOO
 // TODO: Int think even the mutop1 funcs should eval rhs every time!
-// let the user create a tmp scalar when he needs it. otherwise he has to
+// let the user create a tmp Number when he needs it. otherwise he has to
 // create a tmp vec to get around the caching of rhs.
 // so this:
 // vec[vec>4] += random()

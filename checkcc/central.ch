@@ -2,7 +2,7 @@
 # (it's not a 2D central diff but 1D diff of a 2D array)
 # axis has to be specified
 
-function central2d(Q as Matrix, by as Vector, axis as Scalar) returns (dQ as Matrix)
+function central2d(Q as Matrix, by as Vector, axis as Number) returns (dQ as Matrix)
     check axis == 1 or axis == 2
     check size(Q, along = axis) == size(by)
 
@@ -69,7 +69,7 @@ function central1d(Q as Vector, by as Vector) returns (dQ as Vector)
     # deep.
 end function
 
-function boundary2d(q as Matrix, zero as Logical) returns (qnew as Matrix)
+function boundary2d(q as Matrix, zero as Boolean) returns (qnew as Matrix)
     # check size(Q, along = 1) > 1 THESE ARE IMPLIED SINCE YOU USED -2 as index!
     # check size(Q, along = 2) > 1
 
@@ -106,8 +106,8 @@ end function
 function boundary1d(Q,zero) result(Qnew)
     real(d) Q(:)
     real(d) Qnew(size(Q))
-    logical, optional :: zero
-    logical zero_
+    Boolean, optional :: zero
+    Boolean zero_
     integer n
 
     zero_=.false.; if (present(zero)) zero_=zero

@@ -23,6 +23,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		8501D8F82465AC7400C8C071 /* sempass.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = sempass.h; sourceTree = "<group>"; };
 		8545584B24617BA0004DA5D5 /* main.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = main.cpp; sourceTree = "<group>"; };
 		85642AE0244211B100FE00C0 /* strcasecmp.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = strcasecmp.h; sourceTree = "<group>"; };
 		859CB3CE241BB2D400C32B9E /* checkcc */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = checkcc; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -43,7 +44,6 @@
 		85D999EB244142EF005669B4 /* typecheck.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = typecheck.h; sourceTree = "<group>"; };
 		85D999EC244142EF005669B4 /* token.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = token.h; sourceTree = "<group>"; };
 		85D999ED244142EF005669B4 /* cycle.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = cycle.h; sourceTree = "<group>"; };
-		85D999EE244142EF005669B4 /* zutest.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = zutest.h; sourceTree = "<group>"; };
 		85D999EF244142EF005669B4 /* errors.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = errors.h; sourceTree = "<group>"; };
 		85D999F0244142EF005669B4 /* chstd.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = chstd.h; sourceTree = "<group>"; };
 		85D999F1244142EF005669B4 /* checkstd.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = checkstd.h; sourceTree = "<group>"; };
@@ -89,6 +89,7 @@
 		859CB3D0241BB2D400C32B9E /* checkcc */ = {
 			isa = PBXGroup;
 			children = (
+				8501D8F82465AC7400C8C071 /* sempass.h */,
 				85D999FF244149E4005669B4 /* stdlib */,
 				85D999FD2441499B005669B4 /* samples */,
 				85D999ED244142EF005669B4 /* cycle.h */,
@@ -100,7 +101,6 @@
 				85D999EC244142EF005669B4 /* token.h */,
 				85D999EA244142EF005669B4 /* tokenKind.h */,
 				85D999EB244142EF005669B4 /* typecheck.h */,
-				85D999EE244142EF005669B4 /* zutest.h */,
 				85D999E424414181005669B4 /* main.c */,
 			);
 			path = checkcc;

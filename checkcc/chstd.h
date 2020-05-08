@@ -41,10 +41,10 @@ typedef char bool;
 #define true 1
 #define false 0
 typedef int Int;
-typedef double Scalar;
+typedef double Number;
 typedef char** CStrings;
 
-// use this in switches to indicate explicit fallthrough
+// use self in switches to indicate explicit fallthrough
 #define fallthrough
 
 #pragma mark - Variant
@@ -113,9 +113,9 @@ typedef double Real64;
 #define PtrArray_pop Array_pop(Ptr)
 #define PtrArray_top Array_top(Ptr)
 #define PtrArray_empty Array_empty(Ptr)
-#define PtrArray_topAs(T, this) ((T)PtrArray_top(this))
+#define PtrArray_topAs(T, self) ((T)PtrArray_top(self))
 
-// #define PtrArray_topAs(T, this) Array_topAs(T, this)
+// #define PtrArray_topAs(T, self) Array_topAs(T, self)
 
 #define roundUp32(x)                                                       \
     (--(x), (x) |= (x) >> 1, (x) |= (x) >> 2, (x) |= (x) >> 4,             \
@@ -138,83 +138,83 @@ typedef double Real64;
         UInt32 cap;                                                        \
     }                                                                      \
     Array(T);                                                              \
-    static void Array_free(T)(Array(T) * this)                             \
+    static void Array_free(T)(Array(T) * self)                             \
     {                                                                      \
-        if (this->cap) free(this->ref);                                    \
+        if (self->cap) free(self->ref);                                    \
     }                                                                      \
-    static void Array_growTo(T)(Array(T) * this, UInt32 size)              \
+    static void Array_growTo(T)(Array(T) * self, UInt32 size)              \
     {                                                                      \
-        this->cap = roundUp32(size);                                       \
-        this->ref = realloc(this->ref, sizeof(T) * this->cap);             \
-        memset(this->ref + this->used, 0,                                  \
-            sizeof(T) * (this->cap - this->used));                         \
+        self->cap = roundUp32(size);                                       \
+        self->ref = realloc(self->ref, sizeof(T) * self->cap);             \
+        memset(self->ref + self->used, 0,                                  \
+            sizeof(T) * (self->cap - self->used));                         \
     }                                                                      \
-    static T Array_get(T)(Array(T) * this, UInt32 index)                   \
+    static T Array_get(T)(Array(T) * self, UInt32 index)                   \
     {                                                                      \
-        return this->ref[index];                                           \
+        return self->ref[index];                                           \
     }                                                                      \
     static void Array_concat_cArray(T)(                                    \
-        Array(T) * this, T * cArray, int count)                            \
+        Array(T) * self, T * cArray, int count)                            \
     {                                                                      \
-        const UInt32 reqd = this->used + count;                            \
-        if (reqd >= this->cap) Array_growTo(T)(this, reqd);                \
-        memcpy(this->ref + this->used, cArray, count * sizeof(T));         \
+        const UInt32 reqd = self->used + count;                            \
+        if (reqd >= self->cap) Array_growTo(T)(self, reqd);                \
+        memcpy(self->ref + self->used, cArray, count * sizeof(T));         \
     }                                                                      \
     static void Array_concat_otherArray(T)(                                \
-        Array(T) * this, Array(T) * other)                                 \
+        Array(T) * self, Array(T) * other)                                 \
     {                                                                      \
-        Array_concat_cArray(T)(this, other->ref, other->used);             \
+        Array_concat_cArray(T)(self, other->ref, other->used);             \
     }                                                                      \
-    static void Array_clear(T)(Array(T) * this) { this->used = 0; }        \
+    static void Array_clear(T)(Array(T) * self) { self->used = 0; }        \
     static void Array_initWith_cArray(T)(                                  \
-        Array(T) * this, T * cArray, int count)                            \
+        Array(T) * self, T * cArray, int count)                            \
     {                                                                      \
-        Array_clear(T)(this);                                              \
-        Array_concat_cArray(T)(this, cArray, count);                       \
+        Array_clear(T)(self);                                              \
+        Array_concat_cArray(T)(self, cArray, count);                       \
     }                                                                      \
-    static void Array_grow(T)(Array(T) * this)                             \
-    { /* maybe this can be merged with growTo */                           \
-        this->cap = this->cap ? 2 * this->cap : 8;                         \
-        this->ref = realloc(this->ref, sizeof(T) * this->cap);             \
-        memset(this->ref + this->used, 0,                                  \
-            sizeof(T) * (this->cap - this->used));                         \
+    static void Array_grow(T)(Array(T) * self)                             \
+    { /* maybe self can be merged with growTo */                           \
+        self->cap = self->cap ? 2 * self->cap : 8;                         \
+        self->ref = realloc(self->ref, sizeof(T) * self->cap);             \
+        memset(self->ref + self->used, 0,                                  \
+            sizeof(T) * (self->cap - self->used));                         \
     }                                                                      \
-    static void Array_justPush(T)(Array(T) * this, T node)                 \
+    static void Array_justPush(T)(Array(T) * self, T node)                 \
     { /* when you know that cap is enough */                               \
-        this->ref[this->used++] = node;                                    \
+        self->ref[self->used++] = node;                                    \
     }                                                                      \
-    static void Array_push(T)(Array(T) * this, T node)                     \
+    static void Array_push(T)(Array(T) * self, T node)                     \
     {                                                                      \
-        if (this->used >= this->cap) Array_grow(T)(this);                  \
-        Array_justPush(T)(this, node);                                     \
+        if (self->used >= self->cap) Array_grow(T)(self);                  \
+        Array_justPush(T)(self, node);                                     \
     }                                                                      \
-    static T Array_pop(T)(Array(T) * this)                                 \
+    static T Array_pop(T)(Array(T) * self)                                 \
     {                                                                      \
-        assert(this->used > 0);                                            \
-        return this->ref[--this->used];                                    \
+        assert(self->used > 0);                                            \
+        return self->ref[--self->used];                                    \
     }                                                                      \
-    static T Array_top(T)(Array(T) * this)                                 \
+    static T Array_top(T)(Array(T) * self)                                 \
     {                                                                      \
-        return this->used ? this->ref[this->used - 1] : 0;                 \
+        return self->used ? self->ref[self->used - 1] : 0;                 \
     }                                                                      \
-    static bool Array_empty(T)(Array(T) * this) { return this->used == 0; }
+    static bool Array_empty(T)(Array(T) * self) { return self->used == 0; }
 
 MAKE_Array(Ptr);
 // MAKE_Array(UInt32);
 // MAKE_Array(uint64_t);
 // MAKE_Array(int64_t);
 // MAKE_Array(int32_t);
-// MAKE_Array(Scalar);
+// MAKE_Array(Number);
 // MAKE_Array(float);
 // make array for strings etc later
 
 // Array_top(T) is only defined for value types to keep the number
 // of instantiations (of the "template" Array) down. So void* represents
 // object ptrs of all types. Cast them when you need to deref or do ->
-// etc. this is used to get a void* as a T (usually a SomeType*)
+// etc. self is used to get a void* as a T (usually a SomeType*)
 
 // TODO: StaticArray type with size and array, StaticArray2D/3Detc.
-// since this is not templated, it's your job to send items of the
+// since self is not templated, it's your job to send items of the
 // right size, or face the music
 // ASSUMING SIZE IS 8. THAT MEANS NO FLOAT OR UINT32, only sizeof(void*)
 // #define Array_concat_cArray(T, Array, arr, count) \
@@ -234,33 +234,33 @@ typedef struct PoolB {
     UInt32 used, usedTotal; // used BYTES, unlike in Array!
 } PoolB;
 
-static void* PoolB_alloc(PoolB* this, size_t reqd)
+static void* PoolB_alloc(PoolB* self, size_t reqd)
 {
     void* ans = NULL;
 
     // This is a pool for single objects, not arrays or large strings.
     // dont ask for a big fat chunk larger than 16KB (or up to 256KB
     // depending on how much is already there) all at one time.
-    if (this->used + reqd > this->cap) {
-        if (this->ref) Array_push(Ptr)(&this->ptrs, this->ref);
-        this->cap = (this->cap > 64 KB ? 256 KB : 4 KB);
-        this->capTotal += this->cap;
-        this->ref = calloc(1, this->cap);
-        assert(this->ref != NULL);
-        this->used = 0;
+    if (self->used + reqd > self->cap) {
+        if (self->ref) Array_push(Ptr)(&self->ptrs, self->ref);
+        self->cap = (self->cap > 64 KB ? 256 KB : 4 KB);
+        self->capTotal += self->cap;
+        self->ref = calloc(1, self->cap);
+        assert(self->ref != NULL);
+        self->used = 0;
     }
-    ans = (void*)((uintptr_t)this->ref + this->used);
-    this->used += reqd;
-    this->usedTotal += reqd;
+    ans = (void*)((uintptr_t)self->ref + self->used);
+    self->used += reqd;
+    self->usedTotal += reqd;
     return ans;
 }
 
-static void PoolB_free(PoolB* this)
+static void PoolB_free(PoolB* self)
 {
     // TODO: reset used here?
-    if (this->cap) free(this->ref);
-    for (int i = 0; i < this->ptrs.used; i++)
-        free(this->ptrs.ref[i]);
+    if (self->cap) free(self->ref);
+    for (int i = 0; i < self->ptrs.used; i++)
+        free(self->ptrs.ref[i]);
 }
 
 PoolB gPool;
@@ -307,10 +307,10 @@ static void PtrList_append(PtrList** selfp, void* item)
     if (*selfp == NULL) // first append call
         *selfp = PtrList_with(item);
     else {
-        PtrList* this = *selfp;
-        while (this->next)
-            this = this->next;
-        this->next = PtrList_with(item);
+        PtrList* self = *selfp;
+        while (self->next)
+            self = self->next;
+        self->next = PtrList_with(item);
     }
 }
 
@@ -369,7 +369,7 @@ static char* str_base(char* str, char sep, size_t slen)
     if (!slen)
         return str; // you should pass in the len. len 0 is actually
                     // valid since basename for 'mod' is 'mod' itself,
-                    // and this would have caused a call to strlen
+                    // and self would have caused a call to strlen
                     // below. so len 0 now means really just return what
                     // came in.
     char* s = str;

@@ -142,8 +142,8 @@ static void resolveFuncCalls(
     } break;
 
     default:
-        if (expr->opPrec) {
-            if (not expr->opIsUnary)
+        if (expr->prec) {
+            if (not expr->unary)
                 resolveFuncCalls(this, expr->left, mod);
             resolveFuncCalls(this, expr->right, mod);
         }
@@ -157,7 +157,7 @@ static void resolveMember(Parser* self, ASTExpr* expr, ASTType* type)
     assert(expr->kind == tkIdentifier or expr->kind == tkSubscript);
     TokenKind ret = (expr->kind == tkIdentifier) ? tkIdentifierResolved
                                                  : tkSubscriptResolved;
-    ASTVar* found = ASTScope_getVar(type->body, expr->name);
+    ASTVar* found = ASTScope_getVar(type->body, expr->string);
     if (found) {
         expr->kind = ret;
         expr->var = found;
@@ -192,7 +192,7 @@ static void resolveVars(
         TokenKind ret = (expr->kind == tkIdentifier) ? tkIdentifierResolved
                                                      : tkSubscriptResolved;
         // ASTScope* scp = scope;
-        ASTVar* found = ASTScope_getVar(scope, expr->name);
+        ASTVar* found = ASTScope_getVar(scope, expr->string);
         if (found) {
             expr->kind = ret;
             expr->var = found;
@@ -267,8 +267,8 @@ static void resolveVars(
         //     break;
 
     default:
-        if (expr->opPrec) {
-            if (not expr->opIsUnary
+        if (expr->prec) {
+            if (not expr->unary
                 and not(inFuncCall and expr->kind == tkOpAssign))
                 resolveVars(this, expr->left, scope, inFuncCall);
             resolveVars(this, expr->right, scope, inFuncCall);

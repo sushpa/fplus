@@ -1,4 +1,4 @@
-function start(args as Strs) returns Scalar
+function start(args as Strs) returns Number
     let x = "The quick brown fox with 32 teeth."
     match x
     with `^Fat`

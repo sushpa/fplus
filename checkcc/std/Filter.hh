@@ -1,5 +1,5 @@
 // Filter is like a Selection, but based on a list of booleans.
-// Don't conflate this with the _filter macros, which apply a logical
+// Don't conflate this with the _filter macros, which apply a Boolean
 // filter for various inline operations on matching elements of arrays
 template <class T, class Base> struct Filter {
     Base* ref;

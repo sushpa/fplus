@@ -1,4 +1,4 @@
-static void checkBinOpTypeMismatch(Parser* self, ASTExpr* expr) {}
+// static void checkBinOpTypeMismatch(Parser* self, ASTExpr* expr) {}
 
 // TODO: rework type distribution.
 // It needs to be 2-pass: first the types of everything except function
@@ -28,12 +28,12 @@ static void setExprTypeInfo(
     switch (expr->kind) {
     case tkIdentifierResolved:
         expr->typeType = expr->var->typeSpec->typeType;
-        expr->isElementalOp = false;
+        expr->elemental = false;
         break;
     case tkSubscriptResolved:
         expr->typeType = expr->var->typeSpec->typeType;
         setExprTypeInfo(self, expr->left, false); // check args
-        expr->isElementalOp = expr->left->isElementalOp;
+        expr->elemental = expr->left->elemental;
         // TODO: check args in the same way as for funcs below, not directly
         // checking expr->left.
         break;
@@ -51,10 +51,10 @@ static void setExprTypeInfo(
             // but this call shouldn't check
             // for equal types on both sides of a comma
 
-            expr->isElementalOp = expr->left->isElementalOp
+            expr->elemental = expr->left->elemental
                 and expr->func->flags.isElementalFunc;
             // isElementalFunc means the func is only defined for (all)
-            // scalar arguments and another definition for vector args
+            // Number arguments and another definition for vector args
             // doesn't exist. Basically during typecheck this should see
             // if a type mismatch is only in terms of collectionType.
 
@@ -80,16 +80,16 @@ static void setExprTypeInfo(
         break;
     case tkString:
         expr->typeType = TYString;
-        expr->isElementalOp = false;
+        expr->elemental = false;
         break;
     case tkNumber:
         expr->typeType = TYReal64;
-        expr->isElementalOp = false;
+        expr->elemental = false;
         break;
     case tkVarAssign:
         setExprTypeInfo(self, expr->var->init, false);
         expr->typeType = expr->var->init->typeType;
-        expr->isElementalOp = expr->var->init->isElementalOp;
+        expr->elemental = expr->var->init->elemental;
 
         if (not expr->var->typeSpec->typeType) {
             expr->var->typeSpec->typeType = expr->var->init->typeType;
@@ -116,8 +116,8 @@ static void setExprTypeInfo(
     } break;
 
     default:
-        if (expr->opPrec) {
-            if (not expr->opIsUnary)
+        if (expr->prec) {
+            if (not expr->unary)
                 setExprTypeInfo(self, expr->left, inFuncArgs);
             setExprTypeInfo(self, expr->right, inFuncArgs);
 
@@ -135,15 +135,15 @@ static void setExprTypeInfo(
             else
                 expr->typeType = expr->right->typeType;
 
-            expr->isElementalOp
-                = expr->right->isElementalOp or expr->kind == tkOpColon;
+            expr->elemental
+                = expr->right->elemental or expr->kind == tkOpColon;
             // TODO: actually, indexing by an array of integers is also an
             // indication of an elemental op
-            if (not expr->opIsUnary)
-                expr->isElementalOp
-                    = expr->isElementalOp or expr->left->isElementalOp;
+            if (not expr->unary)
+                expr->elemental
+                    = expr->elemental or expr->left->elemental;
 
-            if (not expr->opIsUnary
+            if (not expr->unary
                 and not(inFuncArgs
                     and (expr->kind == tkOpComma
                         or expr->kind == tkOpAssign))) {

@@ -111,7 +111,7 @@ static size_t _scPrintAbove_ = 0; // used for truncating long backtraces
 // CString. For now ignoring
 typedef CString String;
 typedef CStrings Strings;
-typedef bool Logical;
+typedef bool Boolean;
 #define STR(x) #x
 
 // #define str_cmp_EQ(a, b) (not strcmp(a, b))
@@ -121,12 +121,12 @@ typedef bool Logical;
 // #define str_cmp_GT(a, b) (strcmp(a, b) > 0)
 // #define str_cmp_LT(a, b) (strcmp(a, b) < 0)
 
-#define Logical_json_(x, _) printf(x ? "true" : "false")
-#define Scalar_json_(x, _) printf("%g", x)
+#define Boolean_json_(x, _) printf(x ? "true" : "false")
+#define Number_json_(x, _) printf("%g", x)
 #define String_json_(x, _) printf("\"%s\"", x) // should be escape(x)
 
-#define Logical_json(x) printf("\"%s\": %s\n", #x, x ? "true" : "false")
-#define Scalar_json(x) printf("\"%s\": %g\n", #x, x)
+#define Boolean_json(x) printf("\"%s\": %s\n", #x, x ? "true" : "false")
+#define Number_json(x) printf("\"%s\": %g\n", #x, x)
 #define String_json(x)                                                     \
     printf("\"%s\": \"%s\"\n", #x, x) // should be escape(x)
 
@@ -168,7 +168,7 @@ static const char* _spaces_ = //
     {                                                                      \
         return a <= b && b <= c;                                           \
     }
-MAKE_cmp3way(Scalar)
+MAKE_cmp3way(Number)
 
 // #define DEFAULT_VALUE
 // #define SArray(x) x[]
@@ -177,12 +177,12 @@ MAKE_cmp3way(Scalar)
 // debug mode, error -> print to stderr, fatal -> print to stderr and exit
 #define print printf
 #define String_print puts
-#define Scalar_print(x) printf("%g\n", x)
+#define Number_print(x) printf("%g\n", x)
 #define String_describe(x) printf("%s = \"%s\"\n", #x, x)
-#define Scalar_describe(x) printf("%s = %g\n", #x, x)
-#define Logical_describe(x) printf("%s = %s\n", #x, x ? "true" : "false")
+#define Number_describe(x) printf("%s = %g\n", #x, x)
+#define Boolean_describe(x) printf("%s = %s\n", #x, x ? "true" : "false")
 
-    static Scalar Strings_main(const Strings a
+    static Number Strings_main(const Strings a
 #ifdef DEBUG
         ,
         const char* callsite_

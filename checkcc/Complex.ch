@@ -4,7 +4,7 @@ type Complex
     var im = 0
 end type
 
-Complex(x as Scalar) :=
+Complex(x as Number) :=
     Complex(re = 0, im = x)
 
 add(a as Complex, b as Complex) :=

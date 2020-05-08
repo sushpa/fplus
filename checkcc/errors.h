@@ -255,12 +255,34 @@ static void Parser_errorUnrecognizedCtor(
 static void Parser_errorTypeMismatchBinOp(
     Parser* const this, const ASTExpr* const expr)
 {
+    // if one of the types is "<invalid>", an error has already been
+    // reported for it; so don't bother
+    const char* const leftTypeName = ASTExpr_typeName(expr->left);
+    const char* const rightTypeName = ASTExpr_typeName(expr->right);
+    if (*leftTypeName == '<' or *rightTypeName == '<') return;
     eprintf("\n(%d) \e[31merror:\e[0m type mismatch at %s%s:%d:%d\n"
             "             can't apply '\e[34m%s\e[0m' to \e[34m%s\e[0m"
             " and \e[34m%s\e[0m\n",
         this->errCount + 1, RELF(this->filename), expr->line, expr->col,
-        TokenKind_repr(expr->kind, false), ASTExpr_typeName(expr->left),
-        ASTExpr_typeName(expr->right));
+        TokenKind_repr(expr->kind, false), leftTypeName, rightTypeName);
+    Parser_errorIncrement(this);
+}
+
+static void Parser_errorInitMismatch(
+    Parser* const this, const ASTExpr* const expr)
+{
+    // if one of the types is "<invalid>", an error has already been
+    // reported for it; so don't bother
+    const char* const leftTypeName = ASTTypeSpec_name(expr->var->typeSpec);
+    const char* const rightTypeName = ASTExpr_typeName(expr->var->init);
+    //    if (*leftTypeName == '<' or *rightTypeName == '<') return;
+    eprintf("\n(%d) \e[31merror:\e[0m initializer mismatch at %s%s:%d:%d\n"
+            "             can't init \e[34m%s\e[0m with an expression of "
+            "type \e[34m%s\e[0m\n"
+            "             just remove the type, the linter will take "
+            "care of it.\n",
+        this->errCount + 1, RELF(this->filename), expr->line, expr->col,
+        leftTypeName, rightTypeName);
     Parser_errorIncrement(this);
 }
 
@@ -309,6 +331,6 @@ static void Parser_errorUnexpectedExpr(
     eprintf("\n(%d) \e[31merror:\e[0m at %s%s:%d:%d\n"
             "      unexpected expr '%s'",
         this->errCount + 1, RELF(this->filename), expr->line, expr->col,
-        expr->opPrec ? TokenKind_repr(expr->kind, false) : expr->name);
+        expr->prec ? TokenKind_repr(expr->kind, false) : expr->string);
     Parser_errorIncrement(this);
 }

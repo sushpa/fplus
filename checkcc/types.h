@@ -43,7 +43,7 @@ static const char* TypeType_name(TypeTypes tyty)
     case TYString:
         return "String";
     case TYBool:
-        return "Logical";
+        return "Boolean";
     case TYObject:
         return "";
     case TYSize:
@@ -57,7 +57,7 @@ static const char* TypeType_name(TypeTypes tyty)
     case TYUInt64:
     case TYReal32:
     case TYReal64:
-        return "Scalar";
+        return "Number";
     }
 }
 
@@ -163,18 +163,18 @@ static unsigned int TypeType_size(TypeTypes tyty)
 
 // If we get entirely rid of type annotation, the process for determining
 // type as it is now will be very convoluted. First you pass strings around
-// and compare them ("String", "Scalar", etc.) and then set TypeTypes
+// and compare them ("String", "Number", etc.) and then set TypeTypes
 // according to that why not set the right TypeTypes directly in analysis?
 // but this is needed as long as there is ANY type annotation somewhere.
 // (e.g. func args)
 static TypeTypes TypeType_byName(const char* spec)
 {
     if (not spec) return TYUnresolved;
-    if (not strcasecmp(spec, "Scalar"))
+    if (not strcasecmp(spec, "Number"))
         return TYReal64; // this is default, analysis might change it to
                          // more specific
     if (not strcasecmp(spec, "String")) return TYString;
-    if (not strcasecmp(spec, "Logical")) return TYBool;
+    if (not strcasecmp(spec, "Boolean")) return TYBool;
     // note that Vector, Matrix, etc. are actually types, so they should
     // resolve to TYObject.
     return TYUnresolved;
@@ -183,7 +183,7 @@ static TypeTypes TypeType_byName(const char* spec)
 // says what exactly a collection should generate to, since in check
 // source code, collections' actual kind is abstracted away. 4 bits.
 typedef enum CollectionTypes {
-    CTYNone = 0, // scalar value
+    CTYNone = 0, // Number value
     CTYArray,
     CTYList,
     CTYDList,

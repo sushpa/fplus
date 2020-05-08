@@ -63,7 +63,7 @@ void ASTExpr_genlua(
     case TKMultiDotNumber:
     case TKRegex:
     case TKInline:
-        printf("%s",   this->string);
+        printf("%s", this->string);
         break;
     case TKIdentifier:
     case TKIdentifierResolved: {
@@ -73,12 +73,11 @@ void ASTExpr_genlua(
     } break;
 
     case TKString:
-        printf(escapeStrings ? "\\%s\\\"" : "%s\"",
-            this->string);
+        printf(escapeStrings ? "\\%s\\\"" : "%s\"", this->string);
         break;
 
     case TKLineComment:
-        printf("-- %s",   this->string);
+        printf("-- %s", this->string);
         break;
 
     case TKFunctionCall:
@@ -118,14 +117,14 @@ void ASTExpr_genlua(
         break;
 
     default:
-        if (not this->opPrec) break;
+        if (not this->prec) break;
         // not an operator, but this should be error if you reach here
-        bool leftBr = this->left and this->left->opPrec
-            and this->left->opPrec < this->opPrec;
-        bool rightBr = this->right and this->right->opPrec
+        bool leftBr = this->left and this->left->prec
+            and this->left->prec < this->prec;
+        bool rightBr = this->right and this->right->prec
             and this->right->kind
                 != TKKeyword_return // found in 'or return'
-            and this->right->opPrec < this->opPrec;
+            and this->right->prec < this->prec;
 
         char lpo = leftBr and this->left->kind == TKOpColon ? '{' : '(';
         char lpc = leftBr and this->left->kind == TKOpColon ? '}' : ')';

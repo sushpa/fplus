@@ -22,29 +22,29 @@
 
 # type FolderItem
 #     var fileName as String = "default name"
-#     var fileSize as Scalar = 0
+#     var fileSize as Number = 0
 #     var nextItem as FolderItem = NULL
 # end type
 
 
 declare type Strings
-declare function print(t as Scalar)
+declare function print(t as Number)
 
-function main(a as Strings) returns Scalar
-    var x as Scalar = fx(34 + 4 * 3)
+function main(a as Strings) returns Number
+    var x as Number = fx(34 + 4 * 3)
     # var fi = FolderItem()
     # var fn as String = fi.fileName
     print(x)
     # print("Hello, World %d!\n", x)
 end function
 
-function fx(a as Scalar) returns Scalar
-    var m as Scalar = gx(5 - 4 + 2 / 5)
+function fx(a as Number) returns Number
+    var m as Number = gx(5 - 4 + 2 / 5)
     return m
 end function
 
-function gx(a as Scalar) returns Scalar
-    var m as Scalar = mx(2 + 4 ^ 5)
+function gx(a as Number) returns Number
+    var m as Number = mx(2 + 4 ^ 5)
     return m
 end function
 
@@ -55,13 +55,13 @@ end function
     # var ss = duplicate(sys.stackSize(), times = 4)
 # end function
 
-function mx(a as Scalar) returns Scalar
-    var m as Scalar = fx(5 * 2.0)
+function mx(a as Number) returns Number
+    var m as Number = fx(5 * 2.0)
     # var f as Range = m[1:3, g:sin(g)+x]
     return m
 end function
 
-function final(a as Scalar) returns Scalar
+function final(a as Number) returns Number
     var m = 3
     # var cx = Strings.linesFromFile("~/basics.txt")
     # if missing(cx) then break

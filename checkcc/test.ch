@@ -1,9 +1,9 @@
 declare type Strs
 declare type Strs
 # TODO disallow duplicate type defs/decls
-declare function print(num as Logical, filter as Scalar)
-declare function print(num as String, filt as Scalar)
-declare function print(num as Strs, filter as Scalar)
+declare function print(num as Boolean, filter as Number)
+declare function print(num as String, filt as Number)
+declare function print(num as Strs, filter as Number)
 # need an ASTFunc_makeSelector method!
 # and a string pool!!!
 # TODO disallow duplicate func defs/decls (with same 1st arg type  & arg labels)
@@ -12,7 +12,7 @@ declare function print(num as Strs, filter as Scalar)
 function start(args as Strs)
     var x as Strs = 5
     # var b = print(9, filter = 43)
-    var b as Scalar = print(x, filter = print(x, filter = "loi23") )
+    var b as Number = print(x, filter = print(x, filter = "loi23") )
     b = 4
     if b + print(x, filter = 12 )
         var q = b + 3
