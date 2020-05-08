@@ -24,6 +24,11 @@
 
 /* Begin PBXFileReference section */
 		8501D8F82465AC7400C8C071 /* sempass.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = sempass.h; sourceTree = "<group>"; };
+		8501D8F92465B4D800C8C071 /* gen.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = gen.h; sourceTree = "<group>"; };
+		8501D8FA2465B4D900C8C071 /* TokenKindDefs.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TokenKindDefs.h; sourceTree = "<group>"; };
+		8501D8FB2465B4D900C8C071 /* types.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = types.h; sourceTree = "<group>"; };
+		8501D8FC2465B4D900C8C071 /* stats.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = stats.h; sourceTree = "<group>"; };
+		8501D8FD2465B4D900C8C071 /* parse.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = parse.h; sourceTree = "<group>"; };
 		8545584B24617BA0004DA5D5 /* main.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = main.cpp; sourceTree = "<group>"; };
 		85642AE0244211B100FE00C0 /* strcasecmp.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = strcasecmp.h; sourceTree = "<group>"; };
 		859CB3CE241BB2D400C32B9E /* checkcc */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = checkcc; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -89,6 +94,11 @@
 		859CB3D0241BB2D400C32B9E /* checkcc */ = {
 			isa = PBXGroup;
 			children = (
+				8501D8F92465B4D800C8C071 /* gen.h */,
+				8501D8FD2465B4D900C8C071 /* parse.h */,
+				8501D8FC2465B4D900C8C071 /* stats.h */,
+				8501D8FA2465B4D900C8C071 /* TokenKindDefs.h */,
+				8501D8FB2465B4D900C8C071 /* types.h */,
 				8501D8F82465AC7400C8C071 /* sempass.h */,
 				85D999FF244149E4005669B4 /* stdlib */,
 				85D999FD2441499B005669B4 /* samples */,

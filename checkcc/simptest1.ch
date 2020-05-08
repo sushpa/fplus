@@ -1,4 +1,4 @@
-declare type String
+# declare type String
 declare type Strings
 # declare type Point
 

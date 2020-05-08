@@ -660,9 +660,16 @@ static ASTType* parseType(Parser* this, bool shouldParseBody)
         discard(this, tkOneSpace);
         type->super = parseTypeSpec(this);
     }
+    Parser_ignore(this, tkNewline);
 
     type->body = NULL; // this means type is declare
+    if (TypeType_byName(type->name) != TYUnresolved) {
+        Parser_errorDuplicateType(this, type, NULL);
+        return type;
+    }
+    
     if (not shouldParseBody) return type;
+
     type->body = parseScope(this, NULL, true, false);
 
     discard(this, tkKeyword_end);

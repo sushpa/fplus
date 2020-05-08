@@ -122,11 +122,19 @@ static void Parser_errorDuplicateVar(
 static void Parser_errorDuplicateType(Parser* const this,
     const ASTType* const type, const ASTType* const orig)
 {
-    eprintf("\n(%d) \e[31merror:\e[0m duplicate type "
-            "\e[34m%s\e[0m at %s%s:%d:%d\n   "
-            "          already declared at %s%s:%d:%d\n",
-        this->errCount + 1, type->name, RELF(this->filename), type->line,
-        type->col, RELF(this->filename), orig->line, orig->col);
+    if (orig)
+        eprintf("\n(%d) \e[31merror:\e[0m duplicate type "
+                "\e[34m%s\e[0m at %s%s:%d:%d\n   "
+                "          already declared at %s%s:%d:%d\n",
+            this->errCount + 1, type->name, RELF(this->filename),
+            type->line, type->col, RELF(this->filename), orig->line,
+            orig->col);
+    else
+        eprintf("\n(%d) \e[31merror:\e[0m invalid type name "
+                "\e[34m%s\e[0m at %s%s:%d:%d\n   "
+                "          refers to a built-in type\n",
+            this->errCount + 1, type->name, RELF(this->filename),
+            type->line, type->col);
     Parser_errorIncrement(this);
 }
 
