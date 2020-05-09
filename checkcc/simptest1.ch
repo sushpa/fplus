@@ -4,16 +4,16 @@ declare type Strings
 
 # declared funcs are basically implemented in C, they
 # can be funcs or macros, doesn't matter here
-declare function print(what as String)
-declare function print(what as Number)
-declare function describe(what as String)
-declare function describe(what as Number)
-declare function describe(what as Boolean)
-declare function json(p as Point)
-declare function json(p as Number)
-declare function json(p as String)
-declare function json(p as Boolean)
-declare function json(p as Other)
+# declare function print(what as String)
+# declare function print(what as Number)
+# declare function describe(what as String)
+# declare function describe(what as Number)
+# declare function describe(what as Boolean)
+# declare function json(p as Point)
+# declare function json(p as Number)
+# declare function json(p as String)
+# declare function json(p as Boolean)
+# declare function json(p as Other)
 # declare function Point_new_()
 
 # let ui = import("ch.gui")
@@ -49,18 +49,10 @@ type Other
     var we = Another()
     # var po = Point()
 end type
-# - parse, resolve, distribute/check types.
-# - resolve typespecs of (in order)
-#   - type supers
-#   - func args
-#   - func rets
-# - set func selectors
-# - resolve funcs of
-#   - func body stmts
 
 type Point
     # var p = Other()
-    var x = fxfunc(3) # fxfunc(p, p.po)
+    var x = fxfunc(3)
     var y = 69.6723
     var o = Other()
     var z = y + 5.6 * x + o.we.g
@@ -70,34 +62,31 @@ end type
 
 fxfunc(x as Number) := x * 1.5
 
-# function fxfunc(x as Number) returns Number
-# return x * 1.5
-# end function
-# point(m as Number) := m + 4
-
 function Point(x as Number)
     let p = Point()
-    # json(p)
     p.y = x
     describe(x)
-    return p #+ 5
+    return p
 end function
 
 function main(args as Strings) returns Number
     let po = Point()
     let pcx = Point(78)
     let mg = args
+    # let cm as Number[] = [8, 7, 6, 5]
+    # json(cm[3])
     json(po)
     json(pcx)
     var nuk = "hurritu"
     var mk = 3 < 6 <= 5
     json(mk)
-    var sd = po.o #+ ui.Window(1024x768, title = "Jim jox")
-    json(sd)
+    # var sd = po.o.we #+ ui.Window(1024x768, title = "Jim jox")
+    # json(sd)
     describe(po.o.we.exp.bx)
     json(po.o)
     describe(mk)
     funky()
+    return 6
     # print(pcx)
     # po = 0
     # var pm as Number

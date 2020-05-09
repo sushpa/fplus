@@ -57,7 +57,6 @@ typedef struct ASTVar {
     struct ASTExpr* init;
     char* name;
     uint16_t line;
-    uint8_t col;
     struct {
         bool used : 1, //
             changed : 1, //
@@ -69,18 +68,36 @@ typedef struct ASTVar {
             isTarget : 1, // x = f(x,y)
             printed : 1, // for checks, used to avoid printing this var more
                          // than once.
-            escapes : 1; // does it escape the owning SCOPE?
+            escapes : 1, // does it escape the owning SCOPE?
+            returned : 1; // is a return variable ie. b in
+        // function asd(x as Anc) returns (b as Whatever)
+        // all args (in/out) are in the same list in func -> args.
     } flags;
+    uint8_t col;
 } ASTVar;
+
+// when does something escape a scope?
+// -- if it is assigned to a variable outside the scope
+//    -- for func toplevels, one such var is the return var: anything
+//    assigned to it escapes
+// -- if it is passed to a func as an arg and the arg `escapes`
+//    sempass sets `escapes` on each arg as it traverses the func
 
 typedef struct ASTExpr {
     struct {
         uint16_t line;
-        // struct {
-        uint16_t typeType : 5, elemental : 1, throws : 1, unary : 1,
-            collectionType : 5, pure : 1, // for opt
-            promote : 1, rassoc : 1;
-        // };
+        uint16_t typeType : 5, // typeType of this expression -> must match for ->left and ->right
+            promote : 1, // should this expr be promoted, e.g. count(arr[arr<34]) or sum{arr[3:9]}. does not propagate.
+            unary : 1, // for an operator, is it unary (negation, not, return, check, array literal, ...)
+            rassoc : 1, // is this a right-associative operator e.g. exponentiation
+            collectionType : 4, // collectionType of this expr -> the higher dim-type of left's and right's collectionType.
+            nullable : 1, // is this expr nullable (applies only when typeType is object.) generally will be set on idents and func
+                          // calls etc. since arithmetic ops are not relevant to objects. the OR expr may unset nullable: e.g.
+                          // `someNullabeFunc(..) or MyType()` is NOT nullable.
+            impure : 1, // is this expr impure, has side effects? propagates: true if if either left or right is impure.
+            elemental : 1, // whether this expr is elemental. propagates: true if either left or right is elemental.
+            throws : 1; // whether this expr may throw an error. propagates: true if either left or right throws.
+
         uint8_t prec;
         uint8_t col;
         TokenKind kind : 8;
@@ -133,11 +150,9 @@ typedef struct ASTFunc {
     struct {
         uint16_t line;
         struct {
-            uint16_t usesIO : 1, nothrow : 1, isRecursive : 1, usesNet : 1,
-                usesGUI : 1, usesSerialisation : 1, isExported : 1,
-                usesReflection : 1, nodispatch : 1, isStmt : 1,
-                isDeclare : 1, isCalledFromWithinLoop : 1,
-                isElementalFunc : 1, isDefCtor : 1, semPassDone : 1;
+            uint16_t usesIO : 1, nothrow : 1, isRecursive : 1, usesNet : 1, usesGUI : 1, usesSerialisation : 1, isExported : 1,
+                usesReflection : 1, nodispatch : 1, isStmt : 1, isDeclare : 1, isCalledFromWithinLoop : 1, isElementalFunc : 1,
+                isDefCtor : 1, semPassDone : 1;
         } flags;
         uint8_t argCount;
     };
@@ -192,7 +207,6 @@ MKSTAT(List_ASTImport)
 MKSTAT(List_ASTVar)
 static uint32_t exprsAllocHistogram[128];
 
-#pragma mark - AST TYPESPEC IMPL.
 static ASTTypeSpec* ASTTypeSpec_new(TypeTypes tt, CollectionTypes ct)
 {
     ASTTypeSpec* ret = NEW(ASTTypeSpec);
@@ -213,6 +227,7 @@ static const char* ASTTypeSpec_name(ASTTypeSpec* this)
     }
     // what about collectiontype???
 }
+
 static const char* ASTTypeSpec_cname(ASTTypeSpec* this)
 {
     switch (this->typeType) {
@@ -225,13 +240,13 @@ static const char* ASTTypeSpec_cname(ASTTypeSpec* this)
     }
     // what about collectiontype???
 }
+
 static const char* getDefaultValueForType(ASTTypeSpec* type)
 {
     if (not type) return "";
     switch (type->typeType) {
     case TYUnresolved:
-        unreachable(
-            "unresolved: '%s' at %d:%d", type->name, type->line, type->col);
+        unreachable("unresolved: '%s' at %d:%d", type->name, type->line, type->col);
         // assert(0);
         return "ERROR_ERROR_ERROR";
     case TYString:
@@ -312,10 +327,6 @@ static bool ASTExpr_throws(ASTExpr* this)
     }
 }
 
-#pragma mark - AST VAR IMPL.
-
-#pragma mark - AST SCOPE IMPL.
-
 static size_t ASTScope_calcSizeUsage(ASTScope* this)
 {
     size_t size = 0, sum = 0, subsize = 0, maxsubsize = 0;
@@ -352,20 +363,37 @@ static ASTVar* ASTScope_getVar(ASTScope* this, const char* name)
     return NULL;
 }
 
-#pragma mark - AST TYPE IMPL.
-
 static ASTVar* ASTType_getVar(ASTType* this, const char* name)
 {
     // stupid linear search, no dictionary yet
     foreach (ASTVar*, var, this->body->locals)
         if (not strcasecmp(name, var->name)) return var;
 
-    if (this->super and this->super->typeType == TYObject)
-        return ASTType_getVar(this->super->type, name);
+    if (this->super and this->super->typeType == TYObject) return ASTType_getVar(this->super->type, name);
     return NULL;
 }
 
 #pragma mark - AST FUNC IMPL.
+
+static ASTFunc* ASTFunc_createDeclWithArg(char* name, char* retType, char* arg1Type)
+{
+    ASTFunc* func = NEW(ASTFunc);
+    func->name = name;
+    func->flags.isDeclare = true;
+    if (retType) {
+        func->returnType = NEW(ASTTypeSpec);
+        func->returnType->name = retType;
+    }
+    if (arg1Type) {
+        ASTVar* arg = NEW(ASTVar);
+        arg->name = "arg1";
+        arg->typeSpec = NEW(ASTTypeSpec);
+        arg->typeSpec->name = arg1Type;
+        PtrList_append(&func->args, arg);
+        func->argCount = 1;
+    }
+    return func;
+}
 
 static size_t ASTFunc_calcSizeUsage(ASTFunc* this)
 {
@@ -410,30 +438,34 @@ static const char* ASTExpr_typeName(ASTExpr* this)
     //    default:
     //        return TypeType_name(this->typeType);
     //    }
-    const char * ret = TypeType_name(this->typeType);
+    const char* ret = TypeType_name(this->typeType);
     if (!ret) return "<unknown>"; // unresolved
     if (*ret) return ret; // primitive type
 
     // all that is left is object
     switch (this->kind) {
-     case tkFunctionCallResolved:
-         return this->func->returnType->type->name;
+    case tkFunctionCallResolved:
+        return this->func->returnType->type->name;
     case tkIdentifierResolved:
     case tkSubscriptResolved:
-//        {
-//             const char* name = TypeType_name(this->var->typeSpec->typeType);
-//            if (!name) {
-//                unreachable("unresolved: %s %s",
-//                    TokenKind_repr(this->kind, false), this->string);
-//                return "<unknown>";
-//            }
-//            if (!*name) name = ;
-            return this->var->typeSpec->type->name;
-//        }
-        // TODO: tkOpColon should be handled separately in the semantic pass, and should be assigned either TYObject or make a dedicated TYRange
-//     case tkOpColon:
-//        return "Range";
-    // TODO: what else???
+        //        {
+        //             const char* name =
+        //             TypeType_name(this->var->typeSpec->typeType);
+        //            if (!name) {
+        //                unreachable("unresolved: %s %s",
+        //                    TokenKind_repr(this->kind, false),
+        //                    this->string);
+        //                return "<unknown>";
+        //            }
+        //            if (!*name) name = ;
+        return this->var->typeSpec->type->name;
+        //        }
+        // TODO: tkOpColon should be handled separately in the semantic
+        // pass, and should be assigned either TYObject or make a dedicated
+        // TYRange
+        //     case tkOpColon:
+        //        return "Range";
+        // TODO: what else???
     case tkPeriod:
         return ASTExpr_typeName(this->right);
     default:
@@ -511,8 +543,7 @@ static ASTType* ASTModule_getType(ASTModule* this, const char* name)
 static bool ASTModule_hasImportAlias(ASTModule* this, const char* alias)
 {
     foreach (ASTImport*, imp, this->imports)
-        if (not strcmp(imp->importFile + imp->aliasOffset, alias))
-            return true;
+        if (not strcmp(imp->importFile + imp->aliasOffset, alias)) return true;
     return false;
 }
 
@@ -534,15 +565,7 @@ ASTFunc* ASTModule_getFunc(ASTModule* this, const char* selector)
 
 #pragma mark - PARSER
 
-typedef enum ParserMode {
-    PMLint,
-    PMGenC,
-    PMGenLua,
-    PMGenCpp,
-    PMGenJavaScript,
-    PMGenWebAsm,
-    PMGenPython
-} ParserMode;
+typedef enum ParserMode { PMLint, PMGenC, PMGenLua, PMGenCpp, PMGenJavaScript, PMGenWebAsm, PMGenPython } ParserMode;
 
 typedef struct Parser {
     char* filename; // mod/submod/xyz/mycode.ch
@@ -561,8 +584,7 @@ typedef struct Parser {
     ParserMode mode : 8;
     bool generateCommentExprs : 1, // set to false when compiling, set to
                                    // true when linting
-        warnUnusedVar : 1, warnUnusedFunc : 1, warnUnusedType : 1,
-        warnUnusedArg : 1;
+        warnUnusedVar : 1, warnUnusedFunc : 1, warnUnusedType : 1, warnUnusedArg : 1;
 
 } Parser;
 
@@ -586,8 +608,7 @@ static Parser* Parser_fromFile(char* filename, bool skipws)
 
     // Error: the file might not end in .ch
     if (not str_endswith(filename, flen, ".ch", 3)) {
-        eprintf(
-            "F+: file '%s' invalid: name must end in '.ch'.\n", filename);
+        eprintf("F+: file '%s' invalid: name must end in '.ch'.\n", filename);
         return NULL;
     }
 
@@ -599,8 +620,7 @@ static Parser* Parser_fromFile(char* filename, bool skipws)
         return NULL;
     } else if (S_ISDIR(sb.st_mode)) {
         // Error: the "file" might really be a folder
-        eprintf(
-            "F+: '%s' is a folder; only files are accepted.\n", filename);
+        eprintf("F+: '%s' is a folder; only files are accepted.\n", filename);
         return NULL;
     } else if (access(filename, R_OK) == -1) {
         // Error: the user might not have read permissions for the file
@@ -623,8 +643,7 @@ static Parser* Parser_fromFile(char* filename, bool skipws)
         ret->data = (char*)malloc(size);
         fseek(file, 0, SEEK_SET);
         if (fread(ret->data, size - 2, 1, file) != 1) {
-            eprintf(
-                "F+: the whole file '%s' could not be read.\n", filename);
+            eprintf("F+: the whole file '%s' could not be read.\n", filename);
             fclose(file);
             return NULL;
             // would leak if ret was malloc'd directly, but we have a pool
@@ -665,8 +684,7 @@ static ASTExpr* exprFromCurrentToken(Parser* this)
     return expr;
 }
 
-static ASTExpr* next_token_node(
-    Parser* this, TokenKind expected, const bool ignore_error)
+static ASTExpr* next_token_node(Parser* this, TokenKind expected, const bool ignore_error)
 {
     if (this->token.kind == expected) {
         return exprFromCurrentToken(this);
@@ -677,22 +695,13 @@ static ASTExpr* next_token_node(
 }
 // these should all be part of Token_ when converted back to C
 // in the match case, this->token should be advanced on error
-static ASTExpr* match(Parser* this, TokenKind expected)
-{
-    return next_token_node(this, expected, false);
-}
+static ASTExpr* match(Parser* this, TokenKind expected) { return next_token_node(this, expected, false); }
 
 // this returns the match node or null
-static ASTExpr* trymatch(Parser* this, TokenKind expected)
-{
-    return next_token_node(this, expected, true);
-}
+static ASTExpr* trymatch(Parser* this, TokenKind expected) { return next_token_node(this, expected, true); }
 
 // just yes or no, simple
-static bool matches(Parser* this, TokenKind expected)
-{
-    return (this->token.kind == expected);
-}
+static bool matches(Parser* this, TokenKind expected) { return (this->token.kind == expected); }
 
 static bool Parser_ignore(Parser* this, TokenKind expected)
 {
@@ -704,14 +713,12 @@ static bool Parser_ignore(Parser* this, TokenKind expected)
 // this is same as match without return
 static void discard(Parser* this, TokenKind expected)
 {
-    if (not Parser_ignore(this, expected))
-        Parser_errorExpectedToken(this, expected);
+    if (not Parser_ignore(this, expected)) Parser_errorExpectedToken(this, expected);
 }
 
 static char* parseIdent(Parser* this)
 {
-    if (this->token.kind != tkIdentifier)
-        Parser_errorExpectedToken(this, tkIdentifier);
+    if (this->token.kind != tkIdentifier) Parser_errorExpectedToken(this, tkIdentifier);
     char* p = this->token.pos;
     Token_advance(&this->token);
     return p;
@@ -726,8 +733,7 @@ static void getSelector(ASTFunc* func)
         buf[127] = 0;
         char* bufp = buf;
         ASTVar* arg1 = (ASTVar*)func->args->item;
-        wrote = snprintf(
-            bufp, remain, "%s_", ASTTypeSpec_name(arg1->typeSpec));
+        wrote = snprintf(bufp, remain, "%s_", ASTTypeSpec_name(arg1->typeSpec));
         selLen += wrote;
         bufp += wrote;
         remain -= wrote;
@@ -759,8 +765,7 @@ static void getSelector(ASTFunc* func)
 // TODO: this should be in ASTModule open/close
 static void Parser_genc_open(Parser* this)
 {
-    printf("#ifndef HAVE_%s\n#define HAVE_%s\n\n", this->capsMangledName,
-        this->capsMangledName);
+    printf("#ifndef HAVE_%s\n#define HAVE_%s\n\n", this->capsMangledName, this->capsMangledName);
     printf("#define THISMODULE %s\n", this->mangledName);
     printf("#define THISFILE \"%s\"\n", this->filename);
 }
@@ -829,10 +834,8 @@ int main(int argc, char* argv[])
 
     if (printDiagnostics) printstats(parser, elapsed(getticks(), t0) / 1e6);
 
-    if (parser->errCount)
-        eprintf("\n\e[31m*** %d errors\e[0m\n", parser->errCount);
-    if (parser->warnCount)
-        eprintf("\n\e[33m*** %d warnings\e[0m\n", parser->warnCount);
+    if (parser->errCount) eprintf("\n\e[31m*** %d errors\e[0m\n", parser->errCount);
+    if (parser->warnCount) eprintf("\n\e[33m*** %d warnings\e[0m\n", parser->warnCount);
 
     return (parser->errCount); // or parser->warnCount);
 }

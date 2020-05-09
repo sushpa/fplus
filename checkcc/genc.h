@@ -1,21 +1,21 @@
 #define genLineNumbers 0
 
+///////////////////////////////////////////////////////////////////////////
 static void ASTImport_genc(ASTImport* import, int level)
 {
     str_tr_ip(import->importFile, '.', '_', 0);
     printf("\n#include \"%s.h\"\n", import->importFile);
-    if (import->hasAlias)
-        printf("#define %s %s\n", import->importFile + import->aliasOffset,
-            import->importFile);
+    if (import->hasAlias) printf("#define %s %s\n", import->importFile + import->aliasOffset, import->importFile);
     str_tr_ip(import->importFile, '_', '.', 0);
 }
 
+///////////////////////////////////////////////////////////////////////////
 static void ASTImport_undefc(ASTImport* import)
 {
-    if (import->hasAlias)
-        printf("#undef %s\n", import->importFile + import->aliasOffset);
+    if (import->hasAlias) printf("#undef %s\n", import->importFile + import->aliasOffset);
 }
 
+///////////////////////////////////////////////////////////////////////////
 static void ASTTypeSpec_genc(ASTTypeSpec* typeSpec, int level, bool isconst)
 {
     if (isconst) printf("const ");
@@ -30,9 +30,9 @@ static void ASTTypeSpec_genc(ASTTypeSpec* typeSpec, int level, bool isconst)
             // Reciprocal, Rational, whatever
             // -- sure, but double (and float) should be enough since
             // the other types are rarely needed in a tensor form
-            printf("Array%dD_", typeSpec->dims);
+            printf("Array%dD(", typeSpec->dims);
         else
-            printf("Array_");
+            printf("Array(");
     }
 
     switch (typeSpec->typeType) {
@@ -45,8 +45,7 @@ static void ASTTypeSpec_genc(ASTTypeSpec* typeSpec, int level, bool isconst)
         break;
     case TYUnresolved:
         // should not happen, really
-        unreachable("unresolved: '%s' at %d:%d", typeSpec->name,
-            typeSpec->line, typeSpec->col);
+        unreachable("unresolved: '%s' at %d:%d", typeSpec->name, typeSpec->line, typeSpec->col);
         // assert(0);
         printf("%s", typeSpec->name);
         break;
@@ -56,16 +55,15 @@ static void ASTTypeSpec_genc(ASTTypeSpec* typeSpec, int level, bool isconst)
     }
 
     //     if (isconst ) printf(" const"); // only if a ptr type
-    if (typeSpec->dims /*or typeSpec->typeType == TYObject*/)
-        printf("%s", "*");
+    if (typeSpec->dims /*or typeSpec->typeType == TYObject*/) printf("%s", ")");
     //        if (status == TSDimensionedNumber) {
     //            genc(units, level);
     //        }
 }
 
-static void ASTExpr_genc(ASTExpr* this, int level, bool spacing,
-    bool inFuncArgs, bool escStrings);
+static void ASTExpr_genc(ASTExpr* this, int level, bool spacing, bool inFuncArgs, bool escStrings);
 
+///////////////////////////////////////////////////////////////////////////
 static void ASTVar_genc(ASTVar* var, int level, bool isconst)
 {
     // for C the variable declarations go at the top of the block, without
@@ -86,6 +84,7 @@ static void ASTVar_genc(ASTVar* var, int level, bool isconst)
     printf(" %s", var->name);
 }
 
+///////////////////////////////////////////////////////////////////////////
 // Functions like Array_any_filter, Array_count_filter etc.
 // are macros and don't return a value but may set one. For these
 // and other such funcs, the call must be moved to before the
@@ -103,6 +102,8 @@ static bool mustPromote(const char* name)
     if (not strcmp(name, "Strs_print_filter")) return true;
     return false;
 }
+
+///////////////////////////////////////////////////////////////////////////
 static void ASTExpr_unsetPrintedVarsFlag(ASTExpr* expr)
 {
     switch (expr->kind) {
@@ -127,6 +128,8 @@ static void ASTExpr_unsetPrintedVarsFlag(ASTExpr* expr)
         }
     }
 }
+
+///////////////////////////////////////////////////////////////////////////
 // given an expr, generate code to print all the resolved vars in it (only
 // scalars). for example in f(x + 4) + m + y[5:6], the following should be
 // generated
@@ -142,8 +145,7 @@ static void ASTExpr_genPrintVars(ASTExpr* expr, int level)
     case tkIdentifierResolved:
     case tkVarAssign:
         if (expr->var->flags.printed) break;
-        printf("%.*sprintf(\"    %s = %s\\n\", %s);\n", level, spaces,
-            expr->var->name, TypeType_format(expr->typeType, true),
+        printf("%.*sprintf(\"    %s = %s\\n\", %s);\n", level, spaces, expr->var->name, TypeType_format(expr->typeType, true),
             expr->var->name);
         expr->var->flags.printed = true;
         break;
@@ -167,6 +169,7 @@ static void ASTExpr_genPrintVars(ASTExpr* expr, int level)
     }
 }
 
+///////////////////////////////////////////////////////////////////////////
 // Promotion scan & promotion happens AFTER resolving functions!
 static ASTExpr* ASTExpr_promotionCandidate(ASTExpr* expr)
 {
@@ -210,8 +213,7 @@ static ASTExpr* ASTExpr_promotionCandidate(ASTExpr* expr)
         if (expr->prec) {
             if ((ret = ASTExpr_promotionCandidate(expr->right))) return ret;
             if (not expr->unary)
-                if ((ret = ASTExpr_promotionCandidate(expr->left)))
-                    return ret;
+                if ((ret = ASTExpr_promotionCandidate(expr->left))) return ret;
         }
     }
     return NULL;
@@ -224,22 +226,23 @@ static char* newTmpVarName(int num, char c)
     return pstrndup(buf, l);
 }
 
+///////////////////////////////////////////////////////////////////////////
 static bool isCtrlExpr(ASTExpr* expr)
 {
-    return expr->kind == tkKeyword_if or expr->kind == tkKeyword_for
-        or expr->kind == tkKeyword_while or expr->kind == tkKeyword_else;
+    return expr->kind == tkKeyword_if or expr->kind == tkKeyword_for or expr->kind == tkKeyword_while
+        or expr->kind == tkKeyword_else;
 }
 
 static bool isLiteralExpr(ASTExpr* expr) { return false; }
 static bool isComparatorExpr(ASTExpr* expr) { return false; }
 
+///////////////////////////////////////////////////////////////////////////
 static void ASTScope_lowerElementalOps(ASTScope* scope)
 {
     foreachn(ASTExpr*, stmt, stmts, scope->stmts)
     {
 
-        if (isCtrlExpr(stmt) and stmt->body)
-            ASTScope_lowerElementalOps(stmt->body);
+        if (isCtrlExpr(stmt) and stmt->body) ASTScope_lowerElementalOps(stmt->body);
 
         if (not stmt->elemental) continue;
 
@@ -300,6 +303,7 @@ static void ASTScope_lowerElementalOps(ASTScope* scope)
     }
 }
 
+///////////////////////////////////////////////////////////////////////////
 static void ASTScope_promoteCandidates(ASTScope* scope)
 {
     int tmpCount = 0;
@@ -310,8 +314,7 @@ static void ASTScope_promoteCandidates(ASTScope* scope)
         // TODO:
         // if (not stmt->flags.promote) {prev=stmts;continue;}
 
-        if (isCtrlExpr(stmt) and stmt->body)
-            ASTScope_promoteCandidates(stmt->body);
+        if (isCtrlExpr(stmt) and stmt->body) ASTScope_promoteCandidates(stmt->body);
 
     startloop:
 
@@ -357,9 +360,7 @@ static void ASTScope_promoteCandidates(ASTScope* scope)
             pcClone->left = com;
         } else {
             ASTExpr* argn = pcClone->left;
-            while (
-                argn->kind == tkOpComma and argn->right->kind == tkOpComma)
-                argn = argn->right;
+            while (argn->kind == tkOpComma and argn->right->kind == tkOpComma) argn = argn->right;
             ASTExpr* com = NEW(ASTExpr);
             // TODO: really should have an astexpr ctor
             com->prec = TokenKind_getPrecedence(tkOpComma);
@@ -391,6 +392,7 @@ static void ASTScope_promoteCandidates(ASTScope* scope)
     }
 }
 
+///////////////////////////////////////////////////////////////////////////
 static void ASTScope_genc(ASTScope* scope, int level)
 {
     foreach (ASTVar*, local, scope->locals)
@@ -407,15 +409,14 @@ static void ASTScope_genc(ASTScope* scope, int level)
         else
             puts("");
         // convert this into a flag which is set in the resolution pass
-        if (ASTExpr_throws(stmt))
-            puts("    if (_err_ == ERROR_TRACE) goto backtrace;");
+        if (ASTExpr_throws(stmt)) puts("    if (_err_ == ERROR_TRACE) goto backtrace;");
     }
 }
 
+///////////////////////////////////////////////////////////////////////////
 static void ASTType_genJson(ASTType* type)
 {
-    printf("static void %s_json_(const %s this, int nspc) {\n", type->name,
-        type->name);
+    printf("static void %s_json_(const %s this, int nspc) {\n", type->name, type->name);
 
     printf("    printf(\"{\\n\");\n");
     // printf("    printf(\"\\\"_type_\\\": \\\"%s\\\"\");\n", type->name);
@@ -426,66 +427,59 @@ static void ASTType_genJson(ASTType* type)
     foreachn(ASTVar*, var, vars, type->body->locals)
     {
         if (not var) continue;
-        printf("    printf(\"%%.*s\\\"%s\\\": \", nspc+4, _spaces_);\n",
-            var->name);
+        printf("    printf(\"%%.*s\\\"%s\\\": \", nspc+4, _spaces_);\n", var->name);
         const char* valueType = ASTExpr_typeName(var->init);
-        printf("    %s_json_(this->%s, nspc+4);\n    printf(\"", valueType,
-            var->name);
+        printf("    %s_json_(this->%s, nspc+4);\n    printf(\"", valueType, var->name);
         if (vars->next) printf(",");
         printf("\\n\");\n");
     }
     printf("    printf(\"%%.*s}\", nspc, _spaces_);\n");
-    printf("}\nMAKE_json_wrap_(%s)\n//MAKE_json_file(%s)\n", type->name,
-        type->name);
+    printf("}\nMAKE_json_wrap_(%s)\n//MAKE_json_file(%s)\n", type->name, type->name);
     // printf("#define %s_json(x) { printf(\"\\\"%%s\\\": \",#x); "
     //        "%s_json_wrap_(x); }\n\n",
     //     type->name, type->name);
 }
+
+///////////////////////////////////////////////////////////////////////////
 static void ASTType_genJsonReader(ASTType* type) {}
 
 static const char* functionEntryStuff_UNESCAPED
     = "#ifndef NOSTACKCHECK\n"
       "    STACKDEPTH_UP\n"
-      "//printf(\"%8lu %8lu\\n\",_scUsage_, _scSize_);\n"
+      "    // printf(\"%8lu %8lu\\n\",_scUsage_, _scSize_);\n"
       "    if (_scUsage_ >= _scSize_) {\n"
       "#ifdef DEBUG\n"
       "        _scPrintAbove_ = _scDepth_ - _btLimit_;\n"
-      "        printf(\"\\e[31mfatal: stack overflow at call depth "
-      "%lu.\\n   "
-      " in %s\\e[0m\\n\", _scDepth_, sig_);\n"
+      "        printf(\"\\e[31mfatal: stack overflow at call depth %lu.\\n    in %s\\e[0m\\n\", _scDepth_, sig_);\n"
       "        printf(\"\\e[90mBacktrace (innermost first):\\n\");\n"
-      "        if (_scDepth_ > 2*_btLimit_)\n        "
-      "printf(\"    limited to %d outer and %d inner entries.\\n\", "
-      "_btLimit_, _btLimit_);\n"
-      "        printf(\"[%lu] "
-      "\\e[36m%s\\n\", _scDepth_, callsite_);\n"
+      "        if (_scDepth_ > 2*_btLimit_)\n"
+      "            printf(\"    limited to %d outer and %d inner entries.\\n\", _btLimit_, _btLimit_);\n"
+      "        printf(\"[%lu] \\e[36m%s\\n\", _scDepth_, callsite_);\n"
       "#else\n"
-      "        printf(\"\\e[31mfatal: stack "
-      "overflow at call depth %lu.\\e[0m\\n\",_scDepth_);\n"
+      "        printf(\"\\e[31mfatal: stack  overflow at call depth %lu.\\e[0m\\n\",_scDepth_);\n"
       "#endif\n"
       "        DONE\n    }\n"
       "#endif\n";
-static const char* functionExitStuff_UNESCAPED
-    = "    // ------------ error handling\n"
-      "    return DEFAULT_VALUE;\n    assert(0);\n"
-      "error:\n"
-      "#ifdef DEBUG\n"
-      "    eprintf(\"error: %s\\n\",_err_);\n"
-      "#endif\n"
-      "backtrace:\n"
-      "#ifdef DEBUG\n"
+static const char* functionExitStuff_UNESCAPED = "    return DEFAULT_VALUE;\n assert(0);\n"
+                                                 "error:\n"
+                                                 "#ifdef DEBUG\n"
+                                                 "    eprintf(\"error: %s\\n\",_err_);\n"
+                                                 "#endif\n"
+                                                 "backtrace:\n"
+                                                 "#ifdef DEBUG\n"
 
-      "    if (_scDepth_ <= _btLimit_ || _scDepth_ > _scPrintAbove_)\n"
-      "        printf(\"\\e[90m[%lu] \\e[36m"
-      "%s\\n\", _scDepth_, callsite_);\n"
-      "    else if (_scDepth_ == _scPrintAbove_)\n"
-      "        printf(\"\\e[90m... truncated ...\\e[0m\\n\");\n"
-      "#endif\n"
-      "done:\n"
-      "#ifndef NOSTACKCHECK\n"
-      "    STACKDEPTH_DOWN\n"
-      "#endif\n"
-      "    return DEFAULT_VALUE;";
+                                                 "    if (_scDepth_ <= _btLimit_ || _scDepth_ > _scPrintAbove_)\n"
+                                                 "        printf(\"\\e[90m[%lu] \\e[36m%s\\n\", _scDepth_, callsite_);\n"
+                                                 "    else if (_scDepth_ == _scPrintAbove_)\n"
+                                                 "        printf(\"\\e[90m... truncated ...\\e[0m\\n\");\n"
+                                                 "#endif\n"
+                                                 "done:\n"
+                                                 "#ifndef NOSTACKCHECK\n"
+                                                 "    STACKDEPTH_DOWN\n"
+                                                 "#endif\n"
+                                                 "    return DEFAULT_VALUE;";
+
+///////////////////////////////////////////////////////////////////////////
 static void ASTFunc_printStackUsageDef(size_t stackUsage)
 {
     printf("#ifdef DEBUG\n"
@@ -495,16 +489,19 @@ static void ASTFunc_printStackUsageDef(size_t stackUsage)
            "#endif\n",
         stackUsage, stackUsage);
 }
+
+///////////////////////////////////////////////////////////////////////////
 static void ASTType_genc(ASTType* type, int level)
 {
     if (not type->body or not type->flags.sempassDone) return;
-    printf("#define FIELDS_%s \\\n", type->name);
+    const char* const name = type->name;
+    printf("#define FIELDS_%s \\\n", name);
     foreach (ASTVar*, var, type->body->locals) {
         if (not var) continue;
         ASTVar_genc(var, level + STEP, false);
         printf("; \\\n");
     }
-    printf("\n\nstruct %s {\n", type->name);
+    printf("\n\nstruct %s {\n", name);
 
     if (type->super) {
         printf("    FIELDS_");
@@ -512,95 +509,66 @@ static void ASTType_genc(ASTType* type, int level)
         printf("\n");
     }
 
-    printf("    FIELDS_%s\n};\n\n", type->name);
-    printf(
-        "static const char* %s_name_ = \"%s\";\n", type->name, type->name);
-    printf("static %s %s_alloc_() {\n    return _Pool_alloc_(&gPool_, "
-           "sizeof(struct %s));\n}\n",
-        type->name, type->name, type->name);
-    printf("static %s %s_init_(%s this) {\n", type->name, type->name,
-        type->name);
-    // TODO: rename this->checks to this->exprs or this->body
-    foreach (ASTVar*, var, type->body->locals) {
+    printf("    FIELDS_%s\n};\n\n", name);
+    printf("static const char* %s_name_ = \"%s\";\n", name, name);
+    printf("static %s %s_alloc_() {\n    return _Pool_alloc_(&gPool_, sizeof(struct %s));\n}\n", name, name, name);
+    printf("static %s %s_init_(%s this) {\n", name, name, name);
+
+    foreach (ASTVar*, var, type->body->locals)
         printf("#define %s this->%s\n", var->name, var->name);
-    }
+
     foreach (ASTExpr*, stmt, type->body->stmts) {
-        if (not stmt or stmt->kind != tkVarAssign or !stmt->var->init)
-            continue;
+        if (not stmt or stmt->kind != tkVarAssign or !stmt->var->init) continue;
         printf("%.*s%s = ", level + STEP, spaces, stmt->var->name);
         ASTExpr_genc(stmt->var->init, 0, true, false, false);
         puts(";");
-        if (ASTExpr_throws(stmt->var->init))
-            puts("    if (_err_ == ERROR_TRACE) return NULL;");
+        if (ASTExpr_throws(stmt->var->init)) puts("    if (_err_ == ERROR_TRACE) return NULL;");
     }
-    foreach (ASTVar*, var, type->body->locals) {
+    foreach (ASTVar*, var, type->body->locals)
         printf("#undef %s \n", var->name);
-    }
 
     printf("    return this;\n}\n");
-    printf("%s %s_new_(\n#ifdef DEBUG\n    const char* "
-           "callsite_\n#endif\n) {\n",
-        type->name, type->name);
-    printf(
-        "#define DEFAULT_VALUE NULL\n#ifdef DEBUG\n    static const char* "
-        "sig_ = \"%s()\";\n#endif\n",
-        type->name);
+    printf("%s %s_new_(\n#ifdef DEBUG\n    const char* callsite_\n#endif\n) {\n", name, name);
+    printf("#define DEFAULT_VALUE NULL\n#ifdef DEBUG\n    static const char* sig_ = \"%s()\";\n#endif\n", name);
     ASTFunc_printStackUsageDef(48);
     puts(functionEntryStuff_UNESCAPED);
-    printf(
-        "    %s ret = %s_alloc_(); %s_init_(ret); if (_err_==ERROR_TRACE) "
-        "goto backtrace;return ret;",
-        type->name, type->name, type->name);
+    printf("    %s ret = %s_alloc_(); %s_init_(ret); if (_err_==ERROR_TRACE) goto backtrace;"
+           "_err_ = NULL; \n#ifndef NOSTACKCHECK\n    STACKDEPTH_DOWN\n#endif\n     return ret;",
+        name, name, name);
     puts(functionExitStuff_UNESCAPED);
-    puts("#undef DEFAULT_VALUE\n#undef MYSTACKUSAGE");
-    puts("}");
-    printf("#define %s_print_(p) %s_print__(p, STR(p))\n", type->name,
-        type->name);
-    printf("void %s_print__(%s this, const char* name) {\n    printf(\"<%s "
-           "'%%s' at %%p\\n>\",name,this);\n}\n",
-        type->name, type->name, type->name);
-
+    puts("#undef DEFAULT_VALUE\n#undef MYSTACKUSAGE\n}");
+    printf("#define %s_print_(p) %s_print__(p, STR(p))\n", name, name);
+    printf("void %s_print__(%s this, const char* name) {\n    printf(\"<%s '%%s' at %%p\\n>\",name,this);\n}\n", name, name, name);
     puts("");
 
-    // if (type->flags.needsJson) {
     ASTType_genJson(type);
     ASTType_genJsonReader(type);
-    // }
 }
 
+///////////////////////////////////////////////////////////////////////////
 static void ASTType_genh(ASTType* type, int level)
 {
     if (not type->body or not type->flags.sempassDone) return;
-    printf("typedef struct %s* %s;\nstruct %s;\n", type->name, type->name,
-        type->name);
-    printf("static %s %s_alloc_(); \n", type->name, type->name);
-    printf("static %s %s_init_(%s this);\n", type->name, type->name,
-        type->name);
-    printf("%s %s_new_(\n#ifdef DEBUG\n    const char* "
-           "callsite_\n#endif\n); \n",
-        type->name, type->name);
-    printf("\nDECL_json_wrap_(%s)\n//DECL_json_file(%s)\n", type->name,
-        type->name);
-    printf("#define %s_json(x) { printf(\"\\\"%%s\\\": \",#x); "
-           "%s_json_wrap_(x); }\n\n",
-        type->name, type->name);
-    printf("static void %s_json_(const %s this, int nspc);\n", type->name,
-        type->name);
+    const char* const name = type->name;
+    printf("typedef struct %s* %s;\nstruct %s;\n", name, name, name);
+    printf("static %s %s_alloc_(); \n", name, name);
+    printf("static %s %s_init_(%s this);\n", name, name, name);
+    printf("%s %s_new_(\n#ifdef DEBUG\n    const char* callsite_\n#endif\n); \n", name, name);
+    printf("\nDECL_json_wrap_(%s)\n//DECL_json_file(%s)\n", name, name);
+    printf("#define %s_json(x) { printf(\"\\\"%%s\\\": \",#x); %s_json_wrap_(x); }\n\n", name, name);
+    printf("static void %s_json_(const %s this, int nspc);\n", name, name);
 }
 
+///////////////////////////////////////////////////////////////////////////
 static void ASTFunc_genc(ASTFunc* func, int level)
 {
-    if (not func->body or not func->flags.semPassDone)
-        return; // declares, default ctors
+    if (not func->body or not func->flags.semPassDone) return; // declares, default ctors
 
-    // it seems that actual stack usage is higher due to stack protection,
-    // frame bookkeeping whatever, and in debug mode the callsite needs
-    // sizeof(char*) more.
+    // actual stack usage is higher due to stack protection, frame bookkeeping ...
     size_t stackUsage = ASTFunc_calcSizeUsage(func);
     ASTFunc_printStackUsageDef(stackUsage);
 
-    printf("#define DEFAULT_VALUE %s\n",
-        getDefaultValueForType(func->returnType));
+    printf("#define DEFAULT_VALUE %s\n", getDefaultValueForType(func->returnType));
     if (not func->flags.isExported) printf("static ");
     if (func->returnType) {
         ASTTypeSpec_genc(func->returnType, level, false);
@@ -645,6 +613,7 @@ static void ASTFunc_genc(ASTFunc* func, int level)
     puts("#undef MYSTACKUSAGE");
 }
 
+///////////////////////////////////////////////////////////////////////////
 static void ASTFunc_genh(ASTFunc* func, int level)
 {
     if (not func->body or not func->flags.semPassDone) return;
@@ -666,8 +635,8 @@ static void ASTFunc_genh(ASTFunc* func, int level)
     puts(");\n");
 }
 
-static void ASTExpr_genc(ASTExpr* expr, int level, bool spacing,
-    bool inFuncArgs, bool escStrings)
+///////////////////////////////////////////////////////////////////////////
+static void ASTExpr_genc(ASTExpr* expr, int level, bool spacing, bool inFuncArgs, bool escStrings)
 {
     // generally an expr is not split over several lines (but maybe in
     // rare cases). so level is not passed on to recursive calls.
@@ -687,9 +656,7 @@ static void ASTExpr_genc(ASTExpr* expr, int level, bool spacing,
     case tkIdentifierResolved:
         // convert a.b.c.d to DEREF3(a,b,c,d), a.b to DEREF(a,b) etc.
         {
-            char* tmp = (expr->kind == tkIdentifierResolved)
-                ? expr->var->name
-                : expr->string;
+            char* tmp = (expr->kind == tkIdentifierResolved) ? expr->var->name : expr->string;
             int8_t dotCount = 0, i = 0;
             for (i = 0; tmp[i]; i++) {
                 if (tmp[i] == '.') {
@@ -726,34 +693,12 @@ static void ASTExpr_genc(ASTExpr* expr, int level, bool spacing,
 
     case tkFunctionCallResolved: {
         char* tmp = expr->func->selector;
-        // (expr->kind == tkFunctionCallResolved)
-        //     ? expr->func->name
-        //     : expr->name;
-        // ASTExpr* firstArg = expr->left;
 
-        // if (firstArg and firstArg->kind == tkOpComma)
-        //     firstArg = firstArg->left;
-
-        // TODO: refactor the following into a func, much needed
-        // if (firstArg) printf("%s_", ASTExpr_typeName(firstArg));
-
-        // str_tr_ip(tmp, '.', '_', 0); // this should have been done in a
-        // previous stage prepc() or lower()
         printf("%s", tmp);
-        if (*tmp >= 'A' and *tmp <= 'Z' and not strchr(tmp, '_'))
-            printf("_new_"); // MyType() generates MyType_new_()
-                             // TODO: if constructors for MyType are
-        // defined, they should
-        // generate both a _init_arg1_arg2 function AND a corresponding
-        // _new_arg1_arg2 func.
-        // if (expr->left) ASTExpr_catarglabels(expr->left);
-
-        // str_tr_ip(tmp, '_', '.', 0);
-        // this won't be needed, prepc will do the "mangling"
+        if (*tmp >= 'A' and *tmp <= 'Z' and not strchr(tmp, '_')) printf("_new_");
         printf("(");
 
-        if (expr->left)
-            ASTExpr_genc(expr->left, 0, false, true, escStrings);
+        if (expr->left) ASTExpr_genc(expr->left, 0, false, true, escStrings);
 
         if (not expr->func->flags.isDeclare) {
             printf("\n#ifdef DEBUG\n"
@@ -764,8 +709,7 @@ static void ASTExpr_genc(ASTExpr* expr, int level, bool spacing,
                    "#endif\n        ");
         }
         printf(")");
-        break;
-    }
+    } break;
 
     case tkSubscript:
         assert(0);
@@ -778,17 +722,14 @@ static void ASTExpr_genc(ASTExpr* expr, int level, bool spacing,
         switch (index->kind) {
         case tkNumber:
             // indexing with a single number
-            printf("Array_get_%s(%s, %s)",
-                ASTTypeSpec_cname(expr->var->typeSpec), name,
-                index->string);
+            // can be a -ve number
+            printf("Array_get_%s(%s, %s)", ASTTypeSpec_cname(expr->var->typeSpec), name, index->string);
             break;
 
         case tkString:
         case tkRegex:
             // indexing with single string or regex
-            printf("Dict_get_CString_%s(%s, %s)",
-                ASTTypeSpec_cname(expr->var->typeSpec), name,
-                index->string);
+            printf("Dict_get_CString_%s(%s, %s)", ASTTypeSpec_cname(expr->var->typeSpec), name, index->string);
             break;
 
         case tkOpComma:
@@ -796,8 +737,7 @@ static void ASTExpr_genc(ASTExpr* expr, int level, bool spacing,
             // stage.
 
             // this is for cases like arr[2, 3, 4].
-            printf("Tensor%dD_get_%s(%s, {", expr->var->typeSpec->dims,
-                ASTTypeSpec_cname(expr->var->typeSpec), name);
+            printf("Tensor%dD_get_%s(%s, {", expr->var->typeSpec->dims, ASTTypeSpec_cname(expr->var->typeSpec), name);
             ASTExpr_genc(index, 0, false, inFuncArgs, escStrings);
             printf("})");
 
@@ -814,8 +754,7 @@ static void ASTExpr_genc(ASTExpr* expr, int level, bool spacing,
 
         case tkOpColon:
             // a single range.
-            printf("Array_getSlice_%s(%s, ",
-                ASTTypeSpec_name(expr->var->typeSpec), name);
+            printf("Array_getSlice_%s(%s, ", ASTTypeSpec_name(expr->var->typeSpec), name);
             ASTExpr_genc(index, 0, false, inFuncArgs, escStrings);
             printf(")");
             break;
@@ -851,8 +790,7 @@ static void ASTExpr_genc(ASTExpr* expr, int level, bool spacing,
             //    and then the generation will follow the modified AST.
             //    Don't handle this as a special case at the code generation
             //    stage.
-            printf("Array_copy_filter_%s(%s, ",
-                ASTTypeSpec_name(expr->var->typeSpec), name);
+            printf("Array_copy_filter_%s(%s, ", ASTTypeSpec_name(expr->var->typeSpec), name);
             ASTExpr_genc(index, 0, false, inFuncArgs, escStrings);
             printf(")");
             break;
@@ -880,22 +818,17 @@ static void ASTExpr_genc(ASTExpr* expr, int level, bool spacing,
             case tkRegex:
                 // TODO: astexpr_typename should return Array_Scalar or
                 // Tensor2D_Scalar or Dict_String_Scalar etc.
-                printf("%s_set(%s, %s,%s, ", ASTExpr_typeName(expr->left),
-                    expr->left->var->name, expr->left->left->string,
+                printf("%s_set(%s, %s,%s, ", ASTExpr_typeName(expr->left), expr->left->var->name, expr->left->left->string,
                     TokenKind_repr(expr->kind, spacing));
-                ASTExpr_genc(
-                    expr->right, 0, spacing, inFuncArgs, escStrings);
+                ASTExpr_genc(expr->right, 0, spacing, inFuncArgs, escStrings);
                 printf(")");
                 break;
 
             case tkOpColon:
-                printf("%s_setSlice(%s, ", ASTExpr_typeName(expr->left),
-                    expr->left->var->name);
-                ASTExpr_genc(
-                    expr->left->left, 0, spacing, inFuncArgs, escStrings);
+                printf("%s_setSlice(%s, ", ASTExpr_typeName(expr->left), expr->left->var->name);
+                ASTExpr_genc(expr->left->left, 0, spacing, inFuncArgs, escStrings);
                 printf(",%s, ", TokenKind_repr(expr->kind, spacing));
-                ASTExpr_genc(
-                    expr->right, 0, spacing, inFuncArgs, escStrings);
+                ASTExpr_genc(expr->right, 0, spacing, inFuncArgs, escStrings);
                 printf(")");
                 break;
 
@@ -908,13 +841,10 @@ static void ASTExpr_genc(ASTExpr* expr, int level, bool spacing,
             case tkKeyword_and:
             case tkKeyword_or:
             case tkKeyword_not:
-                printf("%s_setFiltered(%s, ", ASTExpr_typeName(expr->left),
-                    expr->left->var->name);
-                ASTExpr_genc(
-                    expr->left->left, 0, spacing, inFuncArgs, escStrings);
+                printf("%s_setFiltered(%s, ", ASTExpr_typeName(expr->left), expr->left->var->name);
+                ASTExpr_genc(expr->left->left, 0, spacing, inFuncArgs, escStrings);
                 printf(",%s, ", TokenKind_repr(expr->kind, spacing));
-                ASTExpr_genc(
-                    expr->right, 0, spacing, inFuncArgs, escStrings);
+                ASTExpr_genc(expr->right, 0, spacing, inFuncArgs, escStrings);
                 printf(")");
                 break;
 
@@ -977,8 +907,7 @@ static void ASTExpr_genc(ASTExpr* expr, int level, bool spacing,
 
     case tkOpColon: // convert 3:4:5 to range(...)
                     // must do bounds check first!
-        printf("%s(",
-            expr->left->kind != tkOpColon ? "range_to" : "range_to_by");
+        printf("%s(", expr->left->kind != tkOpColon ? "range_to" : "range_to_by");
         if (expr->left->kind == tkOpColon) {
             expr->left->kind = tkOpComma;
             ASTExpr_genc(expr->left, 0, false, inFuncArgs, escStrings);
@@ -1014,8 +943,7 @@ static void ASTExpr_genc(ASTExpr* expr, int level, bool spacing,
         else
             printf("%s (", TokenKind_repr(expr->kind, true));
         if (expr->kind == tkKeyword_for) expr->left->kind = tkOpComma;
-        if (expr->left)
-            ASTExpr_genc(expr->left, 0, spacing, inFuncArgs, escStrings);
+        if (expr->left) ASTExpr_genc(expr->left, 0, spacing, inFuncArgs, escStrings);
         if (expr->kind == tkKeyword_for) expr->left->kind = tkOpAssign;
         puts(") {");
         if (expr->body) ASTScope_genc(expr->body, level + STEP);
@@ -1044,8 +972,7 @@ static void ASTExpr_genc(ASTExpr* expr, int level, bool spacing,
         ASTExpr* rhsExpr = checkExpr->right;
         printf("{\n");
         if (not checkExpr->unary) {
-            printf(
-                "%.*s%s _lhs = ", level, spaces, ASTExpr_typeName(lhsExpr));
+            printf("%.*s%s _lhs = ", level, spaces, ASTExpr_typeName(lhsExpr));
             ASTExpr_genc(lhsExpr, 0, spacing, false, false);
             printf(";\n");
         }
@@ -1073,14 +1000,10 @@ static void ASTExpr_genc(ASTExpr* expr, int level, bool spacing,
         // genPrintVars.
         if (not checkExpr->unary) {
             // dont print literals or arrays
-            if (lhsExpr->collectionType == CTYNone
-                and lhsExpr->kind != tkString and lhsExpr->kind != tkNumber
-                and lhsExpr->kind != tkRegex and lhsExpr->kind != tkOpLE
-                and lhsExpr->kind != tkOpLT) {
-                if (lhsExpr->kind != tkIdentifierResolved
-                    or not lhsExpr->var->flags.printed) {
-                    printf("%.*s%s", level + STEP, spaces,
-                        "printf(\"    %s = ");
+            if (lhsExpr->collectionType == CTYNone and lhsExpr->kind != tkString and lhsExpr->kind != tkNumber
+                and lhsExpr->kind != tkRegex and lhsExpr->kind != tkOpLE and lhsExpr->kind != tkOpLT) {
+                if (lhsExpr->kind != tkIdentifierResolved or not lhsExpr->var->flags.printed) {
+                    printf("%.*s%s", level + STEP, spaces, "printf(\"    %s = ");
                     printf("%s", TypeType_format(lhsExpr->typeType, true));
                     printf("%s", "\\n\", \"");
                     ASTExpr_gen(lhsExpr, 0, spacing, true);
@@ -1091,12 +1014,10 @@ static void ASTExpr_genc(ASTExpr* expr, int level, bool spacing,
                 //     lhsExpr->var->flags.printed = true;
             }
         }
-        if (rhsExpr->collectionType == CTYNone and rhsExpr->kind != tkString
-            and rhsExpr->kind != tkNumber and rhsExpr->kind != tkRegex) {
-            if (rhsExpr->kind != tkIdentifierResolved
-                or not rhsExpr->var->flags.printed) {
-                printf(
-                    "%.*s%s", level + STEP, spaces, "printf(\"    %s = ");
+        if (rhsExpr->collectionType == CTYNone and rhsExpr->kind != tkString and rhsExpr->kind != tkNumber
+            and rhsExpr->kind != tkRegex) {
+            if (rhsExpr->kind != tkIdentifierResolved or not rhsExpr->var->flags.printed) {
+                printf("%.*s%s", level + STEP, spaces, "printf(\"    %s = ");
                 printf("%s", TypeType_format(rhsExpr->typeType, true));
                 printf("%s", "\\n\", \"");
                 ASTExpr_gen(rhsExpr, 0, spacing, true);
@@ -1136,17 +1057,12 @@ static void ASTExpr_genc(ASTExpr* expr, int level, bool spacing,
     case tkOpLE:
     case tkOpGT:
     case tkOpLT:
-        if ((expr->kind == tkOpLE or expr->kind == tkOpLT)
-            and (expr->left->kind == tkOpLE
-                or expr->left->kind == tkOpLT)) {
-            printf("%s_cmp3way_%s_%s(", ASTExpr_typeName(expr->left->right),
-                TokenKind_ascrepr(expr->kind, false),
+        if ((expr->kind == tkOpLE or expr->kind == tkOpLT) and (expr->left->kind == tkOpLE or expr->left->kind == tkOpLT)) {
+            printf("%s_cmp3way_%s_%s(", ASTExpr_typeName(expr->left->right), TokenKind_ascrepr(expr->kind, false),
                 TokenKind_ascrepr(expr->left->kind, false));
-            ASTExpr_genc(
-                expr->left->left, 0, spacing, inFuncArgs, escStrings);
+            ASTExpr_genc(expr->left->left, 0, spacing, inFuncArgs, escStrings);
             printf(", ");
-            ASTExpr_genc(
-                expr->left->right, 0, spacing, inFuncArgs, escStrings);
+            ASTExpr_genc(expr->left->right, 0, spacing, inFuncArgs, escStrings);
             printf(", ");
             ASTExpr_genc(expr->right, 0, spacing, inFuncArgs, escStrings);
             printf(")");
@@ -1161,20 +1077,15 @@ static void ASTExpr_genc(ASTExpr* expr, int level, bool spacing,
         }
         fallthrough default : if (not expr->prec) break;
         // not an operator, but this should be error if you reach here
-        bool leftBr = expr->left and expr->left->prec
-            and expr->left->prec < expr->prec;
-        bool rightBr = expr->right and expr->right->prec
-            and expr->right->kind != tkKeyword_return
-            // found in 'or return'
-            and expr->right->prec < expr->prec;
+        bool leftBr = expr->left and expr->left->prec and expr->left->prec < expr->prec;
+        bool rightBr
+            = expr->right and expr->right->prec and expr->right->kind != tkKeyword_return and expr->right->prec < expr->prec;
+        // found in 'or return'
 
         char lpo = '(';
         char lpc = ')';
         if (leftBr) putc(lpo, stdout);
-        if (expr->left)
-            ASTExpr_genc(expr->left, 0,
-                spacing and !leftBr and expr->kind != tkOpColon, inFuncArgs,
-                escStrings);
+        if (expr->left) ASTExpr_genc(expr->left, 0, spacing and !leftBr and expr->kind != tkOpColon, inFuncArgs, escStrings);
         if (leftBr) putc(lpc, stdout);
 
         if (expr->kind == tkArrayOpen)
@@ -1185,16 +1096,14 @@ static void ASTExpr_genc(ASTExpr* expr, int level, bool spacing,
         char rpo = '(';
         char rpc = ')';
         if (rightBr) putc(rpo, stdout);
-        if (expr->right)
-            ASTExpr_genc(expr->right, 0,
-                spacing and !rightBr and expr->kind != tkOpColon,
-                inFuncArgs, escStrings);
+        if (expr->right) ASTExpr_genc(expr->right, 0, spacing and !rightBr and expr->kind != tkOpColon, inFuncArgs, escStrings);
         if (rightBr) putc(rpc, stdout);
 
         if (expr->kind == tkArrayOpen) putc('}', stdout);
     }
 }
 
+///////////////////////////////////////////////////////////////////////////
 static void ASTModule_genc(ASTModule* module, int level)
 {
     foreach (ASTImport*, import, module->imports)
