@@ -86,19 +86,40 @@ typedef struct ASTVar {
 typedef struct ASTExpr {
     struct {
         uint16_t line;
-        uint16_t typeType : 5, // typeType of this expression -> must match for ->left and ->right
-            promote : 1, // should this expr be promoted, e.g. count(arr[arr<34]) or sum{arr[3:9]}. does not propagate.
-            unary : 1, // for an operator, is it unary (negation, not, return, check, array literal, ...)
-            rassoc : 1, // is this a right-associative operator e.g. exponentiation
-            collectionType : 4, // collectionType of this expr -> the higher dim-type of left's and right's collectionType.
-            nullable : 1, // is this expr nullable (applies only when typeType is object.) generally will be set on idents and func
-                          // calls etc. since arithmetic ops are not relevant to objects. the OR expr may unset nullable: e.g.
-                          // `someNullabeFunc(..) or MyType()` is NOT nullable.
-            impure : 1, // is this expr impure, has side effects? propagates: true if if either left or right is impure.
-            elemental : 1, // whether this expr is elemental. propagates: true if either left or right is elemental.
-            throws : 1; // whether this expr may throw an error. propagates: true if either left or right throws.
-
-        uint8_t prec;
+        union {
+            struct {
+                uint16_t typeType : 8, // typeType of this expression -> must
+                                       // match for ->left and ->right
+                    collectionType : 4, // collectionType of this expr -> the
+                                        // higher dim-type of left's and right's
+                                        // collectionType.
+                    nullable : 1, // is this expr nullable (applies only when
+                                  // typeType is object.) generally will be set
+                                  // on idents and func calls etc. since
+                                  // arithmetic ops are not relevant to objects.
+                                  // the OR expr may unset nullable: e.g.
+                                  // `someNullabeFunc(..) or MyType()` is NOT
+                                  // nullable.
+                    impure : 1, // is this expr impure, has side effects?
+                                // propagates: true if if either left or right
+                                // is impure.
+                    elemental : 1, // whether this expr is elemental.
+                                   // propagates: true if either left or right
+                                   // is elemental.
+                    throws : 1; // whether this expr may throw an error.
+                                // propagates: true if either left or right
+                                // throws.
+            };
+            uint16_t allTypeInfo; // set this to set everything about the type
+        };
+        // blow this bool to bits to store more flags
+        bool promote; // should this expr be promoted, e.g. count(arr[arr<34])
+                      // or sum{arr[3:9]}. does not propagate.
+        uint8_t prec : 6, // operator precedence for this expr
+            unary : 1, // for an operator, is it unary (negation, not,
+                       // return, check, array literal, ...)
+            rassoc : 1; // is this a right-associative operator e.g.
+                        // exponentiation
         uint8_t col;
         TokenKind kind : 8;
     };
@@ -150,9 +171,11 @@ typedef struct ASTFunc {
     struct {
         uint16_t line;
         struct {
-            uint16_t usesIO : 1, nothrow : 1, isRecursive : 1, usesNet : 1, usesGUI : 1, usesSerialisation : 1, isExported : 1,
-                usesReflection : 1, nodispatch : 1, isStmt : 1, isDeclare : 1, isCalledFromWithinLoop : 1, isElementalFunc : 1,
-                isDefCtor : 1, semPassDone : 1;
+            uint16_t usesIO : 1, throws : 1, isRecursive : 1, usesNet : 1,
+                usesGUI : 1, usesSerialisation : 1, isExported : 1,
+                usesReflection : 1, nodispatch : 1, isStmt : 1, isDeclare : 1,
+                isCalledFromWithinLoop : 1, elemental : 1, isDefCtor : 1,
+                semPassDone : 1;
         } flags;
         uint8_t argCount;
     };
@@ -246,7 +269,8 @@ static const char* getDefaultValueForType(ASTTypeSpec* type)
     if (not type) return "";
     switch (type->typeType) {
     case TYUnresolved:
-        unreachable("unresolved: '%s' at %d:%d", type->name, type->line, type->col);
+        unreachable(
+            "unresolved: '%s' at %d:%d", type->name, type->line, type->col);
         // assert(0);
         return "ERROR_ERROR_ERROR";
     case TYString:
@@ -310,7 +334,7 @@ static bool ASTExpr_throws(ASTExpr* this)
         return false;
     case tkFunctionCall:
     case tkFunctionCallResolved:
-        return not this->func->flags.nothrow;
+        return true; // this->func->flags.throws;
         // actually  only if the func really throws
     case tkSubscript:
     case tkSubscriptResolved:
@@ -369,13 +393,15 @@ static ASTVar* ASTType_getVar(ASTType* this, const char* name)
     foreach (ASTVar*, var, this->body->locals)
         if (not strcasecmp(name, var->name)) return var;
 
-    if (this->super and this->super->typeType == TYObject) return ASTType_getVar(this->super->type, name);
+    if (this->super and this->super->typeType == TYObject)
+        return ASTType_getVar(this->super->type, name);
     return NULL;
 }
 
 #pragma mark - AST FUNC IMPL.
 
-static ASTFunc* ASTFunc_createDeclWithArg(char* name, char* retType, char* arg1Type)
+static ASTFunc* ASTFunc_createDeclWithArg(
+    char* name, char* retType, char* arg1Type)
 {
     ASTFunc* func = NEW(ASTFunc);
     func->name = name;
@@ -565,7 +591,15 @@ ASTFunc* ASTModule_getFunc(ASTModule* this, const char* selector)
 
 #pragma mark - PARSER
 
-typedef enum ParserMode { PMLint, PMGenC, PMGenLua, PMGenCpp, PMGenJavaScript, PMGenWebAsm, PMGenPython } ParserMode;
+typedef enum ParserMode {
+    PMLint,
+    PMGenC,
+    PMGenLua,
+    PMGenCpp,
+    PMGenJavaScript,
+    PMGenWebAsm,
+    PMGenPython
+} ParserMode;
 
 typedef struct Parser {
     char* filename; // mod/submod/xyz/mycode.ch
@@ -584,7 +618,8 @@ typedef struct Parser {
     ParserMode mode : 8;
     bool generateCommentExprs : 1, // set to false when compiling, set to
                                    // true when linting
-        warnUnusedVar : 1, warnUnusedFunc : 1, warnUnusedType : 1, warnUnusedArg : 1;
+        warnUnusedVar : 1, warnUnusedFunc : 1, warnUnusedType : 1,
+        warnUnusedArg : 1;
 
 } Parser;
 
@@ -684,7 +719,8 @@ static ASTExpr* exprFromCurrentToken(Parser* this)
     return expr;
 }
 
-static ASTExpr* next_token_node(Parser* this, TokenKind expected, const bool ignore_error)
+static ASTExpr* next_token_node(
+    Parser* this, TokenKind expected, const bool ignore_error)
 {
     if (this->token.kind == expected) {
         return exprFromCurrentToken(this);
@@ -695,13 +731,22 @@ static ASTExpr* next_token_node(Parser* this, TokenKind expected, const bool ign
 }
 // these should all be part of Token_ when converted back to C
 // in the match case, this->token should be advanced on error
-static ASTExpr* match(Parser* this, TokenKind expected) { return next_token_node(this, expected, false); }
+static ASTExpr* match(Parser* this, TokenKind expected)
+{
+    return next_token_node(this, expected, false);
+}
 
 // this returns the match node or null
-static ASTExpr* trymatch(Parser* this, TokenKind expected) { return next_token_node(this, expected, true); }
+static ASTExpr* trymatch(Parser* this, TokenKind expected)
+{
+    return next_token_node(this, expected, true);
+}
 
 // just yes or no, simple
-static bool matches(Parser* this, TokenKind expected) { return (this->token.kind == expected); }
+static bool matches(Parser* this, TokenKind expected)
+{
+    return (this->token.kind == expected);
+}
 
 static bool Parser_ignore(Parser* this, TokenKind expected)
 {
@@ -713,12 +758,14 @@ static bool Parser_ignore(Parser* this, TokenKind expected)
 // this is same as match without return
 static void discard(Parser* this, TokenKind expected)
 {
-    if (not Parser_ignore(this, expected)) Parser_errorExpectedToken(this, expected);
+    if (not Parser_ignore(this, expected))
+        Parser_errorExpectedToken(this, expected);
 }
 
 static char* parseIdent(Parser* this)
 {
-    if (this->token.kind != tkIdentifier) Parser_errorExpectedToken(this, tkIdentifier);
+    if (this->token.kind != tkIdentifier)
+        Parser_errorExpectedToken(this, tkIdentifier);
     char* p = this->token.pos;
     Token_advance(&this->token);
     return p;
@@ -765,7 +812,8 @@ static void getSelector(ASTFunc* func)
 // TODO: this should be in ASTModule open/close
 static void Parser_genc_open(Parser* this)
 {
-    printf("#ifndef HAVE_%s\n#define HAVE_%s\n\n", this->capsMangledName, this->capsMangledName);
+    printf("#ifndef HAVE_%s\n#define HAVE_%s\n\n", this->capsMangledName,
+        this->capsMangledName);
     printf("#define THISMODULE %s\n", this->mangledName);
     printf("#define THISFILE \"%s\"\n", this->filename);
 }
@@ -834,8 +882,10 @@ int main(int argc, char* argv[])
 
     if (printDiagnostics) printstats(parser, elapsed(getticks(), t0) / 1e6);
 
-    if (parser->errCount) eprintf("\n\e[31m*** %d errors\e[0m\n", parser->errCount);
-    if (parser->warnCount) eprintf("\n\e[33m*** %d warnings\e[0m\n", parser->warnCount);
+    if (parser->errCount)
+        eprintf("\n\e[31m*** %d errors\e[0m\n", parser->errCount);
+    if (parser->warnCount)
+        eprintf("\n\e[33m*** %d warnings\e[0m\n", parser->warnCount);
 
     return (parser->errCount); // or parser->warnCount);
 }

@@ -50,22 +50,23 @@ static bool TokenKind_isRightAssociative(TokenKind kind)
 
 static uint8_t TokenKind_getPrecedence(TokenKind kind)
 { // if templateStr then precedence of < and > should be 0
+    // functions and subscripts are set to 60, so stay below that
     switch (kind) {
     case tkUnaryMinus:
-        return 105;
+        return 57;
     case tkPeriod:
-        return 90;
+        return 55;
     case tkPipe:
-        return 80;
+        return 53;
     case tkPower:
-        return 70;
+        return 51;
     case tkTimes:
     case tkSlash:
     case tkOpMod:
-        return 60;
+        return 49;
     case tkPlus:
     case tkMinus:
-        return 50;
+        return 47;
     case tkOpColon:
         return 45;
     case tkOpLE:
