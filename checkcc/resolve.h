@@ -1,7 +1,14 @@
 // static void sempassType(Parser* self, ASTType* type, ASTModule* mod);
 
-static void resolveTypeSpec(
-    Parser* this, ASTTypeSpec* typeSpec, ASTModule* mod)
+static bool isSelfMutOp(ASTExpr* expr)
+{
+    return expr->kind == tkPlusEq or expr->kind == tkMinusEq
+        or expr->kind == tkSlashEq or expr->kind == tkTimesEq
+        or expr->kind == tkPowerEq or expr->kind == tkOpModEq
+        or expr->kind == tkOpAssign;
+}
+
+static void resolveTypeSpec(Parser* this, ASTTypeSpec* typeSpec, ASTModule* mod)
 {
     // TODO: disallow a type that derives from itself!
     if (typeSpec->typeType != TYUnresolved) return;
@@ -212,8 +219,7 @@ static void resolveVars(
         else {
             Parser_errorUnrecognizedVar(this, expr);
         } // getout:
-        if (expr->kind == tkSubscriptResolved
-            or expr->kind == tkSubscript) {
+        if (expr->kind == tkSubscriptResolved or expr->kind == tkSubscript) {
             resolveVars(this, expr->left, scope, inFuncCall);
             // check subscript argument count
             // recheck kind since the var may have failed resolution
@@ -273,12 +279,9 @@ static void resolveVars(
                 resolveVars(this, expr->left, scope, inFuncCall);
             resolveVars(this, expr->right, scope, inFuncCall);
         }
-        if (expr->kind == tkPlusEq or expr->kind == tkMinusEq
-            or expr->kind == tkSlashEq or expr->kind == tkTimesEq
-            or expr->kind == tkPowerEq or expr->kind == tkOpModEq
-            or expr->kind == tkOpAssign
-                and (expr->left->kind == tkIdentifierResolved
-                    or expr->left->kind == tkSubscriptResolved)) {
+        if (isSelfMutOp(expr)
+            and (expr->left->kind == tkIdentifierResolved
+                or expr->left->kind == tkSubscriptResolved)) {
             expr->left->var->flags.changed = true;
             if (not expr->left->var->flags.isVar)
                 Parser_errorReadOnlyVar(this, expr->left);

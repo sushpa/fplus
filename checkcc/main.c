@@ -69,6 +69,7 @@ typedef struct ASTVar {
             printed : 1, // for checks, used to avoid printing this var more
                          // than once.
             escapes : 1, // does it escape the owning SCOPE?
+            canInplace : 1,
             returned : 1; // is a return variable ie. b in
         // function asd(x as Anc) returns (b as Whatever)
         // all args (in/out) are in the same list in func -> args.
@@ -113,8 +114,10 @@ typedef struct ASTExpr {
             uint16_t allTypeInfo; // set this to set everything about the type
         };
         // blow this bool to bits to store more flags
-        bool promote; // should this expr be promoted, e.g. count(arr[arr<34])
-                      // or sum{arr[3:9]}. does not propagate.
+        bool promote : 1, // should this expr be promoted, e.g.
+                          // count(arr[arr<34]) or sum{arr[3:9]}. does not
+                          // propagate.
+            canEval : 1, didEval : 1;
         uint8_t prec : 6, // operator precedence for this expr
             unary : 1, // for an operator, is it unary (negation, not,
                        // return, check, array literal, ...)

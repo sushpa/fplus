@@ -216,7 +216,7 @@ static const char* CollectionType_nativeName(CollectionTypes coty)
 {
     switch (coty) {
     case CTYNone:
-        return NULL;
+        return "";
     case CTYArray:
         return "_A";
     case CTYList:
