@@ -52,7 +52,7 @@ static size_t sys_stackSize()
 #define DEREF1(x, y) (x ? x->y : NULL)
 #define DEREF2(x, y, z) (x && x->y ? x->y->z : NULL)
 #define DEREF3(x, y, z, a) (x && x->y && x->y->z ? x->y->z->a : NULL)
-#define DEREF4(x, y, z, a, b)                                              \
+#define DEREF4(x, y, z, a, b)                                                  \
     (x && x->y && x->y->z && x->y->z->a ? x->y->z->a->b : NULL)
 
 #else
@@ -70,15 +70,15 @@ static size_t sys_stackSize()
 
 #define _btLimit_ 10
 #define ERROR_TRACE (char*)0xFFFFFFFFFFFFFFFF
-#define DONE                                                               \
-    {                                                                      \
-        _err_ = ERROR_TRACE;                                               \
-        goto done;                                                         \
+#define DONE                                                                   \
+    {                                                                          \
+        _err_ = ERROR_TRACE;                                                   \
+        goto done;                                                             \
     }
-#define BACKTRACE                                                          \
-    {                                                                      \
-        _err_ = ERROR_TRACE;                                               \
-        goto backtrace;                                                    \
+#define BACKTRACE                                                              \
+    {                                                                          \
+        _err_ = ERROR_TRACE;                                                   \
+        goto backtrace;                                                        \
     }
 static size_t _scSize_; // size of stack
 // static const char* _scStart_; // start of stack, set in main()
@@ -89,15 +89,15 @@ static size_t _scPrintAbove_ = 0; // used for truncating long backtraces
 // define these unconditionally, they are needed for both debug and release
 // for fast mode, NOSTACKCHECK is defined globally, so these will not be
 // used.
-#define STACKDEPTH_UP                                                      \
-    {                                                                      \
-        _scDepth_++;                                                       \
-        _scUsage_ += MYSTACKUSAGE;                                         \
+#define STACKDEPTH_UP                                                          \
+    {                                                                          \
+        _scDepth_++;                                                           \
+        _scUsage_ += MYSTACKUSAGE;                                             \
     }
-#define STACKDEPTH_DOWN                                                    \
-    {                                                                      \
-        _scDepth_--;                                                       \
-        _scUsage_ -= MYSTACKUSAGE;                                         \
+#define STACKDEPTH_DOWN                                                        \
+    {                                                                          \
+        _scDepth_--;                                                           \
+        _scUsage_ -= MYSTACKUSAGE;                                             \
     }
 // #else
 // #define STACKDEPTH_UP(s)
@@ -127,47 +127,34 @@ typedef bool Boolean;
 
 #define Boolean_json(x) printf("\"%s\": %s\n", #x, x ? "true" : "false")
 #define Number_json(x) printf("\"%s\": %g\n", #x, x)
-#define String_json(x)                                                     \
-    printf("\"%s\": \"%s\"\n", #x, x) // should be escape(x)
+#define String_json(x) printf("\"%s\": \"%s\"\n", #x, x) // should be escape(x)
 
 static const char* _spaces_ = //
     "                                                                    ";
 
 #define DECL_json_wrap_(T) static void T##_json_wrap_(const T this);
 
-#define MAKE_json_wrap_(T)                                                 \
-    static void T##_json_wrap_(const T this)                               \
-    {                                                                      \
-        T##_json_(this, 0);                                                \
-        puts("");                                                          \
+#define MAKE_json_wrap_(T)                                                     \
+    static void T##_json_wrap_(const T this)                                   \
+    {                                                                          \
+        T##_json_(this, 0);                                                    \
+        puts("");                                                              \
     }
 
-#define MAKE_json_file(T)                                                  \
-    static void T##_json_file(const T* const this, const char* file)       \
-    {                                                                      \
-        FILE* fd = fopen(file, "w");                                       \
-        if (!fd) ERR;                                                      \
-        T##_json(this, fd);                                                \
-        fclose(fd);                                                        \
+#define MAKE_json_file(T)                                                      \
+    static void T##_json_file(const T* const this, const char* file)           \
+    {                                                                          \
+        FILE* fd = fopen(file, "w");                                           \
+        if (!fd) ERR;                                                          \
+        T##_json(this, fd);                                                    \
+        fclose(fd);                                                            \
     }
 
-#define MAKE_cmp3way(T)                                                    \
-    static bool T##_cmp3way_LT_LT(T a, T b, T c)                           \
-    {                                                                      \
-        return a < b && b < c;                                             \
-    }                                                                      \
-    static bool T##_cmp3way_LT_LE(T a, T b, T c)                           \
-    {                                                                      \
-        return a < b && b <= c;                                            \
-    }                                                                      \
-    static bool T##_cmp3way_LE_LT(T a, T b, T c)                           \
-    {                                                                      \
-        return a <= b && b < c;                                            \
-    }                                                                      \
-    static bool T##_cmp3way_LE_LE(T a, T b, T c)                           \
-    {                                                                      \
-        return a <= b && b <= c;                                           \
-    }
+#define MAKE_cmp3way(T)                                                        \
+    static bool T##_cmp3way_LT_LT(T a, T b, T c) { return a < b && b < c; }    \
+    static bool T##_cmp3way_LT_LE(T a, T b, T c) { return a < b && b <= c; }   \
+    static bool T##_cmp3way_LE_LT(T a, T b, T c) { return a <= b && b < c; }   \
+    static bool T##_cmp3way_LE_LE(T a, T b, T c) { return a <= b && b <= c; }
 MAKE_cmp3way(Number)
 
 // #define DEFAULT_VALUE
@@ -178,9 +165,10 @@ MAKE_cmp3way(Number)
 #define print printf
 #define String_print puts
 #define Number_print(x) printf("%g\n", x)
-#define String_describe(x) printf("%s = \"%s\"\n", #x, x)
-#define Number_describe(x) printf("%s = %g\n", #x, x)
-#define Boolean_describe(x) printf("%s = %s\n", #x, x ? "true" : "false")
+#define String_describe(x) printf("%s as String =\n    \"%s\"\n", #x, x)
+#define Number_describe(x) printf("%s as Number =\n    %g\n", #x, x)
+#define Boolean_describe(x)                                                    \
+    printf("%s as Boolean =\n    %s\n", #x, x ? "true" : "false")
 
     static Number Strings_main(const Strings a
 #ifdef DEBUG

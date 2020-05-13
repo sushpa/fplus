@@ -552,7 +552,7 @@ static ASTFunc* parseFunc(Parser* this, bool shouldParseBody)
     //     Parser_errorInvalidIdent(this);
     func->name = parseIdent(this);
 
-    func->flags.isDeclare = !shouldParseBody;
+    func->flags.isDeclare = not shouldParseBody;
 
     func->args = parseArgs(this);
     func->argCount = PtrList_count(func->args);
@@ -625,7 +625,28 @@ static ASTFunc* parseStmtFunc(Parser* this)
 }
 
 #pragma mark - PARSE TEST
-static ASTFunc* parseTest(Parser* this) { return NULL; }
+static ASTTest* parseTest(Parser* this)
+{
+    discard(this, tkKeyword_test);
+    discard(this, tkOneSpace);
+    ASTTest* test = NEW(ASTTest);
+
+    test->line = this->token.line;
+
+    if (*this->token.pos != '"') Parser_errorInvalidTestName(this);
+    test->name = this->token.pos + 1;
+    Token_advance(&this->token);
+
+    discard(this, tkNewline);
+
+    test->body = parseScope(this, NULL, false, false);
+
+    discard(this, tkKeyword_end);
+    discard(this, tkOneSpace);
+    discard(this, tkKeyword_test);
+
+    return test;
+}
 
 #pragma mark - PARSE UNITS
 static ASTUnits* parseUnits(Parser* this) { return NULL; }
@@ -731,7 +752,7 @@ static PtrList* parseModule(Parser* this)
     List(ASTFunc)** funcsTop = &root->funcs;
     List(ASTImport)** importsTop = &root->imports;
     List(ASTType)** typesTop = &root->types;
-    // List(ASTFunc)** testsTop = &root->tests;
+    List(ASTTest)** testsTop = &root->tests;
     // List(ASTVar)** globalsTop = &root->globals;
 
     while (this->token.kind != tkNullChar) {
@@ -805,10 +826,11 @@ static PtrList* parseModule(Parser* this)
                 //                    PtrList_append(&modules, subMods);
             }
             break;
-        // case tkKeyword_test:
-        //     PtrList_append(testsTop, parseTest(this));
-        //     if ((*testsTop)->next) testsTop = &(*testsTop)->next;
-        //     break;
+
+        case tkKeyword_test:
+            PtrList_append(testsTop, parseTest(this));
+            if ((*testsTop)->next) testsTop = &(*testsTop)->next;
+            break;
         // case tkKeyword_var:
         // case tkKeyword_let:
         // TODO: add these to exprs
@@ -912,7 +934,11 @@ void analyseModule(Parser* this, ASTModule* mod)
                 Parser_warnUnusedFunc(this, func);
         foreach (ASTType*, type, mod->types)
             if (not type->flags.sempassDone) Parser_warnUnusedType(this, type);
+    } else if (this->mode == PMGenTests) {
+        foreach (ASTTest*, test, mod->tests)
+            sempassTest(this, test, mod);
     } else { // TODO: new error, unless you want to get rid of main
-        eputs("\e[31m*** error:\e[0m cannot find function 'main'.");
+        eputs(
+            "\n\e[31m*** error:\e[0m cannot find function \e[33mmain\e[0m.\n");
     }
 }

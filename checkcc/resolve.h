@@ -67,6 +67,11 @@ static void ASTFunc_checkUnusedVars(Parser* this, ASTFunc* func)
     ASTScope_checkUnusedVars(this, func->body);
 }
 
+static void ASTTest_checkUnusedVars(Parser* this, ASTTest* test)
+{
+    ASTScope_checkUnusedVars(this, test->body);
+}
+
 // TODO: Btw there should be a module level scope to hold lets (and
 // comments). That will be the root scope which has parent==NULL.
 
