@@ -1,3 +1,4 @@
 #!/bin/sh
 make clean
-echo total lines `cat *.[ch] | wc -l`, source lines `grep -ve '^\( *//.*\| *\)$' *.[ch] | wc -l`
+echo total  `cat *.[ch] | wc -l`
+echo source `grep -ve '^\( *//.*\| *\)$' *.[ch] | wc -l`
