@@ -1,0 +1,3 @@
+#!/bin/sh
+make clean
+echo total lines `cat *.[ch] | wc -l`, source lines `grep -ve '^\( *//.*\| *\)$' *.[ch] | wc -l`
