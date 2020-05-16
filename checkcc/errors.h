@@ -16,10 +16,10 @@ static void Parser_errorExpectedToken(
     Parser* const this, const TokenKind expected)
 {
     eprintf("\n(%d) \e[31merror:\e[0m at %s%s:%d:%d\n"
-            "      expected '%s' found '%s'\n",
+            "      expected '%s' (%s) but found '%s'\n",
         this->errCount + 1, RELF(this->filename), this->token.line,
         this->token.col, TokenKind_repr(expected, false),
-        TokenKind_repr(this->token.kind, false));
+        TokenKind_str[expected] + 2, TokenKind_repr(this->token.kind, false));
     Parser_errorIncrement(this);
 }
 
@@ -191,11 +191,38 @@ static void Parser_errorUnrecognizedFunc(
     Parser* const this, const ASTExpr* const expr, const char* const selector)
 {
     if (*selector == '<') return; // invalid type; already error'd
-    eprintf("\n(%d) \e[31merror:\e[0m can't resolve call to "
-            "\e[34m%s\e[0m at %s%s:%d:%d\n"
-            "        selector is \e[34m%s\e[0m (%d args)\n",
-        this->errCount + 1, expr->string, RELF(this->filename), expr->line,
-        expr->col, selector, ASTExpr_countCommaList(expr->left));
+    eprintf(
+        "\n\e[31;1;4m ERROR                                               "
+        "                       \e[0m\n %s%s:%d:%d:\n This "
+        "\e[1m%s\e[0m call could not be resolved.\n"
+        " There is no method with selector \e[1m%s\e[0m and %d arguments.\n",
+        //     eprintf("\n(%d) \e[31merror:\e[0m can't resolve call to "
+        // "\e[34m%s\e[0m at %s%s:%d:%d\n"
+        // "        selector is \e[34m%s\e[0m (%d args)\n",
+        RELF(this->filename), expr->line, expr->col, expr->string, selector,
+        ASTExpr_countCommaList(expr->left));
+    Parser_errorIncrement(this);
+}
+
+static void Parser_errorInheritanceCycle(
+    Parser* const this, const ASTType* const type)
+{
+    eprintf("\n\e[31;1;4m ERROR                                               "
+            "                       \e[0m\n %s%s:%d:%d:\n Type "
+            "\e[1m%s\e[0m has a cycle in its inheritance graph.",
+        RELF(this->filename), type->line, type->col, type->name);
+    ASTType* super = type->super->type;
+    eputs("\e[;2m");
+    do {
+        eprintf("\n extends \e[;1;2m%s\e[0;2m (defined at %s%s:%d:%d)",
+            super->name, RELF(this->filename), super->line, super->col);
+        if (super == super->super->type or super == type) {
+            if (type != super) eprintf("\n extends %s", super->name);
+            break;
+        }
+        super = super->super->type;
+    } while (1);
+    eputs("\n ...\e[0m\n");
     Parser_errorIncrement(this);
 }
 
@@ -352,8 +379,9 @@ static void Parser_errorUnexpectedExpr(
     Parser* const this, const ASTExpr* const expr)
 {
     eprintf("\n(%d) \e[31merror:\e[0m at %s%s:%d:%d\n"
-            "      unexpected expr '%s'\n",
+            "      unexpected expr '%s' (%s)\n",
         this->errCount + 1, RELF(this->filename), expr->line, expr->col,
-        expr->prec ? TokenKind_repr(expr->kind, false) : expr->string);
+        expr->prec ? TokenKind_repr(expr->kind, false) : expr->string,
+        TokenKind_str[expr->kind] + 2);
     Parser_errorIncrement(this);
 }

@@ -77,10 +77,10 @@ static void sempass(
         if (*buf != '<') // not invalid type
             foreach (ASTFunc*, func, mod->funcs)
                 if (not strcasecmp(expr->string, func->name))
-                    eprintf("        \e[;2mnot viable: \e[34m%s\e[0;2m (%d "
-                            "args) at ./%s:%d\e[0m\n",
-                        func->selector, func->argCount, parser->filename,
-                        func->line);
+                    eprintf("\e[;2m ./%s:%d: \e[;1;2m%s\e[0;2m with %d "
+                            "arguments is not viable.\e[0m\n",
+                        parser->filename, func->line, func->selector,
+                        func->argCount);
     } break;
 
         // -------------------------------------------------- //
@@ -401,7 +401,7 @@ static void sempassFunc(Parser* parser, ASTFunc* func, ASTModule* mod)
     // have the same type as the declared return type.
 
     // Do optimisations or ANY lowering only if there are no errors
-    if (not parser->errCount and parser->mode == PMGenC) {
+    if (not parser->errCount and parser->mode != PMLint) {
         // Handle elemental operations like arr[4:50] = mx[14:60] + 3
         ASTScope_lowerElementalOps(func->body);
         // Extract subexprs like count(arr[arr<1e-15]) and promote them to
@@ -413,47 +413,7 @@ static void sempassFunc(Parser* parser, ASTFunc* func, ASTModule* mod)
 
 static void sempassTest(Parser* parser, ASTTest* test, ASTModule* mod)
 {
-    // if (func->flags.semPassDone) return;
-    // eprintf("sempass: %s at ./%s:%d\n", func->selector, parser->filename,
-    // func->line);
-
-    // bool foundCtor = false;
-    // Check if the function is a constructor call and identify the type.
-    // TODO: this should be replaced by a dict query
-    // foreach (ASTType*, type, mod->types) {
-    //     if (not strcasecmp(func->name, type->name)) {
-    //         if (func->returnType
-    //             and not(func->flags.isStmt or func->flags.isDefCtor))
-    //             Parser_errorCtorHasType(parser, func, type);
-    //         if (not func->returnType) {
-    //             func->returnType = ASTTypeSpec_new(TYObject, CTYNone);
-    //             func->returnType->type = type;
-    //         }
-    //         // TODO: isStmt Ctors should have the correct type so e.g.
-    //         // you cannot have
-    //         // Point(x as Number) := 3 + 5 * 12
-    //         // but must return a Point instead. This cannot be enforced
-    //         // here since type resolution hasn't been done at this
-    //         // stage. Check this after the type inference step when the
-    //         // stmt func has its return type assigned.
-    //         // if (func->flags.isStmt)
-    //         //     Parser_errorCtorHasType(this, func, type);
-    //         if (not isupper(*func->name)) Parser_warnCtorCase(parser, func);
-
-    //         func->name = type->name;
-    //         foundCtor = true;
-    //     }
-    // }
-
-    // Capitalized names are not allowed unless they are constructors.
-    // if (not func->flags.isDefCtor and not foundCtor and isupper(*func->name))
-    //     Parser_errorUnrecognizedCtor(parser, func);
-
-    // The rest of the processing is on the contents of the function.
-    if (not test->body) {
-        // func->flags.semPassDone = true;
-        return;
-    }
+    if (not test->body) return;
 
     // Check for duplicate functions (same selectors) and report errors.
     // TODO: this should be replaced by a dict query
@@ -466,27 +426,13 @@ static void sempassTest(Parser* parser, ASTTest* test, ASTModule* mod)
     // Check unused variables in the function and report warnings.
     ASTTest_checkUnusedVars(parser, test);
 
-    // Mark the semantic pass as done for this function, so that recursive
-    // calls found in the statements will not cause the compiler to recur.
-    // func->flags.semPassDone = true;
-
     // Run the statement-level semantic pass on the function body.
     foreach (ASTExpr*, stmt, test->body->stmts)
         sempass(parser, stmt, mod, false);
 
-    // Statement functions are written without an explicit return type.
-    // Figure out the type (now that the body has been analyzed).
-    // if (func->flags.isStmt) setStmtFuncTypeInfo(parser, func);
-    // TODO: for normal funcs, sempass should check return statements to
-    // have the same type as the declared return type.
-
     // Do optimisations or ANY lowering only if there are no errors
-    if (not parser->errCount and parser->mode == PMGenC) {
-        // Handle elemental operations like arr[4:50] = mx[14:60] + 3
+    if (not parser->errCount and parser->mode != PMLint) {
         ASTScope_lowerElementalOps(test->body);
-        // Extract subexprs like count(arr[arr<1e-15]) and promote them to
-        // full statements corresponding to their C macros e.g.
-        // Number _1; Array_count_filter(arr, arr<1e-15, _1);
         ASTScope_promoteCandidates(test->body);
     }
 }

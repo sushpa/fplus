@@ -1,16 +1,16 @@
 # declare type String
 declare type Strings
-# declare type Point
+# declare type as point
 
 # declared funcs are basically implemented in C, they
 # can be funcs or macros, doesn't matter here
 # declare function print(what as String)
-# declare function print(what as Number)
+# declare function print(what as number)
 # declare function describe(what as String)
-# declare function describe(what as Number)
+# declare function describe(what as number)
 # declare function describe(what as Boolean)
-# declare function json(p as Point)
-# declare function json(p as Number)
+# declare function json(p as as point)
+# declare function json(p as number)
 # declare function json(p as String)
 # declare function json(p as Boolean)
 # declare function json(p as Other)
@@ -39,18 +39,21 @@ end type
 # and each enum gens its print/describe/json etc funcs.
 # printing name by default not numeric value.
 
-type Another
+type Another extends Point
     var g = 12
     var exp = Expr()
 end type
 
+# ACTUALLY DONT BOTHER WITH CYCLE DETECTION AT ALL
+# DISALLOW INHERITANCE & FAVOUR COMPOSITION
+# AND ALLOW RECURSIVE CONSTRUCTOR (stack overflow checker works)
 type Other
     var m = 43
     var we = Another()
-    # var po = Point()
+    # var po = as point()
 end type
 
-type Point
+type Point extends Other
     # var p = Other()
     var x = fxfunc(3)
     var y = 69.6723
@@ -70,10 +73,11 @@ function Point(x as Number)
 end function
 
 function main(args as Strings) returns Number
+
     let po = Point()
     let pcx = Point(78)
     let mg = args
-    # let cm as Number[] = [8, 7, 6, 5]
+    # let cm as number[] = [8, 7, 6, 5]
     # json(cm[3])
     json(po)
     json(pcx)
@@ -89,7 +93,7 @@ function main(args as Strings) returns Number
     return 6
     # print(pcx)
     # po = 0
-    # var pm as Number
+    # var pm as number
     # var nzz = zeros(450)
     # nzz[2:65] = 1
     # nzz[1:2:-1] = random()
@@ -115,12 +119,19 @@ function main(args as Strings) returns Number
     # nzz[7:89] = nzz[1:82] + sum(nzz[7:47]+nzz[80:120]) * nzz[31:112]
 
     # var pox = ui.Window(400x300)
-    # var pox = new(Point, frame = 400x300)
+    # var pox = new(as point, frame = 400x300)
     # pox.x = 6
     # pox.cstr.jmp = "mereger"
     # json(po)
     # var postr = pox.json()
 end function
+
+# var mx [as date] = [now(), now(), now()]
+# var mx as date[4,4] = [now(), now(), now()]
+# var mx as number|kg.m/s[6,:] = [now(), now(), now()]
+# var mx as Date = [now(), now(), now()]
+# var mx[4,4] as Date = [now(), now(), now()]
+# var mx[6,:] as Number|kg.m/s = [now(), now(), now()]
 
 function funky()
     joyce()
@@ -132,7 +143,7 @@ function joyce()
     var x = fxfunc(3 + 5 + 4)
     describe(x)
     describe(x+5)
-    let point = point()
+    let point = Point()
     let joyce = 55.3
     describe(joyce)
     var y = 3-x * 2.5 / x

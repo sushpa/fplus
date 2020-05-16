@@ -48,7 +48,8 @@ typedef struct ASTTypeSpec {
     };
     uint32_t dims : 24, col : 8;
     uint16_t line;
-    TypeTypes typeType : 8;
+    TypeTypes typeType : 7;
+    bool nullable : 1;
     CollectionTypes collectionType : 8;
 } ASTTypeSpec;
 
@@ -70,6 +71,20 @@ typedef struct ASTVar {
                          // than once.
             escapes : 1, // does it escape the owning SCOPE?
             canInplace : 1,
+            hasRefs : 1, // there are other vars/lets that reference this var or
+                         // overlap with its storage. e.g. simply pointers that
+                         // refer to this var, or slices or filters taken if
+                         // this is an array/dataframe etc, or StringRefs, etc.
+                         // useful for understanding aliasing patterns
+            obtainedBySerialization : 1, // this is a JSON/XML/YAML obj obtained
+                                         // by serializing something. If it is
+                                         // passed to functions, warn and
+                                         // recommend passing the object instead
+                                         // and calling JSON/XML/YAML in that
+                                         // func. This is so that calls like
+                                         // print(YAML(xyz)) can be optim to
+                                         // print_YAML(xyz) (i.e. not generating
+                                         // an actual YAML tree just for print)
             returned : 1; // is a return variable ie. b in
         // function asd(x as Anc) returns (b as Whatever)
         // all args (in/out) are in the same list in func -> args.
@@ -158,10 +173,10 @@ typedef struct ASTType {
     uint16_t line;
     uint8_t col;
     struct {
-        bool sempassDone : 1,
+        bool sempassDone : 1, needJSON : 1, needXML : 1, needYAML : 1,
+            cycleCheckFlag : 1, // for checking cycles in inheritance
             isValueType : 1; // all vars of this type will be stack
                              // allocated and passed around by value.
-
     } flags;
 } ASTType;
 
@@ -178,7 +193,21 @@ typedef struct ASTFunc {
                 usesGUI : 1, usesSerialisation : 1, isExported : 1,
                 usesReflection : 1, nodispatch : 1, isStmt : 1, isDeclare : 1,
                 isCalledFromWithinLoop : 1, elemental : 1, isDefCtor : 1,
-                semPassDone : 1;
+                semPassDone : 1, // semantic pass has been done, don't repeat
+                returnsNewObjectSometimes : 1,
+                returnsNewObjectAlways : 1; // what this func returns is an
+                                            // object that was obtained by a
+                                            // constructor. Useful for checking
+                                            // cycles in types.
+            // Constructors ALWAYS return a new object. This means if you call a
+            // constructor of a type from within the default constructor of
+            // another type, and this chain has a cycle, you need to report
+            // error. If this happens indirectly via intermediate funcs, check
+            // the returnsNewObject flag of the func in question to see if it
+            // internally calls the constructor. The function may have multiple
+            // return paths and not all of them may call the constructor; in
+            // this case set returnsNewObjectAlways accordingly.
+
         } flags;
         uint8_t argCount;
     };
@@ -662,8 +691,8 @@ static Parser* Parser_fromFile(char* filename, bool skipws)
     size_t flen = strlen(filename);
 
     // Error: the file might not end in .ch
-    if (not str_endswith(filename, flen, ".ch", 3)) {
-        eprintf("F+: file '%s' invalid: name must end in '.ch'.\n", filename);
+    if (not str_endswith(filename, flen, ".fp", 3)) {
+        eprintf("F+: file '%s' invalid: name must end in '.fp'.\n", filename);
         return NULL;
     }
 
@@ -916,7 +945,11 @@ int main(int argc, char* argv[])
     if (printDiagnostics) printstats(parser, elapsed(getticks(), t0) / 1e6);
 
     if (parser->errCount)
-        eprintf("\n\e[31m*** %d errors\e[0m\n", parser->errCount);
+        eprintf(
+            "\n\e[31;1;4m THERE ARE %2d ERRORS.                              "
+            "                         \e[0m\n How about fixing them? Reading "
+            "the code would be a good start.\n",
+            parser->errCount);
     if (parser->warnCount)
         eprintf("\n\e[33m*** %d warnings\e[0m\n", parser->warnCount);
 

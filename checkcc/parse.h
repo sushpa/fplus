@@ -941,4 +941,34 @@ void analyseModule(Parser* this, ASTModule* mod)
         eputs(
             "\n\e[31m*** error:\e[0m cannot find function \e[33mmain\e[0m.\n");
     }
+
+    // Check each type for cycles in inheritance graph.
+    // Actually if there is no inheritance and composition is favoured, you have
+    // to check each statement in the type body instead of just walking up the
+    // super chain. If any statements are initialized by constructors, mark the
+    // type of that statement as visited and recur into that type to check its
+    // statements to see if you ever revisit anything. Unfortunately it does not
+    // seem that this would be easy to do iteratively (not recursively), as it
+    // can be done for just checking supers.
+    foreach (ASTType*, type, mod->types) {
+        if (not type->flags.sempassDone or not type->super) continue;
+        assert(type->super->typeType == TYObject);
+
+        // traverse the type hierarchy for this type and see if you revisit any
+        ASTType* superType = type->super->type;
+        while (superType) {
+            if (superType->flags.cycleCheckFlag) {
+                Parser_errorInheritanceCycle(this, type);
+                break;
+            }
+            superType->flags.cycleCheckFlag = true;
+            if (not superType->super) break;
+            assert(superType->super->typeType == TYObject);
+            superType = superType->super->type;
+        }
+
+        // reset the cycle check flag on all types
+        foreach (ASTType*, etype, mod->types)
+            if (type->flags.sempassDone) etype->flags.cycleCheckFlag = false;
+    }
 }

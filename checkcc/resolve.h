@@ -1,4 +1,3 @@
-// static void sempassType(Parser* self, ASTType* type, ASTModule* mod);
 
 static bool isSelfMutOp(ASTExpr* expr)
 {
@@ -24,20 +23,8 @@ static void resolveTypeSpec(Parser* this, ASTTypeSpec* typeSpec, ASTModule* mod)
         if (type) {
             typeSpec->typeType = TYObject;
             typeSpec->type = type;
-            // sempassType(this, type, mod);
             return;
         }
-        // foreach (ASTType*, type, mod->types) {
-        //     if (not strcasecmp(typeSpec->name, type->name)) {
-        //         // so what do you do  if types are "resolved"? Set
-        //         // typeType and collectionType?
-        //         //                printf("%s matched")
-        //         typeSpec->typeType = TYObject;
-        //         typeSpec->type = type;
-        //         // sempassType(this, type, mod);
-        //         return;
-        //     }
-        // }
         Parser_errorUnrecognizedType(this, typeSpec);
         return;
     }
@@ -74,94 +61,6 @@ static void ASTTest_checkUnusedVars(Parser* this, ASTTest* test)
 
 // TODO: Btw there should be a module level scope to hold lets (and
 // comments). That will be the root scope which has parent==NULL.
-
-// This function is called once, after the types of basic elements
-// (literals, resolved vars, operators on basic elements, basically
-// everything except func calls) is assigned. Then after the call to this
-// function, the type assignment pass repeats so that exprs with
-// now-resolved func calls can have their types assigned.
-// WAIT -- WORKS FOR NOW -- OR NOT
-
-#if 0
-static void resolveFuncCalls(
-    Parser* this, ASTExpr* expr, ASTModule* mod)
-{ // TODO: what happens if you get a tkSubscriptResolved?
-
-    switch (expr->kind) {
-    case tkFunctionCallResolved:
-        if (ASTExpr_countCommaList(expr->left) != expr->func->argCount)
-            Parser_errorArgsCountMismatch(this, expr);
-        break;
-
-    case tkSubscriptResolved:
-    case tkSubscript:
-        if (expr->left) resolveFuncCalls(this, expr->left, mod);
-        break;
-
-    case tkFunctionCall: {
-        char buf[128] = {};
-        char* bufp = buf;
-        if (expr->left) resolveFuncCalls(this, expr->left, mod);
-
-        // TODO: need a function to make and return selector
-        ASTExpr* arg1 = expr->left;
-        if (arg1 and arg1->kind == tkOpComma) arg1 = arg1->left;
-        if (arg1) {
-            const char* tyname = ASTExpr_typeName(arg1);
-            bufp += sprintf(bufp, "%s_", tyname);
-        }
-        bufp += sprintf(bufp, "%s", expr->name);
-        if (expr->left)
-            ASTExpr_strarglabels(
-                expr->left, bufp, 128 - ((int)(bufp - buf)));
-
-        foreach (ASTFunc*, func, mod->funcs) {
-            if (not strcasecmp(buf, func->selector)) {
-                expr->kind = tkFunctionCallResolved;
-                expr->func = func;
-                resolveFuncCalls(this, expr, mod);
-                return;
-            }
-        } // since it is known which module the func must be found in,
-          // no need to scan others if function has not been found
-        Parser_errorUnrecognizedFunc(this, expr, buf);
-        foreach (ASTFunc*, func, mod->funcs)
-            if (not strcasecmp(expr->name, func->name))
-                eprintf("        \e[;2mnot viable: \e[34m%s\e[0;2m (%d "
-                        "args) at ./%s:%d\e[0m\n",
-                    func->selector, func->argCount, this->filename,
-                    func->line);
-        // but still check nested func calls
-    } break;
-
-    case tkVarAssign:
-        if (not expr->var->init)
-            Parser_errorMissingInit(this, expr);
-        else {
-            if (!*expr->var->typeSpec->name)
-                resolveTypeSpec(this, expr->var->typeSpec, mod);
-            resolveFuncCalls(this, expr->var->init, mod);
-        }
-        break;
-
-    case tkKeyword_else:
-    case tkKeyword_if:
-    case tkKeyword_for:
-    case tkKeyword_while: {
-        if (expr->left) resolveFuncCalls(this, expr->left, mod);
-        foreach (ASTExpr*, stmt, expr->body->stmts)
-            resolveFuncCalls(this, stmt, mod);
-    } break;
-
-    default:
-        if (expr->prec) {
-            if (not expr->unary)
-                resolveFuncCalls(this, expr->left, mod);
-            resolveFuncCalls(this, expr->right, mod);
-        }
-    }
-}
-#endif
 
 static void resolveMember(Parser* self, ASTExpr* expr, ASTType* type)
 
@@ -210,20 +109,9 @@ static void resolveVars(
             expr->var = found;
             expr->var->flags.used = true;
 
-        }
-        // do {
-        //     foreach (ASTVar*, local, scp->locals) {
-        //         if (not strcasecmp(expr->name, local->name)) {
-        //             expr->kind = ret;
-        //             expr->var = local; // this overwrites name btw
-        //             goto getout;
-        //         }
-        //     }
-        //     scp = scp->parent;
-        // } while (scp);
-        else {
+        } else {
             Parser_errorUnrecognizedVar(this, expr);
-        } // getout:
+        }
         if (expr->kind == tkSubscriptResolved or expr->kind == tkSubscript) {
             resolveVars(this, expr->left, scope, inFuncCall);
             // check subscript argument count
@@ -259,23 +147,6 @@ static void resolveVars(
             resolveVars(this, expr->right->left, scope, inFuncCall);
 
         break;
-
-        // case tkOpAssign:
-        //         // behaves differently inside a func call and
-        //         otherwise
-
-        //         if (not inFuncCall)
-        //             resolveVars(this, expr->left, scope, inFuncCall);
-        //     resolveVars(this, expr->right, scope, inFuncCall);
-        //             if (expr->kind == tkPlusEq or expr->kind ==
-        //             tkMinusEq
-        //         or expr->kind == tkSlashEq or expr->kind == tkTimesEq
-        //         or expr->kind == tkPowerEq
-        //         or expr->kind == tkOpModEq
-        //             and (expr->left->kind == tkIdentifierResolved
-        //                 or expr->left->kind == tkSubscriptResolved))
-        //         expr->var->flags.changed = true;
-        //     break;
 
     default:
         if (expr->prec) {
