@@ -30,6 +30,7 @@ declare type Strings
 type Expr
     var meg = 33.2
     var bx = 4 < 5
+    var b = msp(Point())
     var f = 3<3
 end type
 
@@ -39,21 +40,25 @@ end type
 # and each enum gens its print/describe/json etc funcs.
 # printing name by default not numeric value.
 
-type Another extends Point
+type Another #extends Point
     var g = 12
     var exp = Expr()
+end type
+
+type YetAnother
+    var g = Another()
 end type
 
 # ACTUALLY DONT BOTHER WITH CYCLE DETECTION AT ALL
 # DISALLOW INHERITANCE & FAVOUR COMPOSITION
 # AND ALLOW RECURSIVE CONSTRUCTOR (stack overflow checker works)
-type Other
+type Other # extends Another
     var m = 43
     var we = Another()
     # var po = as point()
 end type
 
-type Point extends Other
+type Point # extends Other
     # var p = Other()
     var x = fxfunc(3)
     var y = 69.6723
@@ -80,6 +85,7 @@ function main(args as Strings) returns Number
     # let cm as number[] = [8, 7, 6, 5]
     # json(cm[3])
     json(po)
+    var masd = YetAnother()
     json(pcx)
     var nuk = "hurritu"
     var mk = 3 < 6 <= 5

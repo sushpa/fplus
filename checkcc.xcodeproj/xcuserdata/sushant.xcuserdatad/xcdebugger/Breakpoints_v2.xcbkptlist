@@ -1488,7 +1488,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "134"
             endingLineNumber = "134"
-            landmarkName = "Parser_errorTypeInheritsSelf(, type)"
+            landmarkName = "Parser_errorDuplicateType(, type, orig)"
             landmarkType = "9">
          </BreakpointContent>
       </BreakpointProxy>
@@ -1504,7 +1504,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "142"
             endingLineNumber = "142"
-            landmarkName = "Parser_errorCtorHasType(, func, orig)"
+            landmarkName = "Parser_errorTypeInheritsSelf(, type)"
             landmarkType = "9">
          </BreakpointContent>
       </BreakpointProxy>
@@ -1728,7 +1728,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "249"
             endingLineNumber = "249"
-            landmarkName = "Parser_errorUnrecognizedCtor(, func)"
+            landmarkName = "Parser_errorConstructorHasCycle(, type)"
             landmarkType = "9">
          </BreakpointContent>
       </BreakpointProxy>
@@ -1792,7 +1792,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "260"
             endingLineNumber = "260"
-            landmarkName = "Parser_errorTypeMismatchBinOp(, expr)"
+            landmarkName = "Parser_errorArgsCountMismatch(, expr)"
             landmarkType = "9">
          </BreakpointContent>
       </BreakpointProxy>
@@ -1808,7 +1808,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "268"
             endingLineNumber = "268"
-            landmarkName = "Parser_errorTypeMismatchBinOp(, expr)"
+            landmarkName = "Parser_errorIndexDimsMismatch(, expr)"
             landmarkType = "9">
          </BreakpointContent>
       </BreakpointProxy>
@@ -1842,6 +1842,38 @@
             startingLineNumber = "104"
             endingLineNumber = "104"
             landmarkName = "sempass(parser, expr, mod, inFuncArgs)"
+            landmarkType = "9">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "F69854A7-68BC-4175-9650-24E435544CD6"
+            shouldBeEnabled = "Yes"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "checkcc/parse.h"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "1039"
+            endingLineNumber = "1039"
+            landmarkName = "ASTExpr_setCycleCheckFlag(, expr)"
+            landmarkType = "9">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "EA8672EF-E472-408F-87FD-26C37BD708F4"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "checkcc/parse.h"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "1046"
+            endingLineNumber = "1046"
+            landmarkName = "ASTExpr_setCycleCheckFlag(, expr)"
             landmarkType = "9">
          </BreakpointContent>
       </BreakpointProxy>

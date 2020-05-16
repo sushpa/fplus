@@ -793,6 +793,9 @@ static PtrList* parseModule(Parser* this)
             ASTFunc* ctor = NEW(ASTFunc);
             ctor->line = type->line;
             ctor->flags.isDefCtor = true;
+            // Ctors must AlWAYS return a new object.
+            // even Ctors with args.
+            ctor->flags.returnsNewObjectAlways = true;
             ctor->name = type->name;
             char buf[128];
             int l = snprintf(buf, 128, "%s_new_", type->name);
@@ -881,6 +884,10 @@ static PtrList* parseModule(Parser* this)
     return this->modules;
 }
 
+static void ASTModule_resetCycleCheckFlags(ASTModule* mod);
+static int ASTExpr_setCycleCheckFlag(Parser* this, ASTExpr* expr);
+static int ASTType_checkCycles(Parser* this, ASTType* type);
+
 void analyseModule(Parser* this, ASTModule* mod)
 {
     // now doing an O(N^2) loop over all types to check duplicates, and same
@@ -950,25 +957,117 @@ void analyseModule(Parser* this, ASTModule* mod)
     // statements to see if you ever revisit anything. Unfortunately it does not
     // seem that this would be easy to do iteratively (not recursively), as it
     // can be done for just checking supers.
-    foreach (ASTType*, type, mod->types) {
-        if (not type->flags.sempassDone or not type->super) continue;
-        assert(type->super->typeType == TYObject);
+    // foreach (ASTType*, type, mod->types) {
+    //     if (not type->flags.sempassDone or not type->super) continue;
+    //     assert(type->super->typeType == TYObject);
 
-        // traverse the type hierarchy for this type and see if you revisit any
-        ASTType* superType = type->super->type;
-        while (superType) {
-            if (superType->flags.cycleCheckFlag) {
-                Parser_errorInheritanceCycle(this, type);
-                break;
-            }
-            superType->flags.cycleCheckFlag = true;
-            if (not superType->super) break;
-            assert(superType->super->typeType == TYObject);
-            superType = superType->super->type;
+    //     // traverse the type hierarchy for this type and see if you revisit
+    //     any ASTType* superType = type->super->type; while (superType) {
+    //         if (superType->flags.cycleCheckFlag) {
+    //             Parser_errorInheritanceCycle(this, type);
+    //             break;
+    //         }
+    //         superType->flags.cycleCheckFlag = true;
+    //         if (not superType->super) break;
+    //         assert(superType->super->typeType == TYObject);
+    //         superType = superType->super->type;
+    //     }
+
+    //     // reset the cycle check flag on all types
+    //     foreach (ASTType*, etype, mod->types)
+    //         if (type->flags.sempassDone) etype->flags.cycleCheckFlag = false;
+    // }
+
+    // check each stmt in each type to find cycles.
+    foreach (ASTType*, type, mod->types)
+        if (type->flags.sempassDone and type->body
+            and not type->flags.cycleCheckFlag) {
+            if (ASTType_checkCycles(this, type)) {
+                // cycle was detected. err has been reported along with a
+                // backtrace. now just unset the dim control codes.
+                eprintf(" ...%s\n", "\e[0m");
+                // just report the first cycle found. typically there will be
+                // only one cycle and you will end up reporting the same cycle
+                // for all types that are in it, which is useless.
+                // break;
+                // the last type (for which the error was reported) won't have
+                // its cycle check flags cleared, but who cares.
+                // OTHER IDEA: clear the flag only if there was no error. that
+                // way the next iteration will skip over those whose flags are
+                // already set.
+            } else
+                ASTModule_resetCycleCheckFlags(mod);
         }
+}
 
-        // reset the cycle check flag on all types
-        foreach (ASTType*, etype, mod->types)
-            if (type->flags.sempassDone) etype->flags.cycleCheckFlag = false;
+// return 0 on no cycle found, -1 on cycle found
+static int ASTType_checkCycles(Parser* this, ASTType* type)
+{
+    // check all statements in this type body and see if you revisit any
+    foreach (ASTExpr*, stmt, type->body->stmts)
+        if (ASTExpr_setCycleCheckFlag(this, stmt)) {
+            eprintf("  -> created in type \e[;1;2m%s\e[0;2m at ./%s:%d:%d \n",
+                type->name, this->filename, stmt->line, stmt->col);
+            //        ASTExpr_gen( stmt,0,true,false);
+            //        eputs("\n");
+            return -1;
+        }
+    // an error was reported. now we need to unwind and report a "backtrace" for
+    // the path along which the cyce was detected.
+    return 0;
+    // through ctors or funcs calling ctors
+}
+
+// static void ASTModule_checkCyclesInTypes(Parser* this, ASTModule* mod) {}
+
+static int ASTExpr_setCycleCheckFlag(Parser* this, ASTExpr* expr)
+{
+    ASTType* dstType = NULL;
+    if (!expr) return 0;
+    switch (expr->kind) {
+    case tkVarAssign:
+        return ASTExpr_setCycleCheckFlag(this, expr->var->init);
+    case tkFunctionCall:
+        return ASTExpr_setCycleCheckFlag(this, expr->left);
+    case tkFunctionCallResolved:
+        if (ASTExpr_setCycleCheckFlag(this, expr->left)) return -1;
+        // if (expr->func->flags.isDefCtor) dstType =
+        // expr->func->returnType->type;
+        if (expr->func->returnType->typeType == TYObject
+            and expr->func->flags.returnsNewObjectAlways)
+            dstType = expr->func->returnType->type;
+        break;
+    case tkSubscriptResolved:
+        return ASTExpr_setCycleCheckFlag(this, expr->left);
+    case tkIdentifierResolved:
+    case tkString:
+    case tkNumber:
+    case tkRegex:
+        return 0;
+    default:
+        if (expr->prec) {
+            int ret = 0;
+            if (not expr->unary)
+                ret += ASTExpr_setCycleCheckFlag(this, expr->left);
+            ret += ASTExpr_setCycleCheckFlag(this, expr->right);
+            if (ret) return ret;
+        } else
+            unreachable("unknown expr kind: %s at %d:%d\n",
+                TokenKind_str[expr->kind], expr->line, expr->col)
     }
+    if (not dstType) return 0;
+    if (dstType->flags.cycleCheckFlag) {
+        Parser_errorConstructorHasCycle(this, dstType);
+        eprintf("%s", "\e[;2m"); // Backtrace (innermost first):\n");
+        return -1;
+    }
+    dstType->flags.cycleCheckFlag = true;
+    return ASTType_checkCycles(this, dstType);
+}
+
+static void ASTModule_resetCycleCheckFlags(ASTModule* mod)
+{
+    // reset the cycle check flag on all types
+    foreach (ASTType*, type, mod->types)
+        type->flags.cycleCheckFlag = false;
 }

@@ -348,6 +348,9 @@ static void sempassFunc(Parser* parser, ASTFunc* func, ASTModule* mod)
             if (not func->returnType) {
                 func->returnType = ASTTypeSpec_new(TYObject, CTYNone);
                 func->returnType->type = type;
+                // Ctors must AlWAYS return a new object.
+                // even Ctors with args.
+                func->flags.returnsNewObjectAlways = true;
             }
             // TODO: isStmt Ctors should have the correct type so e.g.
             // you cannot have

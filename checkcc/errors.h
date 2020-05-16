@@ -226,6 +226,16 @@ static void Parser_errorInheritanceCycle(
     Parser_errorIncrement(this);
 }
 
+static void Parser_errorConstructorHasCycle(
+    Parser* const this, const ASTType* const type)
+{
+    eprintf("\n\e[31;1;4m ERROR                                               "
+            "                       \e[0m\n %s%s:%d:%d:\n Type "
+            "\e[1m%s\e[0m has an endless cycle in its initialization.\n",
+        RELF(this->filename), type->line, type->col, type->name);
+    Parser_errorIncrement(this);
+}
+
 static void Parser_errorArgsCountMismatch(
     Parser* const this, const ASTExpr* const expr)
 {
