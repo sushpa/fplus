@@ -26,7 +26,11 @@ static ASTExpr* parseExpr(Parser* self)
             and memchr(self->token.pos, '_', self->token.matchlen))
             Parser_errorInvalidIdent(self); // but continue parsing
 
-        ASTExpr* expr = ASTExpr_fromToken(&self->token); // dont advance yet
+        ASTExpr* expr;
+        if (matches(self,tkParenOpen)) expr=&lparen;
+        else if (matches(self, tkParenClose))expr=&rparen;
+        else expr = ASTExpr_fromToken(&self->token); // dont advance yet
+
         int prec = expr->prec;
         bool rassoc = prec ? expr->rassoc : false;
         char lookAheadChar = Token_peekCharAfter(&self->token);
@@ -64,7 +68,7 @@ static ASTExpr* parseExpr(Parser* self)
             if (not PtrArray_empty(&ops)
                 and PtrArray_topAs(ASTExpr*, &ops)->kind == tkSubscript)
                 PtrArray_push(&rpn, expr);
-            if (lookAheadChar == ')') PtrArray_push(&rpn, NULL);
+            if (lookAheadChar == ']') PtrArray_push(&rpn, NULL);
             // for empty arr[] push null for no args
             break;
 
@@ -129,7 +133,7 @@ static ASTExpr* parseExpr(Parser* self)
                         // NULL. while unwinding the op stack, if you
                         // pop a : and see a NULL or comma on the rpn,
                         // push another NULL.
-                        PtrArray_push(&rpn, NULL);
+                        PtrArray_push(&rpn, &expr_const_0);
                     // indicates empty operand
                 }
                 while (not PtrArray_empty(&ops)) {
@@ -164,7 +168,7 @@ static ASTExpr* parseExpr(Parser* self)
                 if (expr->kind == tkOpColon
                     and (lookAheadChar == ',' or lookAheadChar == ':'
                         or lookAheadChar == ']' or lookAheadChar == ')'))
-                    PtrArray_push(&rpn, NULL);
+                    PtrArray_push(&rpn, &expr_const_0);
 
                 PtrArray_push(&ops, expr);
             } else {
@@ -313,7 +317,7 @@ error:
 #pragma mark - PARSE TYPESPEC
 static ASTTypeSpec* parseTypeSpec(Parser* self)
 {
-    self->token.mergeArrayDims = true;
+    // self->token.mergeArrayDims = true;
 
     ASTTypeSpec* typeSpec = NEW(ASTTypeSpec);
     typeSpec->line = self->token.line;
@@ -324,19 +328,19 @@ static ASTTypeSpec* parseTypeSpec(Parser* self)
 
     typeSpec->name = parseIdent(self);
 
-    if (matches(self, tkArrayDims)) {
-        for (int i = 0; i < self->token.matchlen; i++)
-            if (self->token.pos[i] == ':') typeSpec->dims++;
-        if (not typeSpec->dims) typeSpec->dims = 1;
-        Token_advance(&self->token);
-    }
+    // if (matches(self, tkArrayDims)) {
+    //     for (int i = 0; i < self->token.matchlen; i++)
+    //         if (self->token.pos[i] == ':') typeSpec->dims++;
+    //     if (not typeSpec->dims) typeSpec->dims = 1;
+    //     Token_advance(&self->token);
+    // }
 
     Parser_ignore(self, tkUnits);
 
     assert(self->token.kind != tkUnits);
     assert(self->token.kind != tkArrayDims);
 
-    self->token.mergeArrayDims = false;
+    // self->token.mergeArrayDims = false;
     return typeSpec;
 }
 
@@ -354,11 +358,22 @@ static ASTVar* parseVar(Parser* self)
     var->line = self->token.line;
     var->col = self->token.col;
 
+    self->token.mergeArrayDims = true;
+
     if (memchr(self->token.pos, '_', self->token.matchlen))
         Parser_errorInvalidIdent(self);
     if (*self->token.pos < 'a' or *self->token.pos > 'z')
         Parser_errorInvalidIdent(self);
     var->name = parseIdent(self);
+
+    int dims = 0;
+    if (matches(self, tkArrayDims)) {
+        for (int i = 0; i < self->token.matchlen; i++)
+            if (self->token.pos[i] == ':') dims++;
+        if (not dims) dims = 1;
+        Token_advance(&self->token);
+    }
+    self->token.mergeArrayDims = false;
 
     if (Parser_ignore(self, tkOneSpace) and Parser_ignore(self, tkKeyword_as)) {
         discard(self, tkOneSpace);
@@ -369,6 +384,7 @@ static ASTVar* parseVar(Parser* self)
         var->typeSpec->col = self->token.col;
         var->typeSpec->name = "";
     }
+    var->typeSpec->dims = dims;
 
     Parser_ignore(self, tkOneSpace);
     if (Parser_ignore(self, tkOpAssign)) var->init = parseExpr(self);
@@ -512,6 +528,49 @@ static ASTScope* parseScope(
             PtrList_append(&scope->stmts, expr);
             Token_advance(&self->token); // eat the newline
             resolveVars(self, expr, scope, false);
+            break;
+        }
+    }
+exitloop:
+    return scope;
+}
+
+static ASTScope* parseEnumBody(Parser* self)
+{
+    ASTScope* scope = NEW(ASTScope);
+    ASTExpr* expr = NULL;
+    while (self->token.kind != tkKeyword_end) {
+        switch (self->token.kind) {
+
+        case tkNullChar:
+            Parser_errorExpectedToken(self, tkUnknown);
+            goto exitloop;
+
+        case tkNewline:
+        case tkOneSpace:
+            Token_advance(&self->token);
+            break;
+
+        case tkLineComment:
+            if (self->generateCommentExprs) {
+                expr = ASTExpr_fromToken(&self->token);
+                PtrList_append(&scope->stmts, expr);
+            }
+            Token_advance(&self->token);
+            break;
+
+        default:
+            expr = parseExpr(self);
+            if (expr->kind != tkIdentifier and expr->kind != tkOpAssign) {
+                Parser_errorInvalidTypeMember(self);
+                expr = NULL;
+                unreachable("%s\n", TokenKind_str[expr->kind]);
+            }
+            if (not expr) break;
+            PtrList_append(&scope->stmts, expr);
+            Token_advance(&self->token); // eat the newline
+            if (expr->kind == tkOpAssign)
+                resolveVars(self, expr->right, scope, false);
             break;
         }
     }
@@ -683,6 +742,39 @@ static ASTType* parseType(Parser* self, bool shouldParseBody)
     return type;
 }
 
+static ASTEnum* parseEnum(Parser* self)
+{
+    ASTEnum* en = NEW(ASTEnum);
+
+    discard(self, tkKeyword_enum);
+    discard(self, tkOneSpace);
+
+    en->line = self->token.line;
+    en->col = self->token.col;
+
+    if (memchr(self->token.pos, '_', self->token.matchlen))
+        Parser_errorInvalidIdent(self);
+    if (*self->token.pos < 'A' or *self->token.pos > 'Z')
+        Parser_errorInvalidIdent(self);
+    en->name = parseIdent(self);
+
+    Parser_ignore(self, tkNewline);
+
+    if (TypeType_byName(en->name) != TYUnresolved) {
+        // conflicts with a primitive type name
+        Parser_errorDuplicateEnum(self, en, NULL);
+        return en;
+    }
+
+    en->body = parseEnumBody(self);
+
+    discard(self, tkKeyword_end);
+    discard(self, tkOneSpace);
+    discard(self, tkKeyword_enum);
+
+    return en;
+}
+
 static ASTImport* parseImport(Parser* self)
 {
     ASTImport* import = NEW(ASTImport);
@@ -744,6 +836,7 @@ static PtrList* parseModule(Parser* self)
     List(ASTImport)** importsTop = &root->imports;
     List(ASTType)** typesTop = &root->types;
     List(ASTTest)** testsTop = &root->tests;
+    List(ASTEnum)** enumsTop = &root->enums;
     // List(ASTVar)** globalsTop = &root->globals;
 
     while (self->token.kind != tkNullChar) {
@@ -775,6 +868,11 @@ static PtrList* parseModule(Parser* self)
             if ((*funcsTop)->next) funcsTop = &(*funcsTop)->next;
             break;
 
+        case tkKeyword_enum:
+            PtrList_append(enumsTop, parseEnum(self));
+            if ((*enumsTop)->next) enumsTop = &(*enumsTop)->next;
+            break;
+
         case tkKeyword_type: {
             ASTType* type = parseType(self, true);
             PtrList_append(typesTop, type);
@@ -800,11 +898,12 @@ static PtrList* parseModule(Parser* self)
             // create some extra function declares
             char* defFuncs[] = { "json", "print", "describe" };
             for (int i = 0; i < countof(defFuncs); i++) {
-                ASTFunc* func
+                 ASTFunc* func
                     = ASTFunc_createDeclWithArg(defFuncs[i], NULL, type->name);
+                func->line = type->line;
                 PtrList_append(funcsTop, func);
                 if ((*funcsTop)->next) funcsTop = &(*funcsTop)->next;
-            }
+             }
 
         } break;
 

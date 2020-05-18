@@ -33,9 +33,9 @@ static void ASTTypeSpec_genc(ASTTypeSpec* typeSpec, int level, bool isconst)
             // Reciprocal, Rational, whatever
             // -- sure, but double (and float) should be enough since
             // the other types are rarely needed in a tensor form
-            printf("Array%dD(", typeSpec->dims);
+            printf("SArray%dD(", typeSpec->dims);
         else
-            printf("Array(");
+            printf("SArray(");
     }
 
     switch (typeSpec->typeType) {
@@ -197,7 +197,8 @@ static ASTExpr* ASTExpr_promotionCandidate(ASTExpr* expr)
         break;
 
     case tkFunctionCall: // unresolved
-        assert(0);
+        // assert(0);
+        unreachable("unresolved call %s\n", expr->string);
         if ((ret = ASTExpr_promotionCandidate(expr->left))) return ret;
         break;
 
@@ -414,7 +415,7 @@ static void ASTScope_genc(ASTScope* scope, int level)
 ///////////////////////////////////////////////////////////////////////////
 static void ASTType_genJson(ASTType* type)
 {
-    printf("static void %s_json_(const %s this, int nspc) {\n", type->name,
+    printf("static void %s_json_(const %s self, int nspc) {\n", type->name,
         type->name);
 
     printf("    printf(\"{\\n\");\n");
@@ -520,7 +521,7 @@ static void ASTType_genc(ASTType* type, int level)
     printf("static %s %s_alloc_() {\n    return _Pool_alloc_(&gPool_, "
            "sizeof(struct %s));\n}\n",
         name, name, name);
-    printf("static %s %s_init_(%s this) {\n", name, name, name);
+    printf("static %s %s_init_(%s self) {\n", name, name, name);
 
     foreach (ASTVar*, var, type->body->locals)
         printf("#define %s self->%s\n", var->name, var->name);
@@ -537,7 +538,7 @@ static void ASTType_genc(ASTType* type, int level)
     foreach (ASTVar*, var, type->body->locals)
         printf("#undef %s \n", var->name);
 
-    printf("    return this;\n}\n");
+    printf("    return self;\n}\n");
     printf(
         "%s %s_new_(\n#ifdef DEBUG\n    const char* callsite_\n#endif\n) {\n",
         name, name);
@@ -554,8 +555,8 @@ static void ASTType_genc(ASTType* type, int level)
     puts(functionExitStuff_UNESCAPED);
     puts("#undef DEFAULT_VALUE\n#undef MYSTACKUSAGE\n}");
     printf("#define %s_print_(p) %s_print__(p, STR(p))\n", name, name);
-    printf("void %s_print__(%s this, const char* name) {\n    printf(\"<%s "
-           "'%%s' at %%p\\n>\",name,this);\n}\n",
+    printf("void %s_print__(%s self, const char* name) {\n    printf(\"<%s "
+           "'%%s' at %%p\\n>\",name,self);\n}\n",
         name, name, name);
     puts("");
 
@@ -570,7 +571,7 @@ static void ASTType_genh(ASTType* type, int level)
     const char* const name = type->name;
     printf("typedef struct %s* %s;\nstruct %s;\n", name, name, name);
     printf("static %s %s_alloc_(); \n", name, name);
-    printf("static %s %s_init_(%s this);\n", name, name, name);
+    printf("static %s %s_init_(%s self);\n", name, name, name);
     printf(
         "%s %s_new_(\n#ifdef DEBUG\n    const char* callsite_\n#endif\n); \n",
         name, name);
@@ -578,7 +579,7 @@ static void ASTType_genh(ASTType* type, int level)
     printf("#define %s_json(x) { printf(\"\\\"%%s\\\": \",#x); "
            "%s_json_wrap_(x); }\n\n",
         name, name);
-    printf("static void %s_json_(const %s this, int nspc);\n", name, name);
+    printf("static void %s_json_(const %s self, int nspc);\n", name, name);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -707,13 +708,20 @@ static void ASTExpr_genc(
         break;
 
     case tkFunctionCall:
-        unreachable("%s", "unresolved call");
+        unreachable("unresolved call to %s\n", expr->string);
+        assert(0);
         break;
 
     case tkFunctionCallResolved: {
         char* tmp = expr->func->selector;
 
-        printf("%s", tmp);
+        ASTExpr* arg1 = expr->left;
+        const char* tmpc = "";
+        if (arg1) {
+            if (arg1->kind == tkOpComma) arg1 = arg1->left;
+            tmpc = CollectionType_nativeName(arg1->collectionType);
+        }
+        printf("%s%s", tmpc, tmp);
         if (*tmp >= 'A' and *tmp <= 'Z' and not strchr(tmp, '_'))
             printf("_new_");
         printf("(");
@@ -879,19 +887,23 @@ static void ASTExpr_genc(
                 break;
 
             case tkOpComma:
-            // figure out the type of each element
-            // there should be a RangeND just like TensorND and SliceND
-            // then you can just pass that to _setSlice
+                // figure out the type of each element
+                // there should be a RangeND just like TensorND and SliceND
+                // then you can just pass that to _setSlice
+                break;
             case tkIdentifierResolved:
                 // lookup the var type. note that it need not be Number,
                 // string, range etc. it could be an arbitrary object in
                 // case you are indexing a Dict with keys of that type.
-
+                break;
             case tkSubscriptResolved:
-            // arr[arr2[4]] etc.
+                // arr[arr2[4]] etc.
+                break;
             case tkFunctionCallResolved:
-            // arr[func(x)]
+                // arr[func(x)]
+                break;
             default:
+                unreachable("%s\n", TokenKind_str[expr->left->kind]);
                 assert(0);
             }
             break;
@@ -926,12 +938,12 @@ static void ASTExpr_genc(
         // TODO: send parent ASTExpr* as an arg to this function. Then
         // here do various things based on whether parent is a =,
         // funcCall, etc.
-        printf("mkarr((%s[]) {", "double"); // FIXME
+        printf("mkarr(((%s[]) {", "double"); // FIXME
         // TODO: MKARR should be different based on the CollectionType
         // of the var or arg in question, eg stack cArray, heap
         // allocated Array, etc.
         ASTExpr_genc(expr->right, 0, spacing, inFuncArgs, escStrings);
-        printf("}");
+        printf("})");
         printf(", %d)", ASTExpr_countCommaList(expr->right));
         break;
 

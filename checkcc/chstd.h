@@ -18,24 +18,24 @@
 #pragma mark - Heap allocation stuff
 
 static int globalCallocCount = 0;
-#define calloc(n, s)                                                                                                               \
-    calloc(n, s);                                                                                                                  \
+#define calloc(n, s)                                                           \
+    calloc(n, s);                                                              \
     globalCallocCount++;
 static int globalMallocCount = 0;
-#define malloc(s)                                                                                                                  \
-    malloc(s);                                                                                                                     \
+#define malloc(s)                                                              \
+    malloc(s);                                                                 \
     globalMallocCount++;
 static int globalStrdupCount = 0;
-#define strdup(s)                                                                                                                  \
-    strdup(s);                                                                                                                     \
+#define strdup(s)                                                              \
+    strdup(s);                                                                 \
     globalStrdupCount++;
 static int globalReallocCount = 0;
-#define realloc(ptr, s)                                                                                                            \
-    realloc(ptr, s);                                                                                                               \
+#define realloc(ptr, s)                                                        \
+    realloc(ptr, s);                                                           \
     globalReallocCount++;
 static int globalStrlenCount = 0;
-#define strlen(s)                                                                                                                  \
-    strlen(s);                                                                                                                     \
+#define strlen(s)                                                              \
+    strlen(s);                                                                 \
     globalStrlenCount++;
 
 #pragma mark - Custom types
@@ -59,13 +59,17 @@ union Value {
     double d;
 };
 
-#define unreachable(fmt, ...)                                                                                                      \
-    {                                                                                                                              \
-        eprintf("\n\e[31m*** COMPILER INTERNAL ERROR\e[0m at ./%s:%d\n"                                                            \
-                "    in %s\n"                                                                                                      \
-                "    unreachable location hit, quitting\n"                                                                         \
-                "    msg: " fmt "\n",                                                                                              \
-            __FILE__, __LINE__, __func__, __VA_ARGS__);                                                                            \
+#define SArray(T) T*
+
+#define mkarr(A, sz) A
+#define Array_get_Number(A, i) A[(i)-1]
+#define unreachable(fmt, ...)                                                  \
+    {                                                                          \
+        eprintf("\n\e[31m*** COMPILER INTERNAL ERROR\e[0m at ./%s:%d\n"        \
+                "    in %s\n"                                                  \
+                "    unreachable location hit, quitting\n"                     \
+                "    msg: " fmt "\n",                                          \
+            __FILE__, __LINE__, __func__, __VA_ARGS__);                        \
     }
 //    exit(12);
 
@@ -119,7 +123,9 @@ typedef double Real64;
 
 // #define PtrArray_topAs(T, self) Array_topAs(T, self)
 
-#define roundUp32(x) (--(x), (x) |= (x) >> 1, (x) |= (x) >> 2, (x) |= (x) >> 4, (x) |= (x) >> 8, (x) |= (x) >> 16, ++(x))
+#define roundUp32(x)                                                           \
+    (--(x), (x) |= (x) >> 1, (x) |= (x) >> 2, (x) |= (x) >> 4,                 \
+        (x) |= (x) >> 8, (x) |= (x) >> 16, ++(x))
 
 // dont get smart and try to do Array(Array(Array(whatever)))
 
@@ -130,62 +136,71 @@ typedef double Real64;
 // "instant" typically 200-300 ms should be the upper limit for
 // compilation time YES "COMPILATION" MEANS TO BINARY NOT TO C, that
 // should be < 20ms for a typical project.
-#define MAKE_Array(T)                                                                                                              \
-    typedef struct Array(T)                                                                                                        \
-    {                                                                                                                              \
-        T* ref;                                                                                                                    \
-        UInt32 used;                                                                                                               \
-        UInt32 cap;                                                                                                                \
-    }                                                                                                                              \
-    Array(T);                                                                                                                      \
-    static void Array_free(T)(Array(T) * self)                                                                                     \
-    {                                                                                                                              \
-        if (self->cap) free(self->ref);                                                                                            \
-    }                                                                                                                              \
-    static void Array_growTo(T)(Array(T) * self, UInt32 size)                                                                      \
-    {                                                                                                                              \
-        self->cap = roundUp32(size);                                                                                               \
-        self->ref = realloc(self->ref, sizeof(T) * self->cap);                                                                     \
-        memset(self->ref + self->used, 0, sizeof(T) * (self->cap - self->used));                                                   \
-    }                                                                                                                              \
-    static T Array_get(T)(Array(T) * self, UInt32 index) { return self->ref[index]; }                                              \
-    static void Array_concat_cArray(T)(Array(T) * self, T * cArray, int count)                                                     \
-    {                                                                                                                              \
-        const UInt32 reqd = self->used + count;                                                                                    \
-        if (reqd >= self->cap) Array_growTo(T)(self, reqd);                                                                        \
-        memcpy(self->ref + self->used, cArray, count * sizeof(T));                                                                 \
-    }                                                                                                                              \
-    static void Array_concat_otherArray(T)(Array(T) * self, Array(T) * other)                                                      \
-    {                                                                                                                              \
-        Array_concat_cArray(T)(self, other->ref, other->used);                                                                     \
-    }                                                                                                                              \
-    static void Array_clear(T)(Array(T) * self) { self->used = 0; }                                                                \
-    static void Array_initWith_cArray(T)(Array(T) * self, T * cArray, int count)                                                   \
-    {                                                                                                                              \
-        Array_clear(T)(self);                                                                                                      \
-        Array_concat_cArray(T)(self, cArray, count);                                                                               \
-    }                                                                                                                              \
-    static void Array_grow(T)(Array(T) * self)                                                                                     \
-    { /* maybe self can be merged with growTo */                                                                                   \
-        self->cap = self->cap ? 2 * self->cap : 8;                                                                                 \
-        self->ref = realloc(self->ref, sizeof(T) * self->cap);                                                                     \
-        memset(self->ref + self->used, 0, sizeof(T) * (self->cap - self->used));                                                   \
-    }                                                                                                                              \
-    static void Array_justPush(T)(Array(T) * self, T node)                                                                         \
-    { /* when you know that cap is enough */                                                                                       \
-        self->ref[self->used++] = node;                                                                                            \
-    }                                                                                                                              \
-    static void Array_push(T)(Array(T) * self, T node)                                                                             \
-    {                                                                                                                              \
-        if (self->used >= self->cap) Array_grow(T)(self);                                                                          \
-        Array_justPush(T)(self, node);                                                                                             \
-    }                                                                                                                              \
-    static T Array_pop(T)(Array(T) * self)                                                                                         \
-    {                                                                                                                              \
-        assert(self->used > 0);                                                                                                    \
-        return self->ref[--self->used];                                                                                            \
-    }                                                                                                                              \
-    static T Array_top(T)(Array(T) * self) { return self->used ? self->ref[self->used - 1] : 0; }                                  \
+#define MAKE_Array(T)                                                          \
+    typedef struct Array(T)                                                    \
+    {                                                                          \
+        T* ref;                                                                \
+        UInt32 used;                                                           \
+        UInt32 cap;                                                            \
+    }                                                                          \
+    Array(T);                                                                  \
+    static void Array_free(T)(Array(T) * self)                                 \
+    {                                                                          \
+        if (self->cap) free(self->ref);                                        \
+    }                                                                          \
+    static void Array_growTo(T)(Array(T) * self, UInt32 size)                  \
+    {                                                                          \
+        self->cap = roundUp32(size);                                           \
+        self->ref = realloc(self->ref, sizeof(T) * self->cap);                 \
+        memset(                                                                \
+            self->ref + self->used, 0, sizeof(T) * (self->cap - self->used));  \
+    }                                                                          \
+    static T Array_get(T)(Array(T) * self, UInt32 index)                       \
+    {                                                                          \
+        return self->ref[index];                                               \
+    }                                                                          \
+    static void Array_concat_cArray(T)(Array(T) * self, T * cArray, int count) \
+    {                                                                          \
+        const UInt32 reqd = self->used + count;                                \
+        if (reqd >= self->cap) Array_growTo(T)(self, reqd);                    \
+        memcpy(self->ref + self->used, cArray, count * sizeof(T));             \
+    }                                                                          \
+    static void Array_concat_otherArray(T)(Array(T) * self, Array(T) * other)  \
+    {                                                                          \
+        Array_concat_cArray(T)(self, other->ref, other->used);                 \
+    }                                                                          \
+    static void Array_clear(T)(Array(T) * self) { self->used = 0; }            \
+    static void Array_initWith_cArray(T)(                                      \
+        Array(T) * self, T * cArray, int count)                                \
+    {                                                                          \
+        Array_clear(T)(self);                                                  \
+        Array_concat_cArray(T)(self, cArray, count);                           \
+    }                                                                          \
+    static void Array_grow(T)(Array(T) * self)                                 \
+    { /* maybe self can be merged with growTo */                               \
+        self->cap = self->cap ? 2 * self->cap : 8;                             \
+        self->ref = realloc(self->ref, sizeof(T) * self->cap);                 \
+        memset(                                                                \
+            self->ref + self->used, 0, sizeof(T) * (self->cap - self->used));  \
+    }                                                                          \
+    static void Array_justPush(T)(Array(T) * self, T node)                     \
+    { /* when you know that cap is enough */                                   \
+        self->ref[self->used++] = node;                                        \
+    }                                                                          \
+    static void Array_push(T)(Array(T) * self, T node)                         \
+    {                                                                          \
+        if (self->used >= self->cap) Array_grow(T)(self);                      \
+        Array_justPush(T)(self, node);                                         \
+    }                                                                          \
+    static T Array_pop(T)(Array(T) * self)                                     \
+    {                                                                          \
+        assert(self->used > 0);                                                \
+        return self->ref[--self->used];                                        \
+    }                                                                          \
+    static T Array_top(T)(Array(T) * self)                                     \
+    {                                                                          \
+        return self->used ? self->ref[self->used - 1] : 0;                     \
+    }                                                                          \
     static bool Array_empty(T)(Array(T) * self) { return self->used == 0; }
 
 MAKE_Array(Ptr);
@@ -254,8 +269,8 @@ static void PoolB_free(PoolB* self)
 PoolB gPool;
 PoolB strPool;
 
-#define NEW(T)                                                                                                                     \
-    PoolB_alloc(&gPool, sizeof(T));                                                                                                \
+#define NEW(T)                                                                 \
+    PoolB_alloc(&gPool, sizeof(T));                                            \
     T##_allocTotal++;
 
 // This macro should be invoked on each struct defined.
@@ -308,16 +323,18 @@ static void PtrList_append(PtrList** selfp, void* item)
 //              listp = listp->next)
 
 #define foreach(T, var, listSrc) foreachn(T, var, _listp_, listSrc)
-#define foreachn(T, var, listp, listSrc)                                                                                           \
-    for (PtrList* listp = listSrc; listp; listp = NULL)                                                                            \
-        for (T var = (T)listp->item; listp and (var = (T)listp->item); listp = listp->next)
+#define foreachn(T, var, listp, listSrc)                                       \
+    for (PtrList* listp = listSrc; listp; listp = NULL)                        \
+        for (T var = (T)listp->item; listp and (var = (T)listp->item);         \
+             listp = listp->next)
 #endif /* chstd_h */
 
 #pragma mark - String Functions
 
 #include "strcasecmp.h"
 
-#define str_endswith(str, lenstr, suffix, lensuffix) !strncmp(str + lenstr - lensuffix, suffix, lensuffix)
+#define str_endswith(str, lenstr, suffix, lensuffix)                           \
+    !strncmp(str + lenstr - lensuffix, suffix, lensuffix)
 
 #define str_startswith(str, prefix, lenprefix) !strncmp(str, prefix, lenprefix)
 
@@ -382,7 +399,8 @@ static char* str_upper(char* str)
 }
 
 // in place
-static void str_tr_ip(char* str, const char oldc, const char newc, const size_t length)
+static void str_tr_ip(
+    char* str, const char oldc, const char newc, const size_t length)
 {
     char* sc = str - 1;
     char* end = length ? str + length : (char*)0xFFFFFFFFFFFFFFFF;
@@ -398,7 +416,10 @@ static char* str_tr(char* str, const char oldc, const char newc)
     return s;
 }
 
-static char* str_nthField(char* str, int len, char sep, int nth) { return NULL; }
+static char* str_nthField(char* str, int len, char sep, int nth)
+{
+    return NULL;
+}
 
 static int str_countFields(char* str, int len, char sep) { return 0; }
 
@@ -409,7 +430,8 @@ static char** str_getAllOccurences(char* str, int len, char sep, int* count)
     return 0;
 }
 
-static int str_getSomeOccurences(char* str, int len, char sep, char** result, int limit)
+static int str_getSomeOccurences(
+    char* str, int len, char sep, char** result, int limit)
 {
     // result buf is expected from caller
     return 0;
@@ -417,10 +439,12 @@ static int str_getSomeOccurences(char* str, int len, char sep, char** result, in
 
 // val should be evaluated every time since it could be a func with side
 // effects e.g. random(). BUt if it is not, then it should be cached.
-#define Slice2D_set1_IJ(arr, ri, rj, val)                                                                                          \
-    for (uint32_t ri_ = ri.start; ri_ <= ri.stop; ri_ += ri.step)                                                                  \
-        for (uint32_t rj_ = rj.start; ri_ <= rj.stop; ri_ += rj.step) Array2D_setAt(arr, ri_, rj_, val)
+#define Slice2D_set1_IJ(arr, ri, rj, val)                                      \
+    for (uint32_t ri_ = ri.start; ri_ <= ri.stop; ri_ += ri.step)              \
+        for (uint32_t rj_ = rj.start; ri_ <= rj.stop; ri_ += rj.step)          \
+    Array2D_setAt(arr, ri_, rj_, val)
 
-#define Slice2D_set_IJ(arr, ri, rj, arr2, r2i, r2j)                                                                                \
-    for (uint32_t ri_ = ri.start; ri_ <= ri.stop; ri_ += ri.step)                                                                  \
-        for (uint32_t rj_ = rj.start; ri_ <= rj.stop; ri_ += rj.step) Array2D_setAt(arr, ri_, rj_, Array2D_getAt(arr2, r2i_, r2j_))
+#define Slice2D_set_IJ(arr, ri, rj, arr2, r2i, r2j)                            \
+    for (uint32_t ri_ = ri.start; ri_ <= ri.stop; ri_ += ri.step)              \
+        for (uint32_t rj_ = rj.start; ri_ <= rj.stop; ri_ += rj.step)          \
+    Array2D_setAt(arr, ri_, rj_, Array2D_getAt(arr2, r2i_, r2j_))

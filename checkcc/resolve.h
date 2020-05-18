@@ -116,10 +116,11 @@ static void resolveVars(
             // check subscript argument count
             // recheck kind since the var may have failed resolution
             // TODO: handle dims 0 as dims 1 because arr[] is the same as arr[:]
-            if (expr->kind == tkSubscriptResolved
-                and ASTExpr_countCommaList(expr->left)
-                    != expr->var->typeSpec->dims)
-                Parser_errorIndexDimsMismatch(parser, expr);
+//            if (expr->kind == tkSubscriptResolved
+//                and ASTExpr_countCommaList(expr->left)
+//                    != expr->var->typeSpec->dims)
+//                Parser_errorIndexDimsMismatch(parser, expr);
+            // do it in analysis after type/dims inference
         }
         break;
     }

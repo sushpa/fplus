@@ -171,12 +171,18 @@ typedef struct ASTType {
     ASTScope* body;
     uint16_t line;
     uint8_t col;
-    struct {
-        bool analysed : 1, needJSON : 1, needXML : 1, needYAML : 1, visited : 1,
-            isValueType : 1; // all vars of this type will be stack
-                             // allocated and passed around by value.
-    };
+    bool analysed : 1, needJSON : 1, needXML : 1, needYAML : 1, visited : 1,
+        isValueType : 1; // all vars of this type will be stack
+                         // allocated and passed around by value.
 } ASTType;
+
+typedef struct ASTEnum {
+    char* name;
+    ASTScope* body;
+    uint16_t line;
+    uint8_t col;
+    bool analysed : 1, visited : 1;
+} ASTEnum;
 
 typedef struct ASTFunc {
     ASTScope* body;
@@ -229,7 +235,7 @@ typedef struct ASTModule {
     List(ASTType) * types;
     List(ASTVar) * globals;
     List(ASTImport) * imports;
-    // List(ASTFunc) * tests;
+    List(ASTEnum) * enums;
     char* name;
     char* moduleName;
 } ASTModule;
@@ -249,6 +255,7 @@ struct ASTVar;
 #define List_ASTVar PtrList
 #define List_ASTModule PtrList
 #define List_ASTFunc PtrList
+#define List_ASTEnum PtrList
 #define List_ASTTest PtrList
 #define List_ASTType PtrList
 #define List_ASTImport PtrList
@@ -258,6 +265,7 @@ struct ASTVar;
 MKSTAT(ASTExpr)
 MKSTAT(ASTFunc)
 MKSTAT(ASTTest)
+MKSTAT(ASTEnum)
 MKSTAT(ASTTypeSpec)
 MKSTAT(ASTType)
 MKSTAT(ASTModule)
@@ -267,6 +275,7 @@ MKSTAT(ASTVar)
 MKSTAT(Parser)
 MKSTAT(List_ASTExpr)
 MKSTAT(List_ASTFunc)
+MKSTAT(List_ASTEnum)
 MKSTAT(List_ASTTest)
 MKSTAT(List_ASTType)
 MKSTAT(List_ASTModule)
@@ -486,10 +495,8 @@ static size_t ASTType_calcSizeUsage(ASTType* self)
         // all variables must be resolved before calling this
         size = TypeType_size(var->typeSpec->typeType);
         assert(size);
-        // if (arg->used)
         sum += size;
     }
-    // if (self->body) sum += ASTScope_calcSizeUsage(self->body);
     return sum;
 }
 
@@ -498,16 +505,6 @@ static size_t ASTType_calcSizeUsage(ASTType* self)
 static const char* ASTExpr_typeName(ASTExpr* self)
 {
     if (not self) return "";
-    // TODO: here you should decide based onthe typeType not the token kind!
-    // see as in ASTTypeSpec_name
-    //    switch (self->typeType) {
-    //    case TYUnresolved:
-    //        return self->name;
-    //    case TYObject:
-    //        return self->type->name;
-    //    default:
-    //        return TypeType_name(self->typeType);
-    //    }
     const char* ret = TypeType_name(self->typeType);
     if (!ret) return "<unknown>"; // unresolved
     if (*ret) return ret; // primitive type
@@ -518,16 +515,6 @@ static const char* ASTExpr_typeName(ASTExpr* self)
         return self->func->returnSpec->type->name;
     case tkIdentifierResolved:
     case tkSubscriptResolved:
-        //        {
-        //             const char* name =
-        //             TypeType_name(self->var->typeSpec->typeType);
-        //            if (!name) {
-        //                unreachable("unresolved: %s %s",
-        //                    TokenKind_repr(self->kind, false),
-        //                    self->string);
-        //                return "<unknown>";
-        //            }
-        //            if (!*name) name = ;
         return self->var->typeSpec->type->name;
         //        }
         // TODO: tkOpColon should be handled separately in the semantic
@@ -540,9 +527,6 @@ static const char* ASTExpr_typeName(ASTExpr* self)
         return ASTExpr_typeName(self->right);
     default:
         break;
-        // unreachable("unexpected: %s %s", TokenKind_repr(self->kind,
-        // false),
-        //     self->string);
     }
     return "<invalid>";
 }
@@ -845,6 +829,18 @@ static void getSelector(ASTFunc* func)
 #include "resolve.h"
 #include "sempass.h"
 
+// this is a global astexpr representing 0. it will be used when parsing e.g.
+// the colon op with nothing on either side. : -> 0:0 means the same as 1:end
+static ASTExpr expr_const_0;
+static ASTExpr lparen, rparen;
+static void initStaticExprs()
+{
+    expr_const_0.kind = tkNumber;
+    expr_const_0.string = "0";
+    lparen.kind = tkParenOpen;
+    rparen.kind = tkParenClose;
+}
+
 #include "parse.h"
 
 // TODO: this should be in ASTModule open/close
@@ -878,6 +874,8 @@ int main(int argc, char* argv[])
 
     List(ASTModule) * modules;
     Parser* parser;
+
+    initStaticExprs();
 
     parser = Parser_fromFile(argv[1], true);
     if (not parser) return 2;

@@ -6,6 +6,7 @@ typedef enum TypeTypes {
                       // nonprimitives: means they should have their own
                       // methods to print,
                       // serialise, identify, reflect, etc.
+    TYNoType, // void
     TYObject, // resolved to an ASTType
               // primitives that can be printed or represented with no fuss
     TYErrorType, // use this to poison an expr which has a type error
@@ -38,6 +39,8 @@ static const char* TypeType_name(TypeTypes tyty)
     switch (tyty) {
     case TYUnresolved:
         return NULL;
+    case TYNoType:
+        return "Void";
     case TYErrorType:
         return "<invalid>";
     case TYString:
@@ -63,6 +66,7 @@ static const char* TypeType_name(TypeTypes tyty)
 
 static const char* TypeType_c_name[] = {
     [TYUnresolved] = "<unresolved>",
+    [TYNoType] = "void",
     [TYErrorType] = "<invalid>",
     [TYString] = "String",
     [TYBool] = "bool",
@@ -85,7 +89,7 @@ static const char* TypeType_format(TypeTypes tyty, bool quoted)
 {
     switch (tyty) {
     case TYUnresolved:
-        return NULL;
+    case TYNoType:
     case TYErrorType:
         return NULL;
     case TYObject:
@@ -128,6 +132,7 @@ static unsigned int TypeType_size(TypeTypes tyty)
 {
     switch (tyty) {
     case TYUnresolved:
+    case TYNoType:
     case TYErrorType:
         return 0;
     case TYObject:
@@ -218,15 +223,15 @@ static const char* CollectionType_nativeName(CollectionTypes coty)
     case CTYNone:
         return "";
     case CTYArray:
-        return "_A";
+        return "Array_";
     case CTYList:
-        return "_l";
+        return "List_";
     case CTYDList:
-        return "_L";
+        return "DList_";
     case CTYDictS:
-        return "_d";
+        return "DictS_";
     case CTYDictU:
-        return "_D";
+        return "DictU_";
     case CTYOrderedDictS:
         return "_o";
     case CTYSortedDictS:
@@ -236,13 +241,13 @@ static const char* CollectionType_nativeName(CollectionTypes coty)
     case CTYSortedDictU:
         return "_S";
     case CTYSet:
-        return "_Z";
+        return "Set_";
     case CTYOrderedSet:
-        return "_Y";
+        return "OSet_";
     case CTYSortedSet:
-        return "_X";
+        return "SSet_";
     case CTYTensor:
-        return "_T";
+        return "Tensor_";
     case CTYDataFrame:
         return "_F";
     case CTYStackArray:

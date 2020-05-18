@@ -9,7 +9,7 @@ else
 fi
 
 [ -f "$FILE" ] || exit 6
-TGT=${FILE%%.ch}$EXTN.bin
+TGT=${FILE%%.fp}$EXTN.bin
 # printf "  ...\r" 1>&2
 make -s DIAG=$DIAG -f Makerunner $TGT && [ -f $TGT ] && ./$TGT $*
 

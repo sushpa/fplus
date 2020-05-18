@@ -24,7 +24,7 @@ static bool isBoolOp(ASTExpr* expr)
 ///////////////////////////////////////////////////////////////////////////
 static void analyseExpr(
     Parser* parser, ASTExpr* expr, ASTModule* mod, bool inFuncArgs)
-{ // return;
+{
     switch (expr->kind) {
 
         // -------------------------------------------------- //
@@ -34,7 +34,10 @@ static void analyseExpr(
             Parser_errorArgsCountMismatch(parser, expr);
         expr->typeType = expr->func->returnSpec
             ? expr->func->returnSpec->typeType
-            : TYUnresolved; // should actually be TYVoid
+            : TYNoType; // should actually be TYVoid
+        expr->collectionType = expr->func->returnSpec
+            ? expr->func->returnSpec->collectionType
+            : CTYNone; // should actually be TYVoid
         expr->elemental = expr->func->elemental;
         // isElementalFunc means the func is only defined for (all)
         // Number arguments and another definition for vector args
@@ -65,7 +68,10 @@ static void analyseExpr(
         // TODO: need a function to make and return selector
         ASTExpr* arg1 = expr->left;
         if (arg1 and arg1->kind == tkOpComma) arg1 = arg1->left;
-        if (arg1) bufp += sprintf(bufp, "%s_", ASTExpr_typeName(arg1));
+        const char* typeName = ASTExpr_typeName(arg1);
+//        const char* collName = "";
+//        if (arg1) collName=CollectionType_nativeName(arg1->collectionType);
+        if (arg1) bufp += sprintf(bufp, "%s_", typeName );
         bufp += sprintf(bufp, "%s", expr->string);
         if (expr->left)
             ASTExpr_strarglabels(expr->left, bufp, 128 - ((int)(bufp - buf)));
@@ -78,14 +84,19 @@ static void analyseExpr(
             analyseExpr(parser, expr, mod, inFuncArgs);
             return;
         }
-        Parser_errorUnrecognizedFunc(parser, expr, buf);
-        if (*buf != '<') // not invalid type
-            foreach (ASTFunc*, func, mod->funcs)
-                if (not strcasecmp(expr->string, func->name))
-                    eprintf("\e[;2m ./%s:%d: \e[;1;2m%s\e[0;2m with %d "
-                            "arguments is not viable.\e[0m\n",
-                        parser->filename, func->line, func->selector,
-                        func->argCount);
+        if (not strncmp(buf, "Void_", 5))
+            Parser_errorCallingFuncWithVoid(parser, expr, arg1);
+        else {
+            Parser_errorUnrecognizedFunc(parser, expr, buf);
+
+            if (*buf != '<') // not invalid type
+                foreach (ASTFunc*, func, mod->funcs)
+                    if (not strcasecmp(expr->string, func->name))
+                        eprintf("\e[;2m ./%s:%d: \e[;1;2m%s\e[0;2m with %d "
+                                "arguments is not viable.\e[0m\n",
+                            parser->filename, func->line, func->selector,
+                            func->argCount);
+        }
     } break;
 
         // -------------------------------------------------- //
@@ -130,6 +141,26 @@ static void analyseExpr(
                 Parser_errorInitMismatch(parser, expr);
                 expr->typeType = TYErrorType;
             }
+
+            if (typeSpec->dims == 0) {
+                typeSpec->collectionType = init->collectionType;
+                typeSpec->dims = init->collectionType == CTYTensor
+                    ? 2
+                    : init->collectionType == CTYArray ? 1 : 0;
+            } else if (typeSpec->dims != 1
+                and init->collectionType == CTYArray) {
+                Parser_errorInitDimsMismatch(parser, expr, 1);
+                expr->typeType = TYErrorType;
+            } else if (typeSpec->dims != 2
+                and init->collectionType == CTYTensor) {
+                Parser_errorInitDimsMismatch(parser, expr, 2);
+                expr->typeType = TYErrorType;
+
+            } else if (typeSpec->dims != 0
+                and init->collectionType == CTYNone) {
+                Parser_errorInitDimsMismatch(parser, expr, 0);
+                expr->typeType = TYErrorType;
+            }
         }
     } break;
 
@@ -145,11 +176,17 @@ static void analyseExpr(
 
         // -------------------------------------------------- //
     case tkSubscriptResolved:
+        if (ASTExpr_countCommaList(expr->left) != expr->var->typeSpec->dims)
+            Parser_errorIndexDimsMismatch(parser, expr);
+        // fallthru
     case tkSubscript:
         if (expr->left) analyseExpr(parser, expr->left, mod, inFuncArgs);
         if (expr->kind == tkSubscriptResolved) {
             expr->typeType = expr->var->typeSpec->typeType;
-            expr->elemental = expr->left->elemental;
+            expr->collectionType = expr->var->typeSpec->collectionType;
+            // TODO: since it is a subscript, if it has no left (i.e. arr[])
+            // i'm guessing it is a full array, and therefore can be an elemental op
+            expr->elemental = expr->left? expr->left->elemental: true;
             // TODO: check args in the same way as for funcs below, not
             // directly checking expr->left.}
         }
@@ -169,6 +206,15 @@ static void analyseExpr(
 
     case tkIdentifierResolved:
         expr->typeType = expr->var->typeSpec->typeType;
+        expr->collectionType = expr->var->typeSpec->collectionType;
+        expr->elemental = expr->collectionType != CTYNone;
+        break;
+
+    case tkArrayOpen:
+        analyseExpr(parser, expr->right, mod, inFuncArgs);
+        expr->typeType = expr->right->typeType;
+        expr->collectionType
+            = expr->right->kind == tkOpSemiColon ? CTYTensor : CTYArray;
         break;
 
     case tkPeriod: {
@@ -212,9 +258,8 @@ static void analyseExpr(
         if (expr->right->kind == tkPeriod)
             analyseExpr(parser, expr->right, mod, inFuncArgs);
 
-        // TODO: exprs like a.b.c.d.e are not handled yet, only a.b
-
         expr->typeType = expr->right->typeType;
+        expr->collectionType = expr->right->collectionType;
         expr->elemental = expr->right->elemental;
     } break;
 
@@ -241,6 +286,7 @@ static void analyseExpr(
                 // Set the type from the ->right expr for now. if an error type
                 // is on the right, this is accounted for.
                 expr->typeType = expr->right->typeType;
+                expr->collectionType = expr->right->collectionType;
             }
             expr->elemental = expr->right->elemental or expr->kind == tkOpColon;
             // TODO: actually, indexing by an array of integers is also an
@@ -278,8 +324,9 @@ static void analyseExpr(
                     // disallow +=
                     ;
                 } else if (leftType == TYBool
-                    and (expr->kind == tkOpAssign or expr->kind == tkOpEQ
-                        or expr->kind == tkKeyword_and
+                    and (expr->kind == tkOpAssign //
+                        or expr->kind == tkOpEQ //
+                        or expr->kind == tkKeyword_and //
                         or expr->kind == tkKeyword_or))
                     ;
                 else if (not TypeType_isnum(leftType)) {

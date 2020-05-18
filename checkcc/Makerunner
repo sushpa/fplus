@@ -5,14 +5,14 @@ CFLOPT=-O0 -Wall
 CFLDBG=-O0 -g -Werror -DDEBUG
 CFLFAST=-O3 -march=native -ffast-math -funroll-loops -DNOSTACKCHECK -DNONULLCHECK -DNOBOUNDSCHECK
 
-%.bin: %.ch chstd.h checkstd.h
+%.bin: %.fp chstd.h checkstd.h
 	./comp $< $(DIAG) > $@.c && cc $(CFLOPT) $@.c -o $@
 #	rm $@.c
 
-%-d.bin: %.ch chstd.h checkstd.h
+%-d.bin: %.fp chstd.h checkstd.h
 	./comp $< $(DIAG) > $@.c && cc $(CFLDBG) $@.c -o $@
 #	rm $@.c
 
-%-f.bin: %.ch chstd.h checkstd.h
+%-f.bin: %.fp chstd.h checkstd.h
 	./comp $< $(DIAG) > $@.c && cc $(CFLFAST) $@.c -o $@
 #	rm $@.c

@@ -136,6 +136,24 @@ static void Parser_errorDuplicateType(
     Parser_errorIncrement(parser);
 }
 
+static void Parser_errorDuplicateEnum(
+    Parser* const parser, const ASTEnum* const en, const ASTEnum* const orig)
+{
+    if (orig)
+        eprintf("\n(%d) \e[31merror:\e[0m duplicate enum "
+                "\e[34m%s\e[0m at %s%s:%d:%d\n   "
+                "          already declared at %s%s:%d:%d\n",
+            parser->errCount + 1, en->name, RELF(parser->filename), en->line,
+            en->col, RELF(parser->filename), orig->line, orig->col);
+    else
+        eprintf("\n(%d) \e[31merror:\e[0m invalid enum name "
+                "\e[34m%s\e[0m at %s%s:%d:%d\n   "
+                "          refers to a built-in type\n",
+            parser->errCount + 1, en->name, RELF(parser->filename), en->line,
+            en->col);
+    Parser_errorIncrement(parser);
+}
+
 static void Parser_errorTypeInheritsSelf(
     Parser* const parser, const ASTType* const type)
 {
@@ -203,6 +221,20 @@ static void Parser_errorUnrecognizedFunc(
         ASTExpr_countCommaList(expr->left));
     Parser_errorIncrement(parser);
 }
+
+static void Parser_errorCallingFuncWithVoid(
+                                         Parser* const parser, const ASTExpr* const expr, const ASTExpr* const arg)
+{
+     eprintf(
+            "\n\e[31;1;4m ERROR                                               "
+            "                       \e[0m\n %s%s:%d:%d:\n The "
+            "\e[1m%s\e[0m function does not return a value.\n"
+            " You cannot use it as an argument in the call to \e[1m%s\e[0m.\n",
+            RELF(parser->filename), expr->line, expr->col, arg->func->name, expr->string
+           );
+    Parser_errorIncrement(parser);
+}
+
 
 static void Parser_errorInheritanceCycle(
     Parser* const parser, const ASTType* const type)
@@ -345,6 +377,23 @@ static void Parser_errorInitMismatch(
         leftTypeName, rightTypeName);
     Parser_errorIncrement(parser);
 }
+
+static void Parser_errorInitDimsMismatch(
+                                     Parser* const parser, const ASTExpr* const expr, int dims)
+{
+    // if one of the types is "<invalid>", an error has already been
+    // reported for it; so don't bother
+//    const char* const leftTypeName = ASTTypeSpec_name(expr->var->typeSpec);
+//    const char* const rightTypeName = ASTExpr_typeName(expr->var->init);
+    //    if (*leftTypeName == '<' or *rightTypeName == '<') return;
+    eprintf("\n(%d) \e[31merror:\e[0m dimensions mismatch at %s%s:%d:%d\n"
+            "             can't init a \e[34m%dD\e[0m array \e[34m%s\e[0m with a \e[34m%dD\e[0m literal. \n"
+            "             just remove the dimension specification, the linter will take "
+            "care of it.\n",
+            parser->errCount + 1, RELF(parser->filename), expr->line, expr->col, expr->var->typeSpec->dims, expr->var->name, dims);
+    Parser_errorIncrement(parser);
+}
+
 
 static void Parser_errorReadOnlyVar(
     Parser* const parser, const ASTExpr* const expr)
