@@ -1,6 +1,6 @@
 #include "TokenKindDefs.h"
 
-// Return the repr of a this->token kind (for debug)
+// Return the repr of a self->token kind (for debug)
 
 static const char* TokenKind_repr(const TokenKind kind, bool spacing)
 {

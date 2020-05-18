@@ -81,14 +81,14 @@ type Type
     var body as Scope = nil
     var line = 0
     var col = 0
-    var sempassDone = no
+    var analysed = no
     var isValueType = no
 end type
 
 type Func
     var body as Scope = nil
     var args[] as Var
-    var returnType as TypeSpec = nil
+    var returnSpec as TypeSpec = nil
     var name = ""
     var selector = ""
 
@@ -98,7 +98,7 @@ type Func
                 usesGUI  usesSerialisation  isExported : 1
                 usesReflection  nodispatch  isStmt  isDeclare : 1
                 isCalledFromWithinLoop  elemental  isDefCtor : 1
-                semPassDone : 1
+                analysed : 1
         end type
         var argCount = 0
     end type
@@ -107,9 +107,8 @@ end type
 type Test
     var body as Scope = nil
     var name = ""
-    var selector = ""
     var line = 0
-    var semPassDone = no
+    var analysed = no
 end type
 
 type Module

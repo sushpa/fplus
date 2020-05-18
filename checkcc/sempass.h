@@ -1,23 +1,28 @@
 // TODO make sempassModule -> same as analyseModule now
-static void sempassType(Parser* parser, ASTType* type, ASTModule* mod);
-static void sempassFunc(Parser* parser, ASTFunc* func, ASTModule* mod);
+static void analyseType(Parser* parser, ASTType* type, ASTModule* mod);
+static void analyseFunc(Parser* parser, ASTFunc* func, ASTModule* mod);
 
 ///////////////////////////////////////////////////////////////////////////
 static bool isCmpOp(ASTExpr* expr)
 {
-    return expr->kind == tkOpLE or expr->kind == tkOpLT or expr->kind == tkOpGT
-        or expr->kind == tkOpGE or expr->kind == tkOpEQ or expr->kind == tkOpNE;
+    return expr->kind == tkOpLE //
+        or expr->kind == tkOpLT //
+        or expr->kind == tkOpGT //
+        or expr->kind == tkOpGE //
+        or expr->kind == tkOpEQ //
+        or expr->kind == tkOpNE;
 }
 
 ///////////////////////////////////////////////////////////////////////////
 static bool isBoolOp(ASTExpr* expr)
 {
-    return expr->kind == tkKeyword_and or expr->kind == tkKeyword_or
+    return expr->kind == tkKeyword_and //
+        or expr->kind == tkKeyword_or //
         or expr->kind == tkKeyword_not;
 }
 
 ///////////////////////////////////////////////////////////////////////////
-static void sempass(
+static void analyseExpr(
     Parser* parser, ASTExpr* expr, ASTModule* mod, bool inFuncArgs)
 { // return;
     switch (expr->kind) {
@@ -27,17 +32,17 @@ static void sempass(
 
         if (ASTExpr_countCommaList(expr->left) != expr->func->argCount)
             Parser_errorArgsCountMismatch(parser, expr);
-        expr->typeType = expr->func->returnType
-            ? expr->func->returnType->typeType
+        expr->typeType = expr->func->returnSpec
+            ? expr->func->returnSpec->typeType
             : TYUnresolved; // should actually be TYVoid
-        expr->elemental = expr->func->flags.elemental;
+        expr->elemental = expr->func->elemental;
         // isElementalFunc means the func is only defined for (all)
         // Number arguments and another definition for vector args
         // doesn't exist. Basically during typecheck this should see
         // if a type mismatch is only in terms of collectionType.
         if (not expr->left) break;
         expr->elemental = expr->elemental and expr->left->elemental;
-        expr->throws = expr->left->throws or expr->func->flags.throws;
+        expr->throws = expr->left->throws or expr->func->throws;
         ASTExpr* currArg = expr->left;
         foreach (ASTVar*, arg, expr->func->args) {
             ASTExpr* cArg
@@ -55,7 +60,7 @@ static void sempass(
     case tkFunctionCall: {
         char buf[128] = {};
         char* bufp = buf;
-        if (expr->left) sempass(parser, expr->left, mod, true);
+        if (expr->left) analyseExpr(parser, expr->left, mod, true);
 
         // TODO: need a function to make and return selector
         ASTExpr* arg1 = expr->left;
@@ -69,8 +74,8 @@ static void sempass(
         if (found) {
             expr->kind = tkFunctionCallResolved;
             expr->func = found;
-            sempassFunc(parser, found, mod);
-            sempass(parser, expr, mod, inFuncArgs);
+            analyseFunc(parser, found, mod);
+            analyseExpr(parser, expr, mod, inFuncArgs);
             return;
         }
         Parser_errorUnrecognizedFunc(parser, expr, buf);
@@ -85,43 +90,43 @@ static void sempass(
 
         // -------------------------------------------------- //
     case tkVarAssign: {
-        if (not expr->var->init)
+        ASTExpr* const init = expr->var->init;
+        ASTTypeSpec* const typeSpec = expr->var->typeSpec;
+
+        if (not init)
             Parser_errorMissingInit(parser, expr);
         else {
-            if (expr->var->typeSpec->typeType == TYUnresolved)
-                resolveTypeSpec(parser, expr->var->typeSpec, mod);
+            if (typeSpec->typeType == TYUnresolved)
+                resolveTypeSpec(parser, typeSpec, mod);
 
-            sempass(parser, expr->var->init, mod, false);
+            analyseExpr(parser, init, mod, false);
 
-            expr->typeType = expr->var->init->typeType;
-            expr->collectionType = expr->var->init->collectionType;
-            expr->nullable = expr->var->init->nullable;
-            expr->elemental = expr->var->init->elemental;
-            expr->throws = expr->var->init->throws;
-            expr->impure = expr->var->init->impure;
+            expr->typeType = init->typeType;
+            expr->collectionType = init->collectionType;
+            expr->nullable = init->nullable;
+            expr->elemental = init->elemental;
+            expr->throws = init->throws;
+            expr->impure = init->impure;
 
-            if (expr->var->typeSpec->typeType == TYUnresolved) {
-                expr->var->typeSpec->typeType = expr->var->init->typeType;
-                if (expr->var->init->typeType == TYObject) {
-                    if (expr->var->init->kind == tkFunctionCallResolved)
-                        expr->var->typeSpec->type
-                            = expr->var->init->func->returnType->type;
-                    else if (expr->var->init->kind == tkIdentifierResolved)
-                        expr->var->typeSpec->type
-                            = expr->var->init->var->typeSpec->type;
-                    else if (expr->var->init->kind == tkPeriod) {
-                        ASTExpr* e = expr->var->init;
+            if (typeSpec->typeType == TYUnresolved) {
+                typeSpec->typeType = init->typeType;
+                if (init->typeType == TYObject) {
+                    if (init->kind == tkFunctionCallResolved)
+                        typeSpec->type = init->func->returnSpec->type;
+                    else if (init->kind == tkIdentifierResolved)
+                        typeSpec->type = init->var->typeSpec->type;
+                    else if (init->kind == tkPeriod) {
+                        ASTExpr* e = init;
                         while (e->kind == tkPeriod) e = e->right;
                         // at this point, it must be a resolved ident or
                         // subscript
-                        expr->var->typeSpec->type = e->var->typeSpec->type;
+                        typeSpec->type = e->var->typeSpec->type;
                     } else {
                         unreachable("%s", "var type inference failed");
                     }
-                    sempassType(parser, expr->var->typeSpec->type, mod);
+                    analyseType(parser, typeSpec->type, mod);
                 }
-            } else if (expr->var->typeSpec->typeType
-                != expr->var->init->typeType) {
+            } else if (typeSpec->typeType != init->typeType) {
                 Parser_errorInitMismatch(parser, expr);
                 expr->typeType = TYErrorType;
             }
@@ -133,18 +138,17 @@ static void sempass(
     case tkKeyword_if:
     case tkKeyword_for:
     case tkKeyword_while: {
-        if (expr->left) sempass(parser, expr->left, mod, false);
+        if (expr->left) analyseExpr(parser, expr->left, mod, false);
         foreach (ASTExpr*, stmt, expr->body->stmts)
-            sempass(parser, stmt, mod, inFuncArgs);
+            analyseExpr(parser, stmt, mod, inFuncArgs);
     } break;
 
         // -------------------------------------------------- //
     case tkSubscriptResolved:
     case tkSubscript:
-        if (expr->left) sempass(parser, expr->left, mod, inFuncArgs);
+        if (expr->left) analyseExpr(parser, expr->left, mod, inFuncArgs);
         if (expr->kind == tkSubscriptResolved) {
             expr->typeType = expr->var->typeSpec->typeType;
-            // setExprTypeInfo(parser, expr->left, false); // check args
             expr->elemental = expr->left->elemental;
             // TODO: check args in the same way as for funcs below, not
             // directly checking expr->left.}
@@ -170,7 +174,7 @@ static void sempass(
     case tkPeriod: {
         assert(expr->left->kind == tkIdentifierResolved
             or expr->left->kind == tkIdentifier);
-        sempass(parser, expr->left, mod, inFuncArgs);
+        analyseExpr(parser, expr->left, mod, inFuncArgs);
 
         // The name/type resolution of expr->left may have failed.
         if (not expr->left->typeType) break;
@@ -190,7 +194,7 @@ static void sempass(
         }
         //  or member->kind == tkFunctionCall);
         if (member->kind != tkIdentifier)
-            sempass(parser, member->left, mod, inFuncArgs);
+            analyseExpr(parser, member->left, mod, inFuncArgs);
 
         // the left must be a resolved ident
         if (expr->left->kind != tkIdentifierResolved) break;
@@ -203,10 +207,10 @@ static void sempass(
             expr->typeType = TYErrorType;
             break;
         }
-        sempass(parser, member, mod, inFuncArgs);
+        analyseExpr(parser, member, mod, inFuncArgs);
 
         if (expr->right->kind == tkPeriod)
-            sempass(parser, expr->right, mod, inFuncArgs);
+            analyseExpr(parser, expr->right, mod, inFuncArgs);
 
         // TODO: exprs like a.b.c.d.e are not handled yet, only a.b
 
@@ -217,8 +221,9 @@ static void sempass(
         // -------------------------------------------------- //
     default:
         if (expr->prec) {
-            if (not expr->unary) sempass(parser, expr->left, mod, inFuncArgs);
-            sempass(parser, expr->right, mod, inFuncArgs);
+            if (not expr->unary)
+                analyseExpr(parser, expr->left, mod, inFuncArgs);
+            analyseExpr(parser, expr->right, mod, inFuncArgs);
 
             if (expr->kind == tkKeyword_or and expr->left->typeType != TYBool) {
                 // Handle the 'or' keyword used to provide alternatives for a
@@ -296,11 +301,11 @@ static void sempass(
 }
 
 ///////////////////////////////////////////////////////////////////////////
-static void sempassType(Parser* parser, ASTType* type, ASTModule* mod)
+static void analyseType(Parser* parser, ASTType* type, ASTModule* mod)
 {
-    if (type->flags.sempassDone) return;
+    if (type->analysed) return;
     // eprintf(
-    //     "sempass: %s at ./%s:%d\n", type->name, parser->filename,
+    //     "analyseExpr: %s at ./%s:%d\n", type->name, parser->filename,
     //     type->line);
     if (type->super) {
         resolveTypeSpec(parser, type->super, mod);
@@ -318,39 +323,39 @@ static void sempassType(Parser* parser, ASTType* type, ASTModule* mod)
     // to recur. This might be a problem if e.g. the type has a, b, c and
     // the initializer for b has a dependency on the type's .c member, whose
     // type has not been set by the time b's initializer is processed.
-    // However if you set sempassDone after all statements, then you risk
+    // However if you set analysed after all statements, then you risk
     // getting caught in a recursive path. One way to fix it is to have
     // granularity at the member level, so not entire types but their
     // individual members are processed. In that case the only problem can
     // be a recursive path between a member var and a function that it calls
     // in its initializer.
-    type->flags.sempassDone = true;
+    type->analysed = true;
     // nothing to do for declared/empty types etc. with no body
-    if (type->body) foreach (ASTExpr*, stmt, type->body->stmts)
-            sempass(parser, stmt, mod, false);
+    if (type->body) //
+        foreach (ASTExpr*, stmt, type->body->stmts)
+            analyseExpr(parser, stmt, mod, false);
 }
 
 ///////////////////////////////////////////////////////////////////////////
-static void sempassFunc(Parser* parser, ASTFunc* func, ASTModule* mod)
+static void analyseFunc(Parser* parser, ASTFunc* func, ASTModule* mod)
 {
-    if (func->flags.semPassDone) return;
-    // eprintf("sempass: %s at ./%s:%d\n", func->selector, parser->filename,
+    if (func->analysed) return;
+    // eprintf("analyseExpr: %s at ./%s:%d\n", func->selector, parser->filename,
     // func->line);
 
-    bool foundCtor = false;
+    bool isCtor = false;
     // Check if the function is a constructor call and identify the type.
     // TODO: this should be replaced by a dict query
     foreach (ASTType*, type, mod->types) {
         if (not strcasecmp(func->name, type->name)) {
-            if (func->returnType
-                and not(func->flags.isStmt or func->flags.isDefCtor))
+            if (func->returnSpec and not(func->isStmt or func->isDefCtor))
                 Parser_errorCtorHasType(parser, func, type);
-            if (not func->returnType) {
-                func->returnType = ASTTypeSpec_new(TYObject, CTYNone);
-                func->returnType->type = type;
+            if (not func->returnSpec) {
+                func->returnSpec = ASTTypeSpec_new(TYObject, CTYNone);
+                func->returnSpec->type = type;
                 // Ctors must AlWAYS return a new object.
                 // even Ctors with args.
-                func->flags.returnsNewObjectAlways = true;
+                func->returnsNewObjectAlways = true;
             }
             // TODO: isStmt Ctors should have the correct type so e.g.
             // you cannot have
@@ -359,22 +364,22 @@ static void sempassFunc(Parser* parser, ASTFunc* func, ASTModule* mod)
             // here since type resolution hasn't been done at this
             // stage. Check this after the type inference step when the
             // stmt func has its return type assigned.
-            // if (func->flags.isStmt)
+            // if (func->isStmt)
             //     Parser_errorCtorHasType(this, func, type);
             if (not isupper(*func->name)) Parser_warnCtorCase(parser, func);
 
             func->name = type->name;
-            foundCtor = true;
+            isCtor = true;
         }
     }
 
     // Capitalized names are not allowed unless they are constructors.
-    if (not func->flags.isDefCtor and not foundCtor and isupper(*func->name))
+    if (not func->isDefCtor and not isCtor and isupper(*func->name))
         Parser_errorUnrecognizedCtor(parser, func);
 
     // The rest of the processing is on the contents of the function.
     if (not func->body) {
-        func->flags.semPassDone = true;
+        func->analysed = true;
         return;
     }
 
@@ -391,16 +396,16 @@ static void sempassFunc(Parser* parser, ASTFunc* func, ASTModule* mod)
 
     // Mark the semantic pass as done for this function, so that recursive
     // calls found in the statements will not cause the compiler to recur.
-    func->flags.semPassDone = true;
+    func->analysed = true;
 
     // Run the statement-level semantic pass on the function body.
     foreach (ASTExpr*, stmt, func->body->stmts)
-        sempass(parser, stmt, mod, false);
+        analyseExpr(parser, stmt, mod, false);
 
     // Statement functions are written without an explicit return type.
     // Figure out the type (now that the body has been analyzed).
-    if (func->flags.isStmt) setStmtFuncTypeInfo(parser, func);
-    // TODO: for normal funcs, sempass should check return statements to
+    if (func->isStmt) setStmtFuncTypeInfo(parser, func);
+    // TODO: for normal funcs, analyseExpr should check return statements to
     // have the same type as the declared return type.
 
     // Do optimisations or ANY lowering only if there are no errors
@@ -414,11 +419,11 @@ static void sempassFunc(Parser* parser, ASTFunc* func, ASTModule* mod)
     }
 }
 
-static void sempassTest(Parser* parser, ASTTest* test, ASTModule* mod)
+static void analyseTest(Parser* parser, ASTTest* test, ASTModule* mod)
 {
     if (not test->body) return;
 
-    // Check for duplicate functions (same selectors) and report errors.
+    // Check for duplicate test names and report errors.
     // TODO: this should be replaced by a dict query
     foreach (ASTTest*, test2, mod->tests) {
         if (test == test2) break;
@@ -431,7 +436,7 @@ static void sempassTest(Parser* parser, ASTTest* test, ASTModule* mod)
 
     // Run the statement-level semantic pass on the function body.
     foreach (ASTExpr*, stmt, test->body->stmts)
-        sempass(parser, stmt, mod, false);
+        analyseExpr(parser, stmt, mod, false);
 
     // Do optimisations or ANY lowering only if there are no errors
     if (not parser->errCount and parser->mode != PMLint) {

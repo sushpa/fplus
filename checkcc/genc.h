@@ -47,10 +47,8 @@ static void ASTTypeSpec_genc(ASTTypeSpec* typeSpec, int level, bool isconst)
         printf("%s", typeSpec->type->name);
         break;
     case TYUnresolved:
-        // should not happen, really
         unreachable("unresolved: '%s' at %d:%d", typeSpec->name, typeSpec->line,
             typeSpec->col);
-        // assert(0);
         printf("%s", typeSpec->name);
         break;
     default:
@@ -66,26 +64,14 @@ static void ASTTypeSpec_genc(ASTTypeSpec* typeSpec, int level, bool isconst)
 }
 
 static void ASTExpr_genc(
-    ASTExpr* this, int level, bool spacing, bool inFuncArgs, bool escStrings);
+    ASTExpr* self, int level, bool spacing, bool inFuncArgs, bool escStrings);
 
 ///////////////////////////////////////////////////////////////////////////
 static void ASTVar_genc(ASTVar* var, int level, bool isconst)
 {
-    // for C the variable declarations go at the top of the block, without
-    // init
+    // for C the variables go at the top of the block, without init
     printf("%.*s", level, spaces);
-    if (var->typeSpec) {
-        ASTTypeSpec_genc(var->typeSpec, level + STEP, isconst);
-    } else {
-        // TODO: do this in type resolution instead: call to a type returns
-        // that type.
-        // const char* ctyp = TokenKind_defaultType(
-        //     var->init ? var->init->kind : tkUnknown);
-        // if (var->init and var->init->kind == tkFunctionCall
-        //     and *var->init->name >= 'A' and *var->init->name <= 'Z')
-        //     ctyp = var->init->name;
-        // printf("%s", ctyp);
-    }
+    if (var->typeSpec) ASTTypeSpec_genc(var->typeSpec, level + STEP, isconst);
     printf(" %s", var->name);
 }
 
@@ -109,12 +95,12 @@ static bool mustPromote(const char* name)
 }
 
 ///////////////////////////////////////////////////////////////////////////
-static void ASTExpr_unsetPrintedVarsFlag(ASTExpr* expr)
+static void ASTExpr_unmarkVisited(ASTExpr* expr)
 {
     switch (expr->kind) {
     case tkIdentifierResolved:
     case tkVarAssign:
-        expr->var->flags.printed = false;
+        expr->var->visited = false;
         break;
     case tkFunctionCallResolved:
     case tkFunctionCall: // shouldnt happen
@@ -124,12 +110,12 @@ static void ASTExpr_unsetPrintedVarsFlag(ASTExpr* expr)
     case tkKeyword_for:
     case tkKeyword_else:
     case tkKeyword_while:
-        ASTExpr_unsetPrintedVarsFlag(expr->left);
+        ASTExpr_unmarkVisited(expr->left);
         break;
     default:
         if (expr->prec) {
-            if (not expr->unary) ASTExpr_unsetPrintedVarsFlag(expr->left);
-            ASTExpr_unsetPrintedVarsFlag(expr->right);
+            if (not expr->unary) ASTExpr_unmarkVisited(expr->left);
+            ASTExpr_unmarkVisited(expr->right);
         }
     }
 }
@@ -149,11 +135,11 @@ static void ASTExpr_genPrintVars(ASTExpr* expr, int level)
     switch (expr->kind) {
     case tkIdentifierResolved:
     case tkVarAssign:
-        if (expr->var->flags.printed) break;
+        if (expr->var->visited) break;
         printf("%.*sprintf(\"    %s = %s\\n\", %s);\n", level, spaces,
             expr->var->name, TypeType_format(expr->typeType, true),
             expr->var->name);
-        expr->var->flags.printed = true;
+        expr->var->visited = true;
         break;
 
     case tkFunctionCallResolved:
@@ -235,8 +221,10 @@ static char* newTmpVarName(int num, char c)
 ///////////////////////////////////////////////////////////////////////////
 static bool isCtrlExpr(ASTExpr* expr)
 {
-    return expr->kind == tkKeyword_if or expr->kind == tkKeyword_for
-        or expr->kind == tkKeyword_while or expr->kind == tkKeyword_else;
+    return expr->kind == tkKeyword_if //
+        or expr->kind == tkKeyword_for //
+        or expr->kind == tkKeyword_while //
+        or expr->kind == tkKeyword_else;
 }
 
 static bool isLiteralExpr(ASTExpr* expr) { return false; }
@@ -315,11 +303,11 @@ static void ASTScope_promoteCandidates(ASTScope* scope)
 {
     int tmpCount = 0;
     ASTExpr* pc = NULL;
-    List(ASTExpr)* prev = NULL; // this->stmts;
+    List(ASTExpr)* prev = NULL;
     foreachn(ASTExpr*, stmt, stmts, scope->stmts)
     {
         // TODO:
-        // if (not stmt->flags.promote) {prev=stmts;continue;}
+        // if (not stmt->promote) {prev=stmts;continue;}
 
         if (isCtrlExpr(stmt) and stmt->body)
             ASTScope_promoteCandidates(stmt->body);
@@ -380,7 +368,7 @@ static void ASTScope_promoteCandidates(ASTScope* scope)
         }
 
         // 4. insert the promoted expr BEFORE the current stmt
-        //        PtrList_append(prev ? &prev : &this->stmts, pcClone);
+        //        PtrList_append(prev ? &prev : &self->stmts, pcClone);
         //        PtrList* tmp = prev->next;
         // THIS SHOULD BE in PtrList as insertAfter method
         if (not prev) {
@@ -391,7 +379,7 @@ static void ASTScope_promoteCandidates(ASTScope* scope)
             prev->next = PtrList_with(pcClone);
             prev->next->next = stmts;
             prev = prev->next;
-        } // List(ASTExpr)* insertionPos = prev ? prev->next : this->stmts;
+        } // List(ASTExpr)* insertionPos = prev ? prev->next : self->stmts;
           //  insertionPos
         //  = insertionPos;
         goto startloop; // it will continue there if no more promotions are
@@ -405,7 +393,7 @@ static void ASTScope_promoteCandidates(ASTScope* scope)
 static void ASTScope_genc(ASTScope* scope, int level)
 {
     foreach (ASTVar*, local, scope->locals)
-        if (local->flags.used) {
+        if (local->used) {
             ASTVar_genc(local, level, false);
             puts(";");
         } // these will be declared at top and defined within the expr list
@@ -441,7 +429,7 @@ static void ASTType_genJson(ASTType* type)
         printf("    printf(\"%%.*s\\\"%s\\\": \", nspc+4, _spaces_);\n",
             var->name);
         const char* valueType = ASTExpr_typeName(var->init);
-        printf("    %s_json_(this->%s, nspc+4);\n    printf(\"", valueType,
+        printf("    %s_json_(self->%s, nspc+4);\n    printf(\"", valueType,
             var->name);
         if (vars->next) printf(",");
         printf("\\n\");\n");
@@ -511,7 +499,7 @@ static void ASTFunc_printStackUsageDef(size_t stackUsage)
 ///////////////////////////////////////////////////////////////////////////
 static void ASTType_genc(ASTType* type, int level)
 {
-    if (not type->body or not type->flags.sempassDone) return;
+    if (not type->body or not type->analysed) return;
     const char* const name = type->name;
     printf("#define FIELDS_%s \\\n", name);
     foreach (ASTVar*, var, type->body->locals) {
@@ -535,10 +523,11 @@ static void ASTType_genc(ASTType* type, int level)
     printf("static %s %s_init_(%s this) {\n", name, name, name);
 
     foreach (ASTVar*, var, type->body->locals)
-        printf("#define %s this->%s\n", var->name, var->name);
+        printf("#define %s self->%s\n", var->name, var->name);
 
     foreach (ASTExpr*, stmt, type->body->stmts) {
-        if (not stmt or stmt->kind != tkVarAssign or !stmt->var->init) continue;
+        if (not stmt or stmt->kind != tkVarAssign or not stmt->var->init)
+            continue;
         printf("%.*s%s = ", level + STEP, spaces, stmt->var->name);
         ASTExpr_genc(stmt->var->init, 0, true, false, false);
         puts(";");
@@ -577,7 +566,7 @@ static void ASTType_genc(ASTType* type, int level)
 ///////////////////////////////////////////////////////////////////////////
 static void ASTType_genh(ASTType* type, int level)
 {
-    if (not type->body or not type->flags.sempassDone) return;
+    if (not type->body or not type->analysed) return;
     const char* const name = type->name;
     printf("typedef struct %s* %s;\nstruct %s;\n", name, name, name);
     printf("static %s %s_alloc_(); \n", name, name);
@@ -595,8 +584,7 @@ static void ASTType_genh(ASTType* type, int level)
 ///////////////////////////////////////////////////////////////////////////
 static void ASTFunc_genc(ASTFunc* func, int level)
 {
-    if (not func->body or not func->flags.semPassDone)
-        return; // declares, default ctors
+    if (not func->body or not func->analysed) return; // declares, default ctors
 
     // actual stack usage is higher due to stack protection, frame bookkeeping
     // ...
@@ -604,10 +592,10 @@ static void ASTFunc_genc(ASTFunc* func, int level)
     ASTFunc_printStackUsageDef(stackUsage);
 
     printf(
-        "#define DEFAULT_VALUE %s\n", getDefaultValueForType(func->returnType));
-    if (not func->flags.isExported) printf("static ");
-    if (func->returnType) {
-        ASTTypeSpec_genc(func->returnType, level, false);
+        "#define DEFAULT_VALUE %s\n", getDefaultValueForType(func->returnSpec));
+    if (not func->isExported) printf("static ");
+    if (func->returnSpec) {
+        ASTTypeSpec_genc(func->returnSpec, level, false);
     } else {
         printf("void");
     }
@@ -627,16 +615,16 @@ static void ASTFunc_genc(ASTFunc* func, int level)
     puts(") {");
     printf("#ifdef DEBUG\n"
            "    static const char* sig_ = \"");
-    printf("%s%s(", func->flags.isStmt ? "" : "function ", func->name);
+    printf("%s%s(", func->isStmt ? "" : "function ", func->name);
 
     foreachn(ASTVar*, arg, args, func->args)
     {
         ASTVar_gen(arg, level);
         printf(args->next ? ", " : ")");
     }
-    if (func->returnType) {
+    if (func->returnSpec) {
         printf(" returns ");
-        ASTTypeSpec_gen(func->returnType, level);
+        ASTTypeSpec_gen(func->returnSpec, level);
     }
     puts("\";\n#endif");
 
@@ -652,10 +640,10 @@ static void ASTFunc_genc(ASTFunc* func, int level)
 ///////////////////////////////////////////////////////////////////////////
 static void ASTFunc_genh(ASTFunc* func, int level)
 {
-    if (not func->body or not func->flags.semPassDone) return;
-    if (not func->flags.isExported) printf("static ");
-    if (func->returnType) {
-        ASTTypeSpec_genc(func->returnType, level, false);
+    if (not func->body or not func->analysed) return;
+    if (not func->isExported) printf("static ");
+    if (func->returnSpec) {
+        ASTTypeSpec_genc(func->returnSpec, level, false);
     } else {
         printf("void");
     }
@@ -693,6 +681,7 @@ static void ASTExpr_genc(
     switch (expr->kind) {
     case tkNumber:
     case tkMultiDotNumber:
+    case tkIdentifier:
         printf("%s", expr->string);
         break;
 
@@ -700,27 +689,8 @@ static void ASTExpr_genc(
         printf(escStrings ? "\\%s\\\"" : "%s\"", expr->string);
         break;
 
-    case tkIdentifier:
     case tkIdentifierResolved:
-        // convert a.b.c.d to DEREF3(a,b,c,d), a.b to DEREF(a,b) etc.
-        {
-            char* tmp = (expr->kind == tkIdentifierResolved) ? expr->var->name
-                                                             : expr->string;
-            int8_t dotCount = 0, i = 0;
-            for (i = 0; tmp[i]; i++) {
-                if (tmp[i] == '.') {
-                    dotCount++;
-                    tmp[i] = ',';
-                }
-            }
-            if (dotCount)
-                printf("DEREF%d(%s)", dotCount, tmp);
-            else
-                printf("%s", tmp);
-
-            for (i = 0; tmp[i]; i++)
-                if (tmp[i] == ',') tmp[i] = '.';
-        }
+        printf("%s", expr->var->name);
         break;
 
     case tkRegex:
@@ -750,7 +720,7 @@ static void ASTExpr_genc(
 
         if (expr->left) ASTExpr_genc(expr->left, 0, false, true, escStrings);
 
-        if (not expr->func->flags.isDeclare) {
+        if (not expr->func->isDeclare) {
             printf("\n#ifdef DEBUG\n"
                    "      %c \"./\" THISFILE \":%d:%d:\\e[0m ",
                 expr->left ? ',' : ' ', expr->line, expr->col);
@@ -943,11 +913,11 @@ static void ASTExpr_genc(
             assert(0);
         }
         // if (not inFuncArgs) {
-        //     ASTExpr_genc(this->left, 0, spacing, inFuncArgs,
+        //     ASTExpr_genc(self->left, 0, spacing, inFuncArgs,
         //     escStrings); printf("%s", TokenKind_repr(tkOpAssign,
         //     spacing));
         // }
-        // ASTExpr_genc(this->right, 0, spacing, inFuncArgs, escStrings);
+        // ASTExpr_genc(self->right, 0, spacing, inFuncArgs, escStrings);
         // check various types of lhs  here, eg arr[9:87] = 0,
         // map["uuyt"]="hello" etc.
         break;
@@ -984,7 +954,7 @@ static void ASTExpr_genc(
                       // var
         // var x as XYZ = abc... -> becomes an ASTVar and an
         // ASTExpr (to keep location). Send it to ASTVar::gen.
-        if (expr->var->init != NULL and expr->var->flags.used) {
+        if (expr->var->init != NULL and expr->var->used) {
             printf("%s = ", expr->var->name);
             ASTExpr_genc(expr->var->init, 0, true, inFuncArgs, escStrings);
         }
@@ -1062,11 +1032,15 @@ static void ASTExpr_genc(
         // genPrintVars.
         if (not checkExpr->unary) {
             // dont print literals or arrays
-            if (lhsExpr->collectionType == CTYNone and lhsExpr->kind != tkString
-                and lhsExpr->kind != tkNumber and lhsExpr->kind != tkRegex
-                and lhsExpr->kind != tkOpLE and lhsExpr->kind != tkOpLT) {
+            if (lhsExpr->collectionType == CTYNone //
+                and lhsExpr->kind != tkString //
+                and lhsExpr->kind != tkNumber //
+                and lhsExpr->kind != tkRegex //
+                and lhsExpr->kind != tkOpLE //
+                and lhsExpr->kind != tkOpLT) {
+
                 if (lhsExpr->kind != tkIdentifierResolved
-                    or not lhsExpr->var->flags.printed) {
+                    or not lhsExpr->var->visited) {
                     printf(
                         "%.*s%s", level + STEP, spaces, "printf(\"    %s = ");
                     printf("%s", TypeType_format(lhsExpr->typeType, true));
@@ -1076,13 +1050,15 @@ static void ASTExpr_genc(
                 }
                 // checks can't have tkVarAssign inside them
                 // if ()
-                //     lhsExpr->var->flags.printed = true;
+                //     lhsExpr->var->visited = true;
             }
         }
-        if (rhsExpr->collectionType == CTYNone and rhsExpr->kind != tkString
-            and rhsExpr->kind != tkNumber and rhsExpr->kind != tkRegex) {
+        if (rhsExpr->collectionType == CTYNone //
+            and rhsExpr->kind != tkString //
+            and rhsExpr->kind != tkNumber //
+            and rhsExpr->kind != tkRegex) {
             if (rhsExpr->kind != tkIdentifierResolved
-                or not rhsExpr->var->flags.printed) {
+                or not rhsExpr->var->visited) {
                 printf("%.*s%s", level + STEP, spaces, "printf(\"    %s = ");
                 printf("%s", TypeType_format(rhsExpr->typeType, true));
                 printf("%s", "\\n\", \"");
@@ -1091,7 +1067,7 @@ static void ASTExpr_genc(
             }
         }
 
-        ASTExpr_unsetPrintedVarsFlag(checkExpr);
+        ASTExpr_unmarkVisited(checkExpr);
 
         printf("%.*sprintf(\"\\n\");\n", level + STEP, spaces);
         printf("%s",

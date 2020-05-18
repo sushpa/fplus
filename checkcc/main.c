@@ -67,7 +67,7 @@ typedef struct ASTVar {
                             // stack allocated. it will be passed around by
                             // reference as usual.
             isTarget : 1, // x = f(x,y)
-            printed : 1, // for checks, used to avoid printing this var more
+            visited : 1, // for checks, used to avoid printing this var more
                          // than once.
             escapes : 1, // does it escape the owning SCOPE?
             canInplace : 1,
@@ -88,7 +88,7 @@ typedef struct ASTVar {
             returned : 1; // is a return variable ie. b in
         // function asd(x as Anc) returns (b as Whatever)
         // all args (in/out) are in the same list in func -> args.
-    } flags;
+    };
     uint8_t col;
 } ASTVar;
 
@@ -97,7 +97,7 @@ typedef struct ASTVar {
 //    -- for func toplevels, one such var is the return var: anything
 //    assigned to it escapes
 // -- if it is passed to a func as an arg and the arg `escapes`
-//    sempass sets `escapes` on each arg as it traverses the func
+//    analyseExpr sets `escapes` on each arg as it traverses the func
 
 typedef struct ASTExpr {
     struct {
@@ -168,22 +168,20 @@ typedef struct ASTScope {
 typedef struct ASTType {
     ASTTypeSpec* super;
     char* name;
-    // TODO: flags: hasUserInit : whether user has defined Type() ctor
     ASTScope* body;
     uint16_t line;
     uint8_t col;
     struct {
-        bool sempassDone : 1, needJSON : 1, needXML : 1, needYAML : 1,
-            cycleCheckFlag : 1, // for checking cycles in inheritance
+        bool analysed : 1, needJSON : 1, needXML : 1, needYAML : 1, visited : 1,
             isValueType : 1; // all vars of this type will be stack
                              // allocated and passed around by value.
-    } flags;
+    };
 } ASTType;
 
 typedef struct ASTFunc {
     ASTScope* body;
     List(ASTVar) * args;
-    ASTTypeSpec* returnType;
+    ASTTypeSpec* returnSpec;
     char* name;
     char* selector;
     struct {
@@ -193,7 +191,7 @@ typedef struct ASTFunc {
                 usesGUI : 1, usesSerialisation : 1, isExported : 1,
                 usesReflection : 1, nodispatch : 1, isStmt : 1, isDeclare : 1,
                 isCalledFromWithinLoop : 1, elemental : 1, isDefCtor : 1,
-                semPassDone : 1, // semantic pass has been done, don't repeat
+                analysed : 1, // semantic pass has been done, don't repeat
                 returnsNewObjectSometimes : 1,
                 returnsNewObjectAlways : 1; // what this func returns is an
                                             // object that was obtained by a
@@ -207,8 +205,7 @@ typedef struct ASTFunc {
             // internally calls the constructor. The function may have multiple
             // return paths and not all of them may call the constructor; in
             // this case set returnsNewObjectAlways accordingly.
-
-        } flags;
+        };
         uint8_t argCount;
     };
 } ASTFunc;
@@ -220,7 +217,7 @@ typedef struct ASTTest {
     struct {
         uint16_t line;
         struct {
-            uint16_t semPassDone : 1;
+            uint16_t analysed : 1;
         } flags;
     };
 } ASTTest;
@@ -286,28 +283,28 @@ static ASTTypeSpec* ASTTypeSpec_new(TypeTypes tt, CollectionTypes ct)
     return ret;
 }
 
-static const char* ASTTypeSpec_name(ASTTypeSpec* this)
+static const char* ASTTypeSpec_name(ASTTypeSpec* self)
 {
-    switch (this->typeType) {
+    switch (self->typeType) {
     case TYUnresolved:
-        return this->name;
+        return self->name;
     case TYObject:
-        return this->type->name;
+        return self->type->name;
     default:
-        return TypeType_name(this->typeType);
+        return TypeType_name(self->typeType);
     }
     // what about collectiontype???
 }
 
-static const char* ASTTypeSpec_cname(ASTTypeSpec* this)
+static const char* ASTTypeSpec_cname(ASTTypeSpec* self)
 {
-    switch (this->typeType) {
+    switch (self->typeType) {
     case TYUnresolved:
-        return this->name;
+        return self->name;
     case TYObject:
-        return this->type->name;
+        return self->type->name;
     default:
-        return TypeType_name(this->typeType);
+        return TypeType_name(self->typeType);
     }
     // what about collectiontype???
 }
@@ -319,7 +316,6 @@ static const char* getDefaultValueForType(ASTTypeSpec* type)
     case TYUnresolved:
         unreachable(
             "unresolved: '%s' at %d:%d", type->name, type->line, type->col);
-        // assert(0);
         return "ERROR_ERROR_ERROR";
     case TYString:
         return "\"\"";
@@ -328,12 +324,12 @@ static const char* getDefaultValueForType(ASTTypeSpec* type)
     }
 }
 
-static ASTExpr* ASTExpr_fromToken(const Token* this)
+static ASTExpr* ASTExpr_fromToken(const Token* self)
 {
     ASTExpr* ret = NEW(ASTExpr);
-    ret->kind = this->kind;
-    ret->line = this->line;
-    ret->col = this->col;
+    ret->kind = self->kind;
+    ret->line = self->line;
+    ret->col = self->col;
 
     ret->prec = TokenKind_getPrecedence(ret->kind);
     if (ret->prec) {
@@ -351,7 +347,7 @@ static ASTExpr* ASTExpr_fromToken(const Token* this)
     case tkNumber:
     case tkMultiDotNumber:
     case tkLineComment: // Comments go in the AST like regular stmts
-        ret->string = this->pos;
+        ret->string = self->pos;
         break;
     default:;
     }
@@ -359,18 +355,18 @@ static ASTExpr* ASTExpr_fromToken(const Token* this)
     if (ret->kind == tkLineComment) ret->string++;
     // turn all 1.0234[DdE]+01 into 1.0234e+01.
     if (ret->kind == tkNumber) {
-        str_tr_ip(ret->string, 'd', 'e', this->matchlen);
-        str_tr_ip(ret->string, 'D', 'e', this->matchlen);
-        str_tr_ip(ret->string, 'E', 'e', this->matchlen);
+        str_tr_ip(ret->string, 'd', 'e', self->matchlen);
+        str_tr_ip(ret->string, 'D', 'e', self->matchlen);
+        str_tr_ip(ret->string, 'E', 'e', self->matchlen);
     }
     return ret;
 }
 
-static bool ASTExpr_throws(ASTExpr* this)
+static bool ASTExpr_throws(ASTExpr* self)
 { // NOOO REMOVE This func and set the throws flag recursively like the
   // other flags (during e.g. the type resolution dive)
-    if (not this) return false;
-    switch (this->kind) {
+    if (not self) return false;
+    switch (self->kind) {
     case tkNumber:
     case tkMultiDotNumber:
     case tkRegex:
@@ -382,28 +378,28 @@ static bool ASTExpr_throws(ASTExpr* this)
         return false;
     case tkFunctionCall:
     case tkFunctionCallResolved:
-        return true; // this->func->flags.throws;
+        return true; // self->func->throws;
         // actually  only if the func really throws
     case tkSubscript:
     case tkSubscriptResolved:
-        return ASTExpr_throws(this->left);
+        return ASTExpr_throws(self->left);
     case tkVarAssign:
-        return ASTExpr_throws(this->var->init);
+        return ASTExpr_throws(self->var->init);
     case tkKeyword_for:
     case tkKeyword_if:
     case tkKeyword_while:
         return false; // actually the condition could throw.
     default:
-        if (not this->prec) return false;
-        return ASTExpr_throws(this->left) or ASTExpr_throws(this->right);
+        if (not self->prec) return false;
+        return ASTExpr_throws(self->left) or ASTExpr_throws(self->right);
     }
 }
 
-static size_t ASTScope_calcSizeUsage(ASTScope* this)
+static size_t ASTScope_calcSizeUsage(ASTScope* self)
 {
     size_t size = 0, sum = 0, subsize = 0, maxsubsize = 0;
     // all variables must be resolved before calling this
-    foreach (ASTExpr*, stmt, this->stmts) {
+    foreach (ASTExpr*, stmt, self->stmts) {
         switch (stmt->kind) {
         case tkKeyword_if:
         case tkKeyword_else:
@@ -416,33 +412,33 @@ static size_t ASTScope_calcSizeUsage(ASTScope* this)
         }
     }
     // some vars are not assigned, esp. temporaries _1 _2 etc.
-    foreach (ASTVar*, var, this->locals) {
+    foreach (ASTVar*, var, self->locals) {
         size = TypeType_size(var->typeSpec->typeType);
         assert(size);
-        if (var->flags.used) sum += size;
+        if (var->used) sum += size;
     }
     // add the largest size among the sizes of the sub-scopes
     sum += maxsubsize;
     return sum;
 }
 
-static ASTVar* ASTScope_getVar(ASTScope* this, const char* name)
+static ASTVar* ASTScope_getVar(ASTScope* self, const char* name)
 {
     // stupid linear search, no dictionary yet
-    foreach (ASTVar*, local, this->locals)
+    foreach (ASTVar*, local, self->locals)
         if (not strcasecmp(name, local->name)) return local;
-    if (this->parent) return ASTScope_getVar(this->parent, name);
+    if (self->parent) return ASTScope_getVar(self->parent, name);
     return NULL;
 }
 
-static ASTVar* ASTType_getVar(ASTType* this, const char* name)
+static ASTVar* ASTType_getVar(ASTType* self, const char* name)
 {
     // stupid linear search, no dictionary yet
-    foreach (ASTVar*, var, this->body->locals)
+    foreach (ASTVar*, var, self->body->locals)
         if (not strcasecmp(name, var->name)) return var;
 
-    if (this->super and this->super->typeType == TYObject)
-        return ASTType_getVar(this->super->type, name);
+    if (self->super and self->super->typeType == TYObject)
+        return ASTType_getVar(self->super->type, name);
     return NULL;
 }
 
@@ -453,10 +449,10 @@ static ASTFunc* ASTFunc_createDeclWithArg(
 {
     ASTFunc* func = NEW(ASTFunc);
     func->name = name;
-    func->flags.isDeclare = true;
+    func->isDeclare = true;
     if (retType) {
-        func->returnType = NEW(ASTTypeSpec);
-        func->returnType->name = retType;
+        func->returnSpec = NEW(ASTTypeSpec);
+        func->returnSpec->name = retType;
     }
     if (arg1Type) {
         ASTVar* arg = NEW(ASTVar);
@@ -469,70 +465,70 @@ static ASTFunc* ASTFunc_createDeclWithArg(
     return func;
 }
 
-static size_t ASTFunc_calcSizeUsage(ASTFunc* this)
+static size_t ASTFunc_calcSizeUsage(ASTFunc* self)
 {
     size_t size = 0, sum = 0;
-    foreach (ASTVar*, arg, this->args) {
+    foreach (ASTVar*, arg, self->args) {
         // all variables must be resolved before calling this
         size = TypeType_size(arg->typeSpec->typeType);
         assert(size);
-        // if (arg->flags.used)
+        // if (arg->used)
         sum += size;
     }
-    if (this->body) sum += ASTScope_calcSizeUsage(this->body);
+    if (self->body) sum += ASTScope_calcSizeUsage(self->body);
     return sum;
 }
 
-static size_t ASTType_calcSizeUsage(ASTType* this)
+static size_t ASTType_calcSizeUsage(ASTType* self)
 {
     size_t size = 0, sum = 0;
-    foreach (ASTVar*, var, this->body->locals) {
+    foreach (ASTVar*, var, self->body->locals) {
         // all variables must be resolved before calling this
         size = TypeType_size(var->typeSpec->typeType);
         assert(size);
-        // if (arg->flags.used)
+        // if (arg->used)
         sum += size;
     }
-    // if (this->body) sum += ASTScope_calcSizeUsage(this->body);
+    // if (self->body) sum += ASTScope_calcSizeUsage(self->body);
     return sum;
 }
 
 #pragma mark - AST EXPR IMPL.
 
-static const char* ASTExpr_typeName(ASTExpr* this)
+static const char* ASTExpr_typeName(ASTExpr* self)
 {
-    if (not this) return "";
+    if (not self) return "";
     // TODO: here you should decide based onthe typeType not the token kind!
     // see as in ASTTypeSpec_name
-    //    switch (this->typeType) {
+    //    switch (self->typeType) {
     //    case TYUnresolved:
-    //        return this->name;
+    //        return self->name;
     //    case TYObject:
-    //        return this->type->name;
+    //        return self->type->name;
     //    default:
-    //        return TypeType_name(this->typeType);
+    //        return TypeType_name(self->typeType);
     //    }
-    const char* ret = TypeType_name(this->typeType);
+    const char* ret = TypeType_name(self->typeType);
     if (!ret) return "<unknown>"; // unresolved
     if (*ret) return ret; // primitive type
 
     // all that is left is object
-    switch (this->kind) {
+    switch (self->kind) {
     case tkFunctionCallResolved:
-        return this->func->returnType->type->name;
+        return self->func->returnSpec->type->name;
     case tkIdentifierResolved:
     case tkSubscriptResolved:
         //        {
         //             const char* name =
-        //             TypeType_name(this->var->typeSpec->typeType);
+        //             TypeType_name(self->var->typeSpec->typeType);
         //            if (!name) {
         //                unreachable("unresolved: %s %s",
-        //                    TokenKind_repr(this->kind, false),
-        //                    this->string);
+        //                    TokenKind_repr(self->kind, false),
+        //                    self->string);
         //                return "<unknown>";
         //            }
         //            if (!*name) name = ;
-        return this->var->typeSpec->type->name;
+        return self->var->typeSpec->type->name;
         //        }
         // TODO: tkOpColon should be handled separately in the semantic
         // pass, and should be assigned either TYObject or make a dedicated
@@ -541,68 +537,74 @@ static const char* ASTExpr_typeName(ASTExpr* this)
         //        return "Range";
         // TODO: what else???
     case tkPeriod:
-        return ASTExpr_typeName(this->right);
+        return ASTExpr_typeName(self->right);
     default:
         break;
-        // unreachable("unexpected: %s %s", TokenKind_repr(this->kind,
+        // unreachable("unexpected: %s %s", TokenKind_repr(self->kind,
         // false),
-        //     this->string);
+        //     self->string);
     }
     return "<invalid>";
 }
 
-static void ASTExpr_catarglabels(ASTExpr* this)
+static void ASTExpr_catarglabels(ASTExpr* self)
 {
-    switch (this->kind) {
+    switch (self->kind) {
     case tkOpComma:
-        ASTExpr_catarglabels(this->left);
-        ASTExpr_catarglabels(this->right);
+        ASTExpr_catarglabels(self->left);
+        ASTExpr_catarglabels(self->right);
         break;
     case tkOpAssign:
-        printf("_%s", this->left->string);
+        printf("_%s", self->left->string);
         break;
     default:
         break;
     }
 }
-static int ASTExpr_strarglabels(ASTExpr* this, char* buf, int bufsize)
+
+static int ASTExpr_strarglabels(ASTExpr* self, char* buf, int bufsize)
 {
     int ret = 0;
-    switch (this->kind) {
+    switch (self->kind) {
     case tkOpComma:
-        ret += ASTExpr_strarglabels(this->left, buf, bufsize);
-        ret += ASTExpr_strarglabels(this->right, buf + ret, bufsize - ret);
+        ret += ASTExpr_strarglabels(self->left, buf, bufsize);
+        ret += ASTExpr_strarglabels(self->right, buf + ret, bufsize - ret);
         break;
     case tkOpAssign:
-        ret += snprintf(buf, bufsize, "_%s", this->left->string);
+        ret += snprintf(buf, bufsize, "_%s", self->left->string);
         break;
     default:
         break;
     }
     return ret;
 }
-static int ASTExpr_countCommaList(ASTExpr* this)
+
+// TODO: see if this is still correct
+static int ASTExpr_countCommaList(ASTExpr* expr)
 {
     // whAT A MESS WITH BRANCHING
-    if (not this) return 0;
-    if (this->kind != tkOpComma) return 1;
-    int i = 1;
-    while (this->right) {
-        this = this->right;
-        i++;
-        if (this->kind != tkOpComma) break;
-    }
+    // if (not expr) return 0;
+    // if (self->kind != tkOpComma) return 1;
+    int i = 0;
+    // while (self->right) {
+    //     self = self->right;
+    //     i++;
+    //     if (self->kind != tkOpComma) break;
+    // }
+    if (expr)
+        for (i = 1; expr->right and expr->kind == tkOpComma; i++)
+            expr = expr->right;
     return i;
 }
 
 #pragma mark - AST MODULE IMPL.
 
-static ASTType* ASTModule_getType(ASTModule* this, const char* name)
+static ASTType* ASTModule_getType(ASTModule* module, const char* name)
 {
     // the type may be "mm.XYZType" in which case you should look in
     // module mm instead. actually the caller should have bothered about
     // that.
-    foreach (ASTType*, type, this->types)
+    foreach (ASTType*, type, module->types)
         if (not strcasecmp(type->name, name)) return type;
     // type specs must be fully qualified, so there's no need to look in
     // other modules.
@@ -614,41 +616,28 @@ static ASTType* ASTModule_getType(ASTModule* this, const char* name)
 // you don't need the actual ASTImport object, so this one is just a
 // bool. imports just turn into a #define for the alias and an #include
 // for the actual file.
-static bool ASTModule_hasImportAlias(ASTModule* this, const char* alias)
+static bool ASTModule_hasImportAlias(ASTModule* module, const char* alias)
 {
-    foreach (ASTImport*, imp, this->imports)
+    foreach (ASTImport*, imp, module->imports)
         if (not strcmp(imp->importFile + imp->aliasOffset, alias)) return true;
     return false;
 }
 
-ASTFunc* ASTModule_getFunc(ASTModule* this, const char* selector)
+ASTFunc* ASTModule_getFunc(ASTModule* module, const char* selector)
 {
-    // figure out how to deal with overloads. or set a selector field in
-    // each astfunc.
-    foreach (ASTFunc*, func, this->funcs)
+    foreach (ASTFunc*, func, module->funcs)
         if (not strcasecmp(func->selector, selector)) return func;
-    // again no looking anywhere else. If the name is of the form
+    //  no looking anywhere else. If the name is of the form
     // "mm.func" you should have bothered to look in mm instead.
     return NULL;
 }
 
 #include "gen.h"
 #include "genc.h"
-// #include "genlua.h"
-// #include "gencpp.h"
 
 #pragma mark - PARSER
 
-typedef enum ParserMode {
-    PMLint,
-    PMGenC,
-    PMGenTests
-    // PMGenLua,
-    // PMGenCpp,
-    // PMGenJavaScript,
-    // PMGenWebAsm,
-    // PMGenPython
-} ParserMode;
+typedef enum ParserMode { PMLint, PMGenC, PMGenTests } ParserMode;
 
 typedef struct Parser {
     char* filename; // mod/submod/xyz/mycode.ch
@@ -675,13 +664,13 @@ typedef struct Parser {
 #define STR(x) STR_(x)
 #define STR_(x) #x
 
-static void Parser_fini(Parser* this)
+static void Parser_fini(Parser* parser)
 {
-    free(this->data);
-    free(this->noext);
-    free(this->moduleName);
-    free(this->mangledName);
-    free(this->capsMangledName);
+    free(parser->data);
+    free(parser->noext);
+    free(parser->moduleName);
+    free(parser->mangledName);
+    free(parser->capsMangledName);
 }
 #define FILE_SIZE_MAX 1 << 24
 
@@ -739,8 +728,8 @@ static Parser* Parser_fromFile(char* filename, bool skipws)
         ret->capsMangledName = str_upper(ret->mangledName);
         ret->end = ret->data + size;
         ret->token.pos = ret->data;
-        ret->token.flags.skipWhiteSpace = skipws;
-        ret->token.flags.mergeArrayDims = false;
+        ret->token.skipWhiteSpace = skipws;
+        ret->token.mergeArrayDims = false;
         ret->token.kind = tkUnknown;
         ret->token.line = 1;
         ret->token.col = 1;
@@ -761,62 +750,62 @@ static Parser* Parser_fromFile(char* filename, bool skipws)
 
 #pragma mark - PARSING BASICS
 
-static ASTExpr* exprFromCurrentToken(Parser* this)
+static ASTExpr* exprFromCurrentToken(Parser* parser)
 {
-    ASTExpr* expr = ASTExpr_fromToken(&this->token);
-    Token_advance(&this->token);
+    ASTExpr* expr = ASTExpr_fromToken(&parser->token);
+    Token_advance(&parser->token);
     return expr;
 }
 
 static ASTExpr* next_token_node(
-    Parser* this, TokenKind expected, const bool ignore_error)
+    Parser* parser, TokenKind expected, const bool ignore_error)
 {
-    if (this->token.kind == expected) {
-        return exprFromCurrentToken(this);
+    if (parser->token.kind == expected) {
+        return exprFromCurrentToken(parser);
     } else {
-        if (not ignore_error) Parser_errorExpectedToken(this, expected);
+        if (not ignore_error) Parser_errorExpectedToken(parser, expected);
         return NULL;
     }
 }
 // these should all be part of Token_ when converted back to C
-// in the match case, this->token should be advanced on error
-static ASTExpr* match(Parser* this, TokenKind expected)
+// in the match case, self->token should be advanced on error
+static ASTExpr* match(Parser* parser, TokenKind expected)
 {
-    return next_token_node(this, expected, false);
+    return next_token_node(parser, expected, false);
 }
 
 // this returns the match node or null
-static ASTExpr* trymatch(Parser* this, TokenKind expected)
+static ASTExpr* trymatch(Parser* parser, TokenKind expected)
 {
-    return next_token_node(this, expected, true);
+    return next_token_node(parser, expected, true);
 }
 
 // just yes or no, simple
-static bool matches(Parser* this, TokenKind expected)
+static bool matches(Parser* parser, TokenKind expected)
 {
-    return (this->token.kind == expected);
+    return (parser->token.kind == expected);
 }
 
-static bool Parser_ignore(Parser* this, TokenKind expected)
+static bool Parser_ignore(Parser* parser, TokenKind expected)
 {
     bool ret;
-    if ((ret = matches(this, expected))) Token_advance(&this->token);
+    if ((ret = matches(parser, expected))) Token_advance(&parser->token);
     return ret;
 }
 
 // this is same as match without return
-static void discard(Parser* this, TokenKind expected)
+static void discard(Parser* parser, TokenKind expected)
 {
-    if (not Parser_ignore(this, expected))
-        Parser_errorExpectedToken(this, expected);
+    if (not Parser_ignore(parser, expected))
+        Parser_errorExpectedToken(parser, expected);
 }
 
-static char* parseIdent(Parser* this)
+static char* parseIdent(Parser* parser)
 {
-    if (this->token.kind != tkIdentifier)
-        Parser_errorExpectedToken(this, tkIdentifier);
-    char* p = this->token.pos;
-    Token_advance(&this->token);
+    if (parser->token.kind != tkIdentifier)
+        Parser_errorExpectedToken(parser, tkIdentifier);
+    char* p = parser->token.pos;
+    Token_advance(&parser->token);
     return p;
 }
 
@@ -847,9 +836,9 @@ static void getSelector(ASTFunc* func)
         }
         func->selector = PoolB_alloc(&strPool, selLen + 1);
         memcpy(func->selector, buf, selLen + 1);
-    } else
+    } else {
         func->selector = func->name;
-    // printf("// got func %s: %s\n", func->name, func->selector);
+    }
 }
 
 #include "typecheck.h"
@@ -859,19 +848,19 @@ static void getSelector(ASTFunc* func)
 #include "parse.h"
 
 // TODO: this should be in ASTModule open/close
-static void Parser_genc_open(Parser* this)
+static void Parser_genc_open(Parser* parser)
 {
-    printf("#ifndef HAVE_%s\n#define HAVE_%s\n\n", this->capsMangledName,
-        this->capsMangledName);
-    printf("#define THISMODULE %s\n", this->mangledName);
-    printf("#define THISFILE \"%s\"\n", this->filename);
+    printf("#ifndef HAVE_%s\n#define HAVE_%s\n\n", parser->capsMangledName,
+        parser->capsMangledName);
+    printf("#define THISMODULE %s\n", parser->mangledName);
+    printf("#define THISFILE \"%s\"\n", parser->filename);
 }
 
-static void Parser_genc_close(Parser* this)
+static void Parser_genc_close(Parser* parser)
 {
     printf("#undef THISMODULE\n");
     printf("#undef THISFILE\n");
-    printf("#endif // HAVE_%s\n", this->capsMangledName);
+    printf("#endif // HAVE_%s\n", parser->capsMangledName);
 }
 
 static void alloc_stat() {}
@@ -906,11 +895,6 @@ int main(int argc, char* argv[])
                 ASTModule_gen(mod, 0);
         } break;
 
-            // case PMGenLua: {
-            //     foreach (ASTModule*, mod, modules)
-            //         ASTModule_genlua(mod, 0);
-            // } break;
-
         case PMGenC: {
             printf("#include \"checkstd.h\"\n");
             Parser_genc_open(parser);
@@ -924,19 +908,11 @@ int main(int argc, char* argv[])
             // TODO : THISFILE must be defined since function callsites need it,
             // but the other stuff in Parser_genc_open isn't required. Besides,
             // THISFILE should be the actual module's file not the test file
-            // Parser_genc_open(parser);
+
             foreach (ASTModule*, mod, modules)
                 ASTModule_genTests(mod, 0);
-            // Parser_genc_close(parser);
         } break;
 
-        // case PMGenCpp: {
-        //     printf("#include \"checkstd.hpp\"\n");
-        //     Parser_genc_open(parser);
-        //     foreach (ASTModule*, mod, modules)
-        //         ASTModule_gencpp(mod, 0);
-        //     Parser_genc_close(parser);
-        // } break;
         default:
             break;
         }

@@ -22,7 +22,7 @@ declare type Strings
 # need an inheritance graph to avoid two types inheriting from each other or generally mutually recursive inheritance
 # need a call graph to understand recursion patterns etc. and more imp. to avoid runaway recursion in the compiler when e.g. a constructor and a function depend on each other
 
-# when do you run sempass on a type? when an instance of it is used in a func (vars or args)
+# when do you run analyseExpr on a type? when an instance of it is used in a func (vars or args)
 # and on a func? whenever it is encountered.
 # start processing at main, and see where you go.
 # that means dead code will not be analyzed, but what the heck, not my problem.
@@ -30,7 +30,7 @@ declare type Strings
 type Expr
     var meg = 33.2
     var bx = 4 < 5
-    var b = msp(Point())
+    # var b = msp(Point())
     var f = 3<3
 end type
 
@@ -62,8 +62,8 @@ type Point # extends Other
     # var p = Other()
     var x = fxfunc(3)
     var y = 69.6723
-    var o = Other()
-    var z = y + 5.6 * x + o.we.g
+    # var o = Other()
+    var z = y + 5.6 * x #+ o.we.g
     # var o = nil(other) + 6
     var cstr = "xyz"
 end type
@@ -92,8 +92,8 @@ function main(args as Strings) returns Number
     json(mk)
     # var sd = po.o.we #+ ui.Window(1024x768, title = "Jim jox")
     # json(sd)
-    describe(po.o.we.exp.bx)
-    json(po.o)
+    # describe(po.o.we.exp.bx)
+    # json(po.o)
     describe(mk)
     funky()
     return 6

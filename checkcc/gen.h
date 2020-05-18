@@ -1,39 +1,38 @@
 
-static void ASTImport_gen(ASTImport* this, int level)
+static void ASTImport_gen(ASTImport* import, int level)
 {
-    printf("import %s%s%s%s\n", this->isPackage ? "@" : "",
-        this->importFile, this->hasAlias ? " as " : "",
-        this->hasAlias ? this->importFile + this->aliasOffset : "");
+    printf("import %s%s%s%s\n", import->isPackage ? "@" : "",
+        import->importFile, import->hasAlias ? " as " : "",
+        import->hasAlias ? import->importFile + import->aliasOffset : "");
 }
 
-static void ASTTypeSpec_gen(ASTTypeSpec* this, int level)
+static void ASTTypeSpec_gen(ASTTypeSpec* spec, int level)
 {
-    switch (this->typeType) {
+    switch (spec->typeType) {
     case TYObject:
-        printf("%s", this->type->name);
+        printf("%s", spec->type->name);
         break;
     case TYUnresolved:
-        printf("%s", this->name);
+        printf("%s", spec->name);
         break;
     default:
-        printf("%s", TypeType_name(this->typeType));
+        printf("%s", TypeType_name(spec->typeType));
         break;
     }
-    if (this->dims) printf("%s", "[]");
+    if (spec->dims) printf("%s", "[]");
 }
 
 static void ASTExpr_gen(
-    ASTExpr* this, int level, bool spacing, bool escapeStrings);
+    ASTExpr* self, int level, bool spacing, bool escapeStrings);
 
-static void ASTVar_gen(ASTVar* this, int level)
+static void ASTVar_gen(ASTVar* var, int level)
 {
     printf("%.*s%s%s", level, spaces,
-        this->flags.isVar ? "var " : this->flags.isLet ? "let " : "",
-        this->name);
-    if (not(this->init and this->init->kind == tkFunctionCall
-            and !strcmp(this->init->string, this->typeSpec->name))) {
+        var->isVar ? "var " : var->isLet ? "let " : "", var->name);
+    if (not(var->init and var->init->kind == tkFunctionCall
+            and !strcmp(var->init->string, var->typeSpec->name))) {
         printf(" as ");
-        ASTTypeSpec_gen(this->typeSpec, level + STEP);
+        ASTTypeSpec_gen(var->typeSpec, level + STEP);
     }
     // }
     // else {
@@ -41,41 +40,41 @@ static void ASTVar_gen(ASTVar* this, int level)
     //     for
     //     // [, etc
     //     const char* ctyp = TokenKind_defaultType(
-    //         this->init ? this->init->kind : tkUnknown);
-    //     if (this->init and this->init->kind == tkArrayOpen)
+    //         self->init ? self->init->kind : tkUnknown);
+    //     if (self->init and self->init->kind == tkArrayOpen)
     //         ctyp = TokenKind_defaultType(
-    //             this->init->right ? this->init->right->kind : tkUnknown);
-    //     if (this->init and this->init->kind == tkFunctionCall
-    //         and *this->init->name >= 'A' and *this->init->name <= 'Z')
+    //             self->init->right ? self->init->right->kind : tkUnknown);
+    //     if (self->init and self->init->kind == tkFunctionCall
+    //         and *self->init->name >= 'A' and *self->init->name <= 'Z')
     //         ctyp = NULL;
     //     if (ctyp) printf(" as %s", ctyp);
     // }
-    if (this->init) {
+    if (var->init) {
         printf(" = ");
-        ASTExpr_gen(this->init, 0, true, false);
+        ASTExpr_gen(var->init, 0, true, false);
     }
 }
 
-static void ASTScope_gen(ASTScope* this, int level)
+static void ASTScope_gen(ASTScope* scope, int level)
 {
-    foreach (ASTExpr*, stmt, this->stmts) {
+    foreach (ASTExpr*, stmt, scope->stmts) {
         ASTExpr_gen(stmt, level, true, false);
         puts("");
     }
 }
 
-static void ASTType_gen(ASTType* this, int level)
+static void ASTType_gen(ASTType* type, int level)
 {
-    if (not this->body) printf("declare ");
-    printf("type %s", this->name);
-    if (this->super) {
+    if (not type->body) printf("declare ");
+    printf("type %s", type->name);
+    if (type->super) {
         printf(" extends ");
-        ASTTypeSpec_gen(this->super, level);
+        ASTTypeSpec_gen(type->super, level);
     }
     puts("");
-    if (not this->body) return;
+    if (not type->body) return;
 
-    foreach (ASTExpr*, stmt, this->body->stmts) {
+    foreach (ASTExpr*, stmt, type->body->stmts) {
         if (not stmt) continue;
         ASTExpr_gen(stmt, level + STEP, true, false);
         puts("");
@@ -83,33 +82,33 @@ static void ASTType_gen(ASTType* this, int level)
     puts("end type\n");
 }
 
-static void ASTFunc_gen(ASTFunc* this, int level)
+static void ASTFunc_gen(ASTFunc* func, int level)
 {
-    if (this->flags.isDefCtor) return;
-    if (this->flags.isDeclare) printf("declare ");
+    if (func->isDefCtor) return;
+    if (func->isDeclare) printf("declare ");
 
-    printf("%s%s(", this->flags.isStmt ? "\n" : "function ", this->name);
+    printf("%s%s(", func->isStmt ? "\n" : "function ", func->name);
 
-    foreachn(ASTVar*, arg, args, this->args)
+    foreachn(ASTVar*, arg, args, func->args)
     {
         ASTVar_gen(arg, level);
         printf(args->next ? ", " : "");
     }
     printf(")");
 
-    if (this->returnType and not this->flags.isStmt) {
+    if (func->returnSpec and not func->isStmt) {
         printf(" returns ");
-        ASTTypeSpec_gen(this->returnType, level);
+        ASTTypeSpec_gen(func->returnSpec, level);
     }
-    if (this->flags.isDeclare) {
+    if (func->isDeclare) {
         puts("");
         return;
-    } else if (not this->flags.isStmt) {
+    } else if (not func->isStmt) {
         puts("");
-        ASTScope_gen(this->body, level + STEP);
+        ASTScope_gen(func->body, level + STEP);
         puts("end function\n");
     } else {
-        ASTExpr* def = this->body->stmts->item;
+        ASTExpr* def = func->body->stmts->item;
         def = def->right; // its a return expr
         printf(" := ");
         ASTExpr_gen(def, 0, true, false);
@@ -117,95 +116,98 @@ static void ASTFunc_gen(ASTFunc* this, int level)
     }
 }
 
+static void ASTTest_gen(ASTTest* test, int level)
+{
+    printf("%s %s\n", "test ", test->name);
+    ASTScope_gen(test->body, level + STEP);
+    puts("end test\n");
+}
+
 static void ASTExpr_gen(
-    ASTExpr* this, int level, bool spacing, bool escapeStrings)
+    ASTExpr* expr, int level, bool spacing, bool escapeStrings)
 {
     // generally an expr is not split over several lines (but maybe in
     // rare cases). so level is not passed on to recursive calls.
     printf("%.*s", level, spaces);
 
-    switch (this->kind) {
+    switch (expr->kind) {
     case tkNumber:
     case tkMultiDotNumber:
-        printf("%s", this->string);
+        printf("%s", expr->string);
         break;
     case tkRegex:
-        printf("'%s'", this->string + 1);
+        printf("'%s'", expr->string + 1);
         break;
     case tkInline:
-        printf("`%s`", this->string + 1);
+        printf("`%s`", expr->string + 1);
         break;
 
     case tkIdentifier:
     case tkIdentifierResolved: {
-        char* tmp = (this->kind == tkIdentifierResolved) ? this->var->name
-                                                         : this->string;
+        char* tmp = (expr->kind == tkIdentifierResolved) ? expr->var->name
+                                                         : expr->string;
         printf("%s", tmp);
     } break;
 
     case tkString:
-        printf(escapeStrings ? "\\%s\\\"" : "%s\"", this->string);
+        printf(escapeStrings ? "\\%s\\\"" : "%s\"", expr->string);
         break;
 
     case tkLineComment:
-        printf("%s%s", TokenKind_repr(tkLineComment, *this->string != ' '),
-            this->string);
+        printf("%s%s", TokenKind_repr(tkLineComment, *expr->string != ' '),
+            expr->string);
         break;
 
     case tkFunctionCall:
     case tkFunctionCallResolved: {
-        char* tmp = (this->kind == tkFunctionCallResolved)
-            ? this->func->name
-            : this->string;
+        char* tmp = (expr->kind == tkFunctionCallResolved) ? expr->func->name
+                                                           : expr->string;
         printf("%s(", tmp);
-        if (this->left) ASTExpr_gen(this->left, 0, spacing, escapeStrings);
+        if (expr->left) ASTExpr_gen(expr->left, 0, spacing, escapeStrings);
         printf(")");
     } break;
 
     case tkSubscript:
     case tkSubscriptResolved: {
-        char* tmp = (this->kind == tkSubscriptResolved) ? this->var->name
-                                                        : this->string;
+        char* tmp = (expr->kind == tkSubscriptResolved) ? expr->var->name
+                                                        : expr->string;
         printf("%s[", tmp);
-        if (this->left) ASTExpr_gen(this->left, 0, false, escapeStrings);
+        if (expr->left) ASTExpr_gen(expr->left, 0, false, escapeStrings);
         printf("]");
     } break;
 
     case tkVarAssign:
         // var x as XYZ = abc... -> becomes an ASTVar and an ASTExpr
         // (to keep location). Send it to ASTVar_gen.
-        assert(this->var != NULL);
-        ASTVar_gen(this->var, 0);
+        assert(expr->var != NULL);
+        ASTVar_gen(expr->var, 0);
         break;
 
     case tkKeyword_for:
     case tkKeyword_if:
     case tkKeyword_while:
-        printf("%s ", TokenKind_repr(this->kind, false));
-        if (this->left) ASTExpr_gen(this->left, 0, true, escapeStrings);
+        printf("%s ", TokenKind_repr(expr->kind, false));
+        if (expr->left) ASTExpr_gen(expr->left, 0, true, escapeStrings);
         puts("");
-        if (this->body)
-            ASTScope_gen(
-                this->body, level + STEP); //, true, escapeStrings);
-        printf(
-            "%.*send %s", level, spaces, TokenKind_repr(this->kind, false));
+        if (expr->body)
+            ASTScope_gen(expr->body, level + STEP); //, true, escapeStrings);
+        printf("%.*send %s", level, spaces, TokenKind_repr(expr->kind, false));
         break;
 
     default:
-        if (not this->prec) break;
+        if (not expr->prec) break;
         // not an operator, but this should be error if you reach here
-        bool leftBr = this->left and this->left->prec
-            and this->left->prec < this->prec;
-        bool rightBr = this->right and this->right->prec
-            and this->right->kind
-                != tkKeyword_return // found in 'or return'
-            and this->right->prec < this->prec;
+        bool leftBr
+            = expr->left and expr->left->prec and expr->left->prec < expr->prec;
+        bool rightBr = expr->right and expr->right->prec
+            and expr->right->kind != tkKeyword_return // found in 'or return'
+            and expr->right->prec < expr->prec;
 
-        if (this->kind == tkOpColon) {
+        if (expr->kind == tkOpColon) {
             // expressions like arr[a:x-3:2] should become
             // arr[a:(x-3):2]
             // or list literals [8, 9, 6, 77, sin(c)]
-            if (this->left) switch (this->left->kind) {
+            if (expr->left) switch (expr->left->kind) {
                 case tkNumber:
                 case tkIdentifier:
                 case tkString:
@@ -216,7 +218,7 @@ static void ASTExpr_gen(
                 default:
                     leftBr = true;
                 }
-            if (this->right) switch (this->right->kind) {
+            if (expr->right) switch (expr->right->kind) {
                 case tkNumber:
                 case tkIdentifier:
                 case tkString:
@@ -229,9 +231,9 @@ static void ASTExpr_gen(
                 }
         }
 
-        //        if (false and this->kind == tkKeyword_return and
-        //        this->right) {
-        //            switch (this->right->kind) {
+        //        if (false and self->kind == tkKeyword_return and
+        //        self->right) {
+        //            switch (self->right->kind) {
         //            case tkString:
         //            case tkNumber:
         //            case tkIdentifier:
@@ -246,45 +248,47 @@ static void ASTExpr_gen(
         //            }
         //        }
 
-        if (this->kind == tkPower and not spacing) putc('(', stdout);
+        if (expr->kind == tkPower and not spacing) putc('(', stdout);
 
-        char lpo = leftBr and this->left->kind == tkOpColon ? '[' : '(';
-        char lpc = leftBr and this->left->kind == tkOpColon ? ']' : ')';
+        char lpo = leftBr and expr->left->kind == tkOpColon ? '[' : '(';
+        char lpc = leftBr and expr->left->kind == tkOpColon ? ']' : ')';
         if (leftBr) putc(lpo, stdout);
-        if (this->left)
-            ASTExpr_gen(this->left, 0,
-                spacing and !leftBr and this->kind != tkOpColon,
-                escapeStrings);
+        if (expr->left)
+            ASTExpr_gen(expr->left, 0,
+                spacing and !leftBr and expr->kind != tkOpColon, escapeStrings);
         if (leftBr) putc(lpc, stdout);
 
-        printf("%s", TokenKind_repr(this->kind, spacing));
+        printf("%s", TokenKind_repr(expr->kind, spacing));
 
-        char rpo = rightBr and this->right->kind == tkOpColon ? '[' : '(';
-        char rpc = rightBr and this->right->kind == tkOpColon ? ']' : ')';
+        char rpo = rightBr and expr->right->kind == tkOpColon ? '[' : '(';
+        char rpc = rightBr and expr->right->kind == tkOpColon ? ']' : ')';
         if (rightBr) putc(rpo, stdout);
-        if (this->right)
-            ASTExpr_gen(this->right, 0,
-                spacing and !rightBr and this->kind != tkOpColon,
+        if (expr->right)
+            ASTExpr_gen(expr->right, 0,
+                spacing and !rightBr and expr->kind != tkOpColon,
                 escapeStrings);
         if (rightBr) putc(rpc, stdout);
 
-        if (this->kind == tkPower and not spacing) putc(')', stdout);
-        if (this->kind == tkArrayOpen) putc(']', stdout);
+        if (expr->kind == tkPower and not spacing) putc(')', stdout);
+        if (expr->kind == tkArrayOpen) putc(']', stdout);
     }
 }
 
-static void ASTModule_gen(ASTModule* this, int level)
+static void ASTModule_gen(ASTModule* module, int level)
 {
-    printf("! module %s\n", this->name);
+    printf("! module %s\n", module->name);
 
-    foreach (ASTImport*, import, this->imports)
+    foreach (ASTImport*, import, module->imports)
         ASTImport_gen(import, level);
 
     puts("");
 
-    foreach (ASTType*, type, this->types)
+    foreach (ASTType*, type, module->types)
         ASTType_gen(type, level);
 
-    foreach (ASTFunc*, func, this->funcs)
+    foreach (ASTFunc*, func, module->funcs)
         ASTFunc_gen(func, level);
+
+    foreach (ASTTest*, test, module->tests)
+        ASTTest_gen(test, level);
 }

@@ -15,7 +15,7 @@ int main()
     // *pi32
 
     // i8 = 2;
-    // i16 = 1;
+    // i16 =  1;
 
     printf("%p %d\n", pi32, *pi32);
     printf("%p %d\n", pi16, *pi16);

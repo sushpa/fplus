@@ -130,7 +130,7 @@
 // since files are expected to be small this ast-based linter should be OK?
 // keep modules limited to 2000 lines, or even 1000
 // BUT if errors are found, no formatting can be done. in this case, after
-// errors are reported, run the this->token-based linter (formatter).
+// errors are reported, run the token-based linter (formatter).
 // ----
 // For C gen, new_Object() should be the only way to get a new instance.
 // (new means initialized instance in the sense of objc, not op new in the
