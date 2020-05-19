@@ -1,6 +1,6 @@
 
-#ifndef chstd_h
-#define chstd_h
+#ifndef FPLUS_BASE_H
+#define FPLUS_BASE_H
 
 #define and &&
 #define or ||
@@ -327,7 +327,7 @@ static void PtrList_append(PtrList** selfp, void* item)
     for (PtrList* listp = listSrc; listp; listp = NULL)                        \
         for (T var = (T)listp->item; listp and (var = (T)listp->item);         \
              listp = listp->next)
-#endif /* chstd_h */
+#endif /* FPLUS_BASE_H */
 
 #pragma mark - String Functions
 

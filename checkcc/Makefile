@@ -6,13 +6,13 @@ CPP=gcc
 TokenKindDefs.h: makeTokens.sh
 	./makeTokens.sh
 
-checkc.bin: main.c chstd.h cycle.h errors.h gen.h genc.h hash.h resolve.h token.h tokenKind.h typecheck.h parse.h TokenKindDefs.h types.h stats.h
+checkc.bin: main.c fp_base.h cycle.h errors.h gen.h genc.h hash.h resolve.h token.h tokenKind.h typecheck.h parse.h TokenKindDefs.h types.h stats.h
 	$(CPP) -O0 $(CCFLAGS) $< -lc -o $@
 
-checkc-s.bin: main.c chstd.h cycle.h errors.h gen.h genc.h hash.h resolve.h token.h tokenKind.h typecheck.h parse.h TokenKindDefs.h types.h stats.h
+checkc-s.bin: main.c fp_base.h cycle.h errors.h gen.h genc.h hash.h resolve.h token.h tokenKind.h typecheck.h parse.h TokenKindDefs.h types.h stats.h
 	$(CPP) -Os $(CCFLAGS) $< -lc -o $@
 
-checkc-d.bin: main.c chstd.h cycle.h errors.h gen.h genc.h hash.h resolve.h token.h tokenKind.h typecheck.h parse.h TokenKindDefs.h types.h stats.h
+checkc-d.bin: main.c fp_base.h cycle.h errors.h gen.h genc.h hash.h resolve.h token.h tokenKind.h typecheck.h parse.h TokenKindDefs.h types.h stats.h
 	$(CPP) -g -O0 $(CCFLAGS) $< -lc -o $@
 
 clean:

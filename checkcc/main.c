@@ -11,7 +11,7 @@
 #include <sys/stat.h>
 
 #include "cycle.h"
-#include "chstd.h"
+#include "fp_base.h"
 
 #define STEP 4
 
@@ -894,7 +894,7 @@ int main(int argc, char* argv[])
         } break;
 
         case PMGenC: {
-            printf("#include \"checkstd.h\"\n");
+            printf("#include \"fp_runtime.h\"\n");
             Parser_genc_open(parser);
             foreach (ASTModule*, mod, modules)
                 ASTModule_genc(mod, 0);
@@ -902,7 +902,7 @@ int main(int argc, char* argv[])
         } break;
 
         case PMGenTests: {
-            printf("#include \"checktest.h\"\n");
+            printf("#include \"fp_tester.h\"\n");
             // TODO : THISFILE must be defined since function callsites need it,
             // but the other stuff in Parser_genc_open isn't required. Besides,
             // THISFILE should be the actual module's file not the test file

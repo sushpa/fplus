@@ -1,5 +1,5 @@
-#ifndef CHECKSTD
-#define CHECKSTD
+#ifndef FPLUS_RUNTIME_H
+#define FPLUS_RUNTIME_H
 
 #include <stdio.h>
 #include <stdint.h>
@@ -114,6 +114,9 @@ typedef CStrings Strings;
 typedef bool Boolean;
 #define STR(x) #x
 
+static const char* const _fp_bools_tf_[2] = { "false", "true" };
+static const char* const _fp_bools_yn_[2] = { "no", "yes" };
+
 // #define str_cmp_EQ(a, b) (not strcmp(a, b))
 #define str_cmp(op, a, b) (strcmp(a, b) op 0)
 // #define str_cmp_GE(a, b) (strcmp(a, b) >= 0)
@@ -121,11 +124,11 @@ typedef bool Boolean;
 // #define str_cmp_GT(a, b) (strcmp(a, b) > 0)
 // #define str_cmp_LT(a, b) (strcmp(a, b) < 0)
 
-#define Boolean_json_(x, _) printf(x ? "true" : "false")
+#define Boolean_json_(x, _) printf(_fp_bools_tf_[x])
 #define Number_json_(x, _) printf("%g", x)
 #define String_json_(x, _) printf("\"%s\"", x) // should be escape(x)
 
-#define Boolean_json(x) printf("\"%s\": %s\n", #x, x ? "true" : "false")
+#define Boolean_json(x) printf("\"%s\": %s\n", #x, _fp_bools_tf_[x])
 #define Number_json(x) printf("\"%s\": %g\n", #x, x)
 #define String_json(x) printf("\"%s\": \"%s\"\n", #x, x) // should be escape(x)
 
@@ -155,6 +158,7 @@ static const char* _spaces_ = //
     static bool T##_cmp3way_LT_LE(T a, T b, T c) { return a < b && b <= c; }   \
     static bool T##_cmp3way_LE_LT(T a, T b, T c) { return a <= b && b < c; }   \
     static bool T##_cmp3way_LE_LE(T a, T b, T c) { return a <= b && b <= c; }
+
 MAKE_cmp3way(Number)
 
 // #define DEFAULT_VALUE
@@ -164,11 +168,12 @@ MAKE_cmp3way(Number)
 // debug mode, error -> print to stderr, fatal -> print to stderr and exit
 #define print printf
 #define String_print puts
-#define Number_print(x) printf("%g\n", x)
-#define String_describe(x) printf("%s as String =\n    \"%s\"\n", #x, x)
-#define Number_describe(x) printf("%s as Number =\n    %g\n", #x, x)
+#define Number_print(x) printf("%g\n", _fp_bools_yn_[x])
+#define Boolean_print(x) printf("%g\n", x)
+#define String_describe(x) printf("%s String =\n    \"%s\"\n", #x, x)
+#define Number_describe(x) printf("%s Number =\n    %g\n", #x, x)
 #define Boolean_describe(x)                                                    \
-    printf("%s as Boolean =\n    %s\n", #x, x ? "true" : "false")
+    printf("%s Boolean =\n    %s\n", #x, _fp_bools_yn_[x])
 
     static Number Strings_main(const Strings a
 #ifdef DEBUG
@@ -221,4 +226,4 @@ int main(int argc, char* argv[])
     return _err_ ? 1 : 0;
 }
 
-#endif // CHECKSTD
+#endif // FPLUS_RUNTIME_H
