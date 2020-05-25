@@ -87,6 +87,7 @@ union Value {
 typedef void* Ptr;
 typedef uint32_t UInt32;
 typedef uint64_t UInt64;
+typedef size_t Size;
 typedef const char* CString;
 typedef double Real64;
 
@@ -266,11 +267,11 @@ static void PoolB_free(PoolB* self)
     for (int i = 0; i < self->ptrs.used; i++) free(self->ptrs.ref[i]);
 }
 
-PoolB gPool;
-PoolB strPool;
+PoolB gPool[1] = {};
+PoolB strPool[1] = {};
 
 #define NEW(T)                                                                 \
-    PoolB_alloc(&gPool, sizeof(T));                                            \
+    PoolB_alloc(gPool, sizeof(T));                                             \
     T##_allocTotal++;
 
 // This macro should be invoked on each struct defined.
@@ -292,6 +293,16 @@ static PtrList* PtrList_with(void* item)
     // List_ASTFunc etc.?
     PtrList* li = NEW(PtrList);
     li->item = item;
+    return li;
+}
+
+static PtrList* PtrList_with_next(void* item, void* next)
+{
+    // TODO: how to get separate alloc counts of List_ASTType
+    // List_ASTFunc etc.?
+    PtrList* li = NEW(PtrList);
+    li->item = item;
+    li->next = next;
     return li;
 }
 
@@ -343,7 +354,7 @@ static void PtrList_append(PtrList** selfp, void* item)
 
 static char* pstrndup(char* str, size_t len)
 {
-    char* ret = PoolB_alloc(&strPool, len + 1);
+    char* ret = PoolB_alloc(strPool, len + 1);
     memcpy(ret, str, len); // strPool uses calloc, so no need to zero last
     return ret;
 }

@@ -2,7 +2,7 @@
 # (it's not a 2D central diff but 1D diff of a 2D array)
 # axis has to be specified
 
-function central2d(Q as Matrix, by as Vector, axis as Number) returns (dQ as Matrix)
+function central2d(Q[:,:], by[], axis) returns (dQ[:,:])
     check axis == 1 or axis == 2
     check size(Q, along = axis) == size(by)
 
@@ -32,7 +32,7 @@ end function
 # func is generated to take Array as well as Slice.
 
 # finding the central diff of an array along its axis (there is only one axis)
-function central1d(Q as Vector, by as Vector) returns (dQ as Vector)
+function central1d(Q[], by[]) returns (dQ[])
 # var has a ASTVar* dimsFrom[8or16] field showing if one or more dims are the same
 # as another var
 # returns are local vars, not args in C
@@ -69,7 +69,7 @@ function central1d(Q as Vector, by as Vector) returns (dQ as Vector)
     # deep.
 end function
 
-function boundary2d(q as Matrix, zero as Boolean) returns (qnew as Matrix)
+function boundary2d(q[:,:], zero as Boolean) returns (qnew[:,:])
     # check size(Q, along = 1) > 1 THESE ARE IMPLIED SINCE YOU USED -2 as index!
     # check size(Q, along = 2) > 1
 

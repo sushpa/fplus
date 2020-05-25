@@ -1,4 +1,6 @@
 #define genLineNumbers 0
+#define genCoverage 1
+#define genLineProfile 1
 
 ///////////////////////////////////////////////////////////////////////////
 static void ASTImport_genc(ASTImport* import, int level)
@@ -400,7 +402,12 @@ static void ASTScope_genc(ASTScope* scope, int level)
         } // these will be declared at top and defined within the expr list
     foreach (ASTExpr*, stmt, scope->stmts) {
         if (stmt->kind == tkLineComment) continue;
+
         if (genLineNumbers) printf("#line %d\n", stmt->line);
+        if (genCoverage) printf("_cov_[%d]++;\n", stmt->line - 1);
+        if (genLineProfile)
+            printf("_lprof_[%d] = getticks();\n", stmt->line - 1);
+
         ASTExpr_genc(stmt, level, true, false, false);
         if (not isCtrlExpr(stmt) and stmt->kind != tkKeyword_return)
             puts(";");
@@ -1167,10 +1174,33 @@ static void ASTExpr_genc(
     }
 }
 
+// WARNING: DO NOT USE THESE STRINGS WITH PRINTF(...) USE PUTS(...).
+static const char* coverageFunc[] = { //
+    "static void fp_coverage_report() { /* unused */ }",
+    "static void fp_coverage_report() {\n"
+    "    int count=0,l=NUMLINES;\n"
+    "    while(--l>0) count+=!!_cov_[l];\n"
+    "    printf(\"coverage: %.2f%%\",l*100.0/NUMLINES);\n"
+    "}"
+};
+// WARNING: DO NOT USE THESE STRINGS WITH PRINTF(...) USE PUTS(...).
+static const char* lineProfileFunc[] = { //
+    "static void fp_lineprofile_report() { /* unused */ }",
+    "static void fp_lineprofile_report() {\n"
+    "    FILE* fd = fopen(\"profile.out\", \"w\");\n"
+    "    for (int i=1; i<NUMLINES; i++)\n"
+    "        if (not _lprof_[i]) _lprof_[i] = lprof[i-1];\n"
+    "    for (int i=NUMLINES; i>0; i--) _lprof_[i] -= _lprof_[i-1];\n"
+    "    for (int i=0; i<NUMLINES; i++)\n"
+    "        fprintf(fd,\"%.17f\",(double)_lprof_[i]);\n"
+    "    fclose(fd);\n"
+    "}"
+};
 ///////////////////////////////////////////////////////////////////////////
 // TODO: why do you need to pass level here?
 static void ASTModule_genc(ASTModule* module, int level)
 {
+    // puts("");
     foreach (ASTImport*, import, module->imports)
         ASTImport_genc(import, level);
 
@@ -1190,6 +1220,9 @@ static void ASTModule_genc(ASTModule* module, int level)
 
     foreach (ASTImport*, import, module->imports)
         ASTImport_undefc(import);
+
+    puts(coverageFunc[genCoverage]);
+    puts(lineProfileFunc[genLineProfile]);
 }
 
 static void ASTModule_genTests(ASTModule* module, int level)

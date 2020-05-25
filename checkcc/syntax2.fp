@@ -60,7 +60,7 @@ main(args @vec:str) ret @r8 :=
 funky(scalar1 @r8) @na :=
     joyce(2)
 
-    root := @json("rowx/giles.json") or return()
+    root := @json("rowx/giles.json") or return
         root.count > 0
 
     win := @ui.window(size = 450x650) or exit(-2)

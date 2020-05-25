@@ -188,6 +188,8 @@ static const char* _undersc72_ = "------------------------"
                                  "------------------------"
                                  "------------------------";
 
+static void fp_coverage_report();
+static void fp_lineprofile_report();
 int main(int argc, char* argv[])
 {
     ticks t0 = getticks();
@@ -222,7 +224,8 @@ int main(int argc, char* argv[])
     } else if (_err_ == NULL) {
         ; //   printf("[%.3fs] Completed successfully.\n", dt);
     }
-
+    fp_coverage_report();
+    fp_lineprofile_report();
     return _err_ ? 1 : 0;
 }
 

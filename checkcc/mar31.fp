@@ -3,20 +3,20 @@ type Complex
     var im = 0
 end type
 
-function Complex(re as Number, im as Number) returns Complex
+function Complex(re Number, im Number) returns Complex
     var c = Complex()
     c.re = re
     c.im = im
     return c
 end function
 
-# function Complex(re as Number, im as Number) returns (out as Complex)
+# function Complex(re Number, im Number) returns (out Complex)
 #     out = Complex()
 #     out.re = re
 #     out.im = im
 # end function
 
-Complex(re as Number) := Complex(re, 0)
+Complex(re Number) := Complex(re, 0)
 
 enum CollType
     none
@@ -32,7 +32,7 @@ end enum
 # main returns nothing, since the error handling mechanism will report
 # any issues to the caller of main.
 declare type Strings
-function main(args[] as Strings) returns Number
+function main(args[:] as String) result (ret Number)
     # constructor call must have all named args
     var c = Complex() #re = 3, im = 5)
     var d = [2, 3, 4, 5, 6, 7, 8]
@@ -47,12 +47,11 @@ function main(args[] as Strings) returns Number
     # doarr()
 end function
 
-function sum(x[] as Number) returns Number
-    var s = 0
-    # for i = 1:size(x)
-    #     s += x[i]
-    # end for
-    return s
+# disallow func name used as arg or ret name
+function sum(x[:] as Real) result (s as Real)
+    do elem = x[:]
+        s += elem
+    end do
 end function
 
 function doarr()

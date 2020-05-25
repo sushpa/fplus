@@ -27,9 +27,12 @@ static ASTExpr* parseExpr(Parser* self)
             Parser_errorInvalidIdent(self); // but continue parsing
 
         ASTExpr* expr;
-        if (matches(self,tkParenOpen)) expr=&lparen;
-        else if (matches(self, tkParenClose))expr=&rparen;
-        else expr = ASTExpr_fromToken(&self->token); // dont advance yet
+        if (matches(self, tkParenOpen))
+            expr = &lparen;
+        else if (matches(self, tkParenClose))
+            expr = &rparen;
+        else
+            expr = ASTExpr_fromToken(&self->token); // dont advance yet
 
         int prec = expr->prec;
         bool rassoc = prec ? expr->rassoc : false;
@@ -615,7 +618,7 @@ static ASTFunc* parseFunc(Parser* self, bool shouldParseBody)
     func->argCount = PtrList_count(func->args);
 
     if (Parser_ignore(self, tkOneSpace)
-        and Parser_ignore(self, tkKeyword_returns)) {
+        and Parser_ignore(self, tkKeyword_result)) {
         discard(self, tkOneSpace);
         func->returnSpec = parseTypeSpec(self);
     }
@@ -898,12 +901,12 @@ static PtrList* parseModule(Parser* self)
             // create some extra function declares
             char* defFuncs[] = { "json", "print", "describe" };
             for (int i = 0; i < countof(defFuncs); i++) {
-                 ASTFunc* func
+                ASTFunc* func
                     = ASTFunc_createDeclWithArg(defFuncs[i], NULL, type->name);
                 func->line = type->line;
                 PtrList_append(funcsTop, func);
                 if ((*funcsTop)->next) funcsTop = &(*funcsTop)->next;
-             }
+            }
 
         } break;
 

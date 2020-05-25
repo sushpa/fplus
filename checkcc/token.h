@@ -121,7 +121,7 @@ static bool doesKeywordMatch(const char* s, const int l)
     Token_matchesKeyword(let)
     Token_matchesKeyword(import)
     Token_matchesKeyword(return)
-    Token_matchesKeyword(returns)
+    Token_matchesKeyword(result)
     Token_matchesKeyword(as)
     return false;
 }
@@ -193,7 +193,7 @@ static void Token_tryKeywordMatch(Token* self)
     Token_compareKeyword(let)
     Token_compareKeyword(import)
     Token_compareKeyword(return)
-    Token_compareKeyword(returns)
+    Token_compareKeyword(result)
     Token_compareKeyword(as)
     // Token_compareKeyword(elif)
 

@@ -15,7 +15,7 @@ function unsetPrinted(expr @ASTExpr)
     end match
 end function
 
-function genPrintVars(expr @ASTExpr, level @Number)
+function genPrintVars(expr[@String] @ASTExpr, level[:,:] @Number)
     let spc @String = repeat("    ", times = level)
     match expr.kind
     case .identResolved, .varAssign

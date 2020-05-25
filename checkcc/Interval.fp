@@ -23,7 +23,9 @@ sub(a as Interval, b as Interval) :=
     Interval(lo = a.lo + b.lo, hi = a.hi + b.hi)
 
 mul(a as Interval, b as Interval) :=
-    Interval(lo = min(products(a, b)), hi = max(products(a, b)))
+    Interval(
+        lo = min(products(a, b)),
+        hi = max(products(a, b)))
     #CSE for products() which is pure
     # i guess if it is a #define, then C backend will apply
     # CSE on the muls
@@ -50,5 +52,5 @@ unite(a as Interval, b as Interval) :=
     Interval(lo = a.lo + b.lo, hi = a.hi + b.hi)
 
 intersect(a as Interval, b as Interval) :=
-    Interval(lo = max(a.lo, b.lo), hi = min(a.hi, b.hi)) or nothing # might violate invariant
+    Interval(lo = max(a.lo, b.lo), hi = min(a.hi, b.hi)) or nil # might violate invariant
 

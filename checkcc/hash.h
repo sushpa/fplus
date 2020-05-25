@@ -42,8 +42,8 @@
 
 #define flagsSize(m) ((m) < 16 ? 1 : (m) >> 4)
 
-#define roundUp32(x)                                                       \
-    (--(x), (x) |= (x) >> 1, (x) |= (x) >> 2, (x) |= (x) >> 4,             \
+#define roundUp32(x)                                                           \
+    (--(x), (x) |= (x) >> 1, (x) |= (x) >> 2, (x) |= (x) >> 4,                 \
         (x) |= (x) >> 8, (x) |= (x) >> 16, ++(x))
 
 static const double HASH_UPPER = 0.77;
@@ -63,7 +63,9 @@ static const double HASH_UPPER = 0.77;
 #define Dict_get(K, V) Dict_get_##K##_##V
 #define Dict_has(K, V) Dict_has_##K##_##V
 #define Dict_del(K, V) Dict_del_##K##_##V
+#define Dict_delk(K, V) Dict_delk_##K##_##V
 
+// TODO: why not void instead of char?
 #define Set(K) Dict(K, char)
 #define Set_init(K) Dict_init(K, char)
 #define Set_free(K) Dict_free(K, char)
@@ -74,17 +76,18 @@ static const double HASH_UPPER = 0.77;
 #define Set_get(K) Dict_get(K, char)
 #define Set_has(K) Dict_has(K, char)
 #define Set_del(K) Dict_del(K, char)
+#define Set_delk(K) Dict_delk(K, char)
 
 // TODO: do it without any templating at all, void* keys, values, etc.
 
-#define __DICT_TYPE(K, V)                                                  \
-    typedef struct Dict(K, V)                                              \
-    {                                                                      \
-        UInt32 nBuckets, size, nOccupied, upperBound;                      \
-        UInt32* flags;                                                     \
-        K* keys;                                                           \
-        V* vals;                                                           \
-    }                                                                      \
+#define __DICT_TYPE(K, V)                                                      \
+    typedef struct Dict(K, V)                                                  \
+    {                                                                          \
+        UInt32 nBuckets, size, nOccupied, upperBound;                          \
+        UInt32* flags;                                                         \
+        K* keys;                                                               \
+        V* vals;                                                               \
+    }                                                                          \
     Dict(K, V);
 
 // #define __DICT_PROTOTYPES(K, V)                                            \
@@ -98,217 +101,216 @@ static const double HASH_UPPER = 0.77;
 //     UInt32 Dict_put(K, V)(Dict(K, V) * h, K key, int* ret);                \
 //     void Dict_del(K, V)(Dict(K, V) * h, UInt32 x);
 
-#define __DICT_IMPL(Scope, K, V, IsMap, hash, equal)                       \
-    Scope Dict(K, V) * Dict_init(K, V)()                                   \
-    {                                                                      \
-        return calloc(1, sizeof(Dict(K, V)));                              \
-    }                                                                      \
-    Scope void Dict_freedata(K, V)(Dict(K, V) * h)                         \
-    {                                                                      \
-        if (h) {                                                           \
-            free(h->keys);                                                 \
-            free(h->flags);                                                \
-            if (IsMap) free(h->vals);                                      \
-        }                                                                  \
-    }                                                                      \
-    Scope void Dict_free(K, V)(Dict(K, V) * h) { free(h); }                \
-    Scope void Dict_clear(K, V)(Dict(K, V) * h)                            \
-    {                                                                      \
-        if (h and h->flags) {                                              \
-            memset(                                                        \
-                h->flags, 0xAA, flagsSize(h->nBuckets) * sizeof(UInt32));  \
-            h->size = h->nOccupied = 0;                                    \
-        }                                                                  \
-    }                                                                      \
-    Scope UInt32 Dict_get(K, V)(const Dict(K, V)* const h, K key)          \
-    {                                                                      \
-        if (h->nBuckets) {                                                 \
-            UInt32 k, i, last, mask, step = 0;                             \
-            mask = h->nBuckets - 1;                                        \
-            k = hash(key);                                                 \
-            i = k & mask;                                                  \
-            last = i;                                                      \
-            while (not empty(h->flags, i)                                  \
-                and (deleted(h->flags, i)                                  \
-                    or not equal(h->keys[i], key))) {                      \
-                i = (i + (++step)) & mask;                                 \
-                if (i == last) return h->nBuckets;                         \
-            }                                                              \
-            return emptyOrDel(h->flags, i) ? h->nBuckets : i;              \
-        } else                                                             \
-            return 0;                                                      \
-    }                                                                      \
-    Scope bool Dict_has(K, V)(const Dict(K, V)* const h, K key)            \
-    {                                                                      \
-        UInt32 x = Dict_get(K, V)(h, key);                                 \
-        return x < h->nBuckets && Dict_exist(h, x);                        \
-    }                                                                      \
-    Scope int Dict_resize(K, V)(Dict(K, V) * h, UInt32 nnBuckets)          \
-    { /* This function uses 0.25*nBuckets bytes of working space instead   \
-         of [sizeof(key_t+val_t)+.25]*nBuckets. */                         \
-        UInt32* nFlags = 0;                                                \
-        UInt32 j = 1;                                                      \
-        {                                                                  \
-            roundUp32(nnBuckets);                                          \
-            if (nnBuckets < 4) nnBuckets = 4;                              \
-            if (h->size >= (UInt32)(nnBuckets * HASH_UPPER + 0.5))         \
-                j = 0; /* requested size is too small */                   \
-            else { /* size to be changed (shrink or expand); rehash */     \
-                nFlags = malloc(flagsSize(nnBuckets) * sizeof(UInt32));    \
-                if (not nFlags) return -1;                                 \
-                memset(                                                    \
-                    nFlags, 0xAA, flagsSize(nnBuckets) * sizeof(UInt32));  \
-                if (h->nBuckets < nnBuckets) { /* expand */                \
-                    K* nKeys = realloc(h->keys, nnBuckets * sizeof(K));    \
-                    if (not nKeys) {                                       \
-                        free(nFlags);                                      \
-                        return -1;                                         \
-                    }                                                      \
-                    h->keys = nKeys;                                       \
-                    if (IsMap) {                                           \
-                        V* nVals                                           \
-                            = realloc(h->vals, nnBuckets * sizeof(V));     \
-                        if (not nVals) {                                   \
-                            free(nFlags);                                  \
-                            return -1;                                     \
-                        }                                                  \
-                        h->vals = nVals;                                   \
-                    }                                                      \
-                } /* otherwise shrink */                                   \
-            }                                                              \
-        }                                                                  \
-        if (j) { /* rehashing is needed */                                 \
-            for (j = 0; j != h->nBuckets; ++j) {                           \
-                if (emptyOrDel(h->flags, j) == 0) {                        \
-                    K key = h->keys[j];                                    \
-                    V val;                                                 \
-                    UInt32 new_mask;                                       \
-                    new_mask = nnBuckets - 1;                              \
-                    if (IsMap) val = h->vals[j];                           \
-                    setDeleted(h->flags, j);                               \
-                    while (1) { /* kick-out process; sort of like in       \
-                                   Cuckoo hashing */                       \
-                        UInt32 k, i, step = 0;                             \
-                        k = hash(key);                                     \
-                        i = k & new_mask;                                  \
-                        while (not empty(nFlags, i))                       \
-                            i = (i + (++step)) & new_mask;                 \
-                        setNotEmpty(nFlags, i);                            \
-                        if (i < h->nBuckets                                \
-                            and emptyOrDel(h->flags, i) == 0) {            \
-                            /* kick out the existing element */            \
-                            {                                              \
-                                K tmp = h->keys[i];                        \
-                                h->keys[i] = key;                          \
-                                key = tmp;                                 \
-                            }                                              \
-                            if (IsMap) {                                   \
-                                V tmp = h->vals[i];                        \
-                                h->vals[i] = val;                          \
-                                val = tmp;                                 \
-                            }                                              \
-                            setDeleted(h->flags, i);                       \
-                            /* mark it deleted in the old table */         \
-                        } else {                                           \
-                            /* write the element and break the loop */     \
-                            h->keys[i] = key;                              \
-                            if (IsMap) h->vals[i] = val;                   \
-                            break;                                         \
-                        }                                                  \
-                    }                                                      \
-                }                                                          \
-            }                                                              \
-            if (h->nBuckets > nnBuckets) { /* shrink the hash table */     \
-                h->keys = realloc(h->keys, nnBuckets * sizeof(K));         \
-                if (IsMap)                                                 \
-                    h->vals = realloc(h->vals, nnBuckets * sizeof(V));     \
-            }                                                              \
-            free(h->flags); /* free the working space */                   \
-            h->flags = nFlags;                                             \
-            h->nBuckets = nnBuckets;                                       \
-            h->nOccupied = h->size;                                        \
-            h->upperBound = (UInt32)(h->nBuckets * HASH_UPPER + 0.5);      \
-        }                                                                  \
-        return 0;                                                          \
-    }                                                                      \
-    Scope UInt32 Dict_put(K, V)(Dict(K, V) * h, K key, int* ret)           \
-    {                                                                      \
-        UInt32 x;                                                          \
-        if (h->nOccupied >= h->upperBound) { /* update the hash table */   \
-            if (h->nBuckets > (h->size << 1)) {                            \
-                if (Dict_resize(K, V)(h, h->nBuckets - 1) < 0) {           \
-                    /* clear "deleted" elements */                         \
-                    *ret = -1;                                             \
-                    return h->nBuckets;                                    \
-                }                                                          \
-            } else if (Dict_resize(K, V)(h, h->nBuckets + 1) < 0) {        \
-                /* expand the hash table */                                \
-                *ret = -1;                                                 \
-                return h->nBuckets;                                        \
-            }                                                              \
-        } /* TODO: to implement automatically shrinking; resize() already  \
-             support shrinking */                                          \
-        {                                                                  \
-            UInt32 k, i, site, last, mask = h->nBuckets - 1, step = 0;     \
-            x = site = h->nBuckets;                                        \
-            k = hash(key);                                                 \
-            i = k & mask;                                                  \
-            if (empty(h->flags, i))                                        \
-                x = i; /* for speed up */                                  \
-            else {                                                         \
-                last = i;                                                  \
-                while (not empty(h->flags, i)                              \
-                    and (deleted(h->flags, i)                              \
-                        or not equal(h->keys[i], key))) {                  \
-                    if (deleted(h->flags, i)) site = i;                    \
-                    i = (i + (++step)) & mask;                             \
-                    if (i == last) {                                       \
-                        x = site;                                          \
-                        break;                                             \
-                    }                                                      \
-                }                                                          \
-                if (x == h->nBuckets) {                                    \
-                    if (empty(h->flags, i) and site != h->nBuckets)        \
-                        x = site;                                          \
-                    else                                                   \
-                        x = i;                                             \
-                }                                                          \
-            }                                                              \
-        }                                                                  \
-        if (empty(h->flags, x)) { /* not present at all */                 \
-            h->keys[x] = key;                                              \
-            clearFlags(h->flags, x);                                       \
-            ++h->size;                                                     \
-            ++h->nOccupied;                                                \
-            *ret = 1;                                                      \
-        } else if (deleted(h->flags, x)) { /* deleted */                   \
-            h->keys[x] = key;                                              \
-            clearFlags(h->flags, x);                                       \
-            ++h->size;                                                     \
-            *ret = 2;                                                      \
-        } else                                                             \
-            *ret = 0;                                                      \
-        /* Don't touch h->keys[x] if present and not deleted */            \
-        return x;                                                          \
-    }                                                                      \
-    Scope void Dict_del(K, V)(Dict(K, V) * h, UInt32 x)                    \
-    {                                                                      \
-        if (x != h->nBuckets and not emptyOrDel(h->flags, x)) {            \
-            setDeleted(h->flags, x);                                       \
-            --h->size;                                                     \
-        }                                                                  \
+#define __DICT_IMPL(Scope, K, V, IsMap, hash, equal)                           \
+    Scope Dict(K, V) * Dict_init(K, V)()                                       \
+    {                                                                          \
+        return calloc(1, sizeof(Dict(K, V)));                                  \
+    }                                                                          \
+    Scope void Dict_freedata(K, V)(Dict(K, V) * h)                             \
+    {                                                                          \
+        if (h) {                                                               \
+            free(h->keys);                                                     \
+            free(h->flags);                                                    \
+            if (IsMap) free(h->vals);                                          \
+        }                                                                      \
+    }                                                                          \
+    Scope void Dict_free(K, V)(Dict(K, V) * h) { free(h); }                    \
+    Scope void Dict_clear(K, V)(Dict(K, V) * h)                                \
+    {                                                                          \
+        if (h and h->flags) {                                                  \
+            memset(h->flags, 0xAA, flagsSize(h->nBuckets) * sizeof(UInt32));   \
+            h->size = h->nOccupied = 0;                                        \
+        }                                                                      \
+    }                                                                          \
+    Scope UInt32 Dict_get(K, V)(const Dict(K, V)* const h, K key)              \
+    {                                                                          \
+        if (h->nBuckets) {                                                     \
+            UInt32 k, i, last, mask, step = 0;                                 \
+            mask = h->nBuckets - 1;                                            \
+            k = hash(key);                                                     \
+            i = k & mask;                                                      \
+            last = i;                                                          \
+            while (not empty(h->flags, i)                                      \
+                and (deleted(h->flags, i) or not equal(h->keys[i], key))) {    \
+                i = (i + (++step)) & mask;                                     \
+                if (i == last) return h->nBuckets;                             \
+            }                                                                  \
+            return emptyOrDel(h->flags, i) ? h->nBuckets : i;                  \
+        } else                                                                 \
+            return 0;                                                          \
+    }                                                                          \
+    Scope bool Dict_has(K, V)(const Dict(K, V)* const h, K key)                \
+    {                                                                          \
+        UInt32 x = Dict_get(K, V)(h, key);                                     \
+        return x < h->nBuckets && Dict_exist(h, x);                            \
+    }                                                                          \
+    Scope int Dict_resize(K, V)(Dict(K, V) * h, UInt32 nnBuckets)              \
+    { /* This function uses 0.25*nBuckets bytes of working space instead       \
+         of [sizeof(key_t+val_t)+.25]*nBuckets. */                             \
+        UInt32* nFlags = 0;                                                    \
+        UInt32 j = 1;                                                          \
+        {                                                                      \
+            roundUp32(nnBuckets);                                              \
+            if (nnBuckets < 4) nnBuckets = 4;                                  \
+            if (h->size >= (UInt32)(nnBuckets * HASH_UPPER + 0.5))             \
+                j = 0; /* requested size is too small */                       \
+            else { /* size to be changed (shrink or expand); rehash */         \
+                nFlags = malloc(flagsSize(nnBuckets) * sizeof(UInt32));        \
+                if (not nFlags) return -1;                                     \
+                memset(nFlags, 0xAA, flagsSize(nnBuckets) * sizeof(UInt32));   \
+                if (h->nBuckets < nnBuckets) { /* expand */                    \
+                    K* nKeys = realloc(h->keys, nnBuckets * sizeof(K));        \
+                    if (not nKeys) {                                           \
+                        free(nFlags);                                          \
+                        return -1;                                             \
+                    }                                                          \
+                    h->keys = nKeys;                                           \
+                    if (IsMap) {                                               \
+                        V* nVals = realloc(h->vals, nnBuckets * sizeof(V));    \
+                        if (not nVals) {                                       \
+                            free(nFlags);                                      \
+                            return -1;                                         \
+                        }                                                      \
+                        h->vals = nVals;                                       \
+                    }                                                          \
+                } /* otherwise shrink */                                       \
+            }                                                                  \
+        }                                                                      \
+        if (j) { /* rehashing is needed */                                     \
+            for (j = 0; j != h->nBuckets; ++j) {                               \
+                if (emptyOrDel(h->flags, j) == 0) {                            \
+                    K key = h->keys[j];                                        \
+                    V val;                                                     \
+                    UInt32 new_mask;                                           \
+                    new_mask = nnBuckets - 1;                                  \
+                    if (IsMap) val = h->vals[j];                               \
+                    setDeleted(h->flags, j);                                   \
+                    while (1) { /* kick-out process; sort of like in           \
+                                   Cuckoo hashing */                           \
+                        UInt32 k, i, step = 0;                                 \
+                        k = hash(key);                                         \
+                        i = k & new_mask;                                      \
+                        while (not empty(nFlags, i))                           \
+                            i = (i + (++step)) & new_mask;                     \
+                        setNotEmpty(nFlags, i);                                \
+                        if (i < h->nBuckets                                    \
+                            and emptyOrDel(h->flags, i) == 0) {                \
+                            /* kick out the existing element */                \
+                            {                                                  \
+                                K tmp = h->keys[i];                            \
+                                h->keys[i] = key;                              \
+                                key = tmp;                                     \
+                            }                                                  \
+                            if (IsMap) {                                       \
+                                V tmp = h->vals[i];                            \
+                                h->vals[i] = val;                              \
+                                val = tmp;                                     \
+                            }                                                  \
+                            setDeleted(h->flags, i);                           \
+                            /* mark it deleted in the old table */             \
+                        } else {                                               \
+                            /* write the element and break the loop */         \
+                            h->keys[i] = key;                                  \
+                            if (IsMap) h->vals[i] = val;                       \
+                            break;                                             \
+                        }                                                      \
+                    }                                                          \
+                }                                                              \
+            }                                                                  \
+            if (h->nBuckets > nnBuckets) { /* shrink the hash table */         \
+                h->keys = realloc(h->keys, nnBuckets * sizeof(K));             \
+                if (IsMap) h->vals = realloc(h->vals, nnBuckets * sizeof(V));  \
+            }                                                                  \
+            free(h->flags); /* free the working space */                       \
+            h->flags = nFlags;                                                 \
+            h->nBuckets = nnBuckets;                                           \
+            h->nOccupied = h->size;                                            \
+            h->upperBound = (UInt32)(h->nBuckets * HASH_UPPER + 0.5);          \
+        }                                                                      \
+        return 0;                                                              \
+    }                                                                          \
+    Scope UInt32 Dict_put(K, V)(Dict(K, V) * h, K key, int* ret)               \
+    {                                                                          \
+        UInt32 x;                                                              \
+        if (h->nOccupied >= h->upperBound) { /* update the hash table */       \
+            if (h->nBuckets > (h->size << 1)) {                                \
+                if (Dict_resize(K, V)(h, h->nBuckets - 1) < 0) {               \
+                    /* clear "deleted" elements */                             \
+                    *ret = -1;                                                 \
+                    return h->nBuckets;                                        \
+                }                                                              \
+            } else if (Dict_resize(K, V)(h, h->nBuckets + 1) < 0) {            \
+                /* expand the hash table */                                    \
+                *ret = -1;                                                     \
+                return h->nBuckets;                                            \
+            }                                                                  \
+        } /* TODO: to implement automatically shrinking; resize() already      \
+             support shrinking */                                              \
+        {                                                                      \
+            UInt32 k, i, site, last, mask = h->nBuckets - 1, step = 0;         \
+            x = site = h->nBuckets;                                            \
+            k = hash(key);                                                     \
+            i = k & mask;                                                      \
+            if (empty(h->flags, i))                                            \
+                x = i; /* for speed up */                                      \
+            else {                                                             \
+                last = i;                                                      \
+                while (not empty(h->flags, i)                                  \
+                    and (deleted(h->flags, i)                                  \
+                        or not equal(h->keys[i], key))) {                      \
+                    if (deleted(h->flags, i)) site = i;                        \
+                    i = (i + (++step)) & mask;                                 \
+                    if (i == last) {                                           \
+                        x = site;                                              \
+                        break;                                                 \
+                    }                                                          \
+                }                                                              \
+                if (x == h->nBuckets) {                                        \
+                    if (empty(h->flags, i) and site != h->nBuckets)            \
+                        x = site;                                              \
+                    else                                                       \
+                        x = i;                                                 \
+                }                                                              \
+            }                                                                  \
+        }                                                                      \
+        if (empty(h->flags, x)) { /* not present at all */                     \
+            h->keys[x] = key;                                                  \
+            clearFlags(h->flags, x);                                           \
+            ++h->size;                                                         \
+            ++h->nOccupied;                                                    \
+            *ret = 1;                                                          \
+        } else if (deleted(h->flags, x)) { /* deleted */                       \
+            h->keys[x] = key;                                                  \
+            clearFlags(h->flags, x);                                           \
+            ++h->size;                                                         \
+            *ret = 2;                                                          \
+        } else                                                                 \
+            *ret = 0;                                                          \
+        /* Don't touch h->keys[x] if present and not deleted */                \
+        return x;                                                              \
+    }                                                                          \
+    Scope void Dict_del(K, V)(Dict(K, V) * h, UInt32 x)                        \
+    {                                                                          \
+        if (x != h->nBuckets and not emptyOrDel(h->flags, x)) {                \
+            setDeleted(h->flags, x);                                           \
+            --h->size;                                                         \
+        }                                                                      \
+    }                                                                          \
+    Scope void Dict_delk(K, V)(Dict(K, V) * h, K key)                          \
+    {                                                                          \
+        Dict_del(K, V)(h, Dict_get(K, V)(h, key));                             \
     }
 
-#define DICT_DECLARE(K, V)                                                 \
-    __DICT_TYPE(K, V)                                                      \
+#define DICT_DECLARE(K, V)                                                     \
+    __DICT_TYPE(K, V)                                                          \
     __DICT_PROTOTYPES(K, V)
 
-#define DICT_INIT2(Scope, K, V, IsMap, hash, equal)                        \
-    __DICT_TYPE(K, V)                                                      \
+#define DICT_INIT2(Scope, K, V, IsMap, hash, equal)                            \
+    __DICT_TYPE(K, V)                                                          \
     __DICT_IMPL(Scope, K, V, IsMap, hash, equal)
 
-#define DICT_INIT(K, V, IsMap, hash, equal)                                \
-    DICT_INIT2(static inline, K, V, IsMap, hash, equal)
+#define DICT_INIT(K, V, IsMap, hash, equal)                                    \
+    DICT_INIT2(static, K, V, IsMap, hash, equal)
 
 /* --- BEGIN OF HASH FUNCTIONS --- */
 
@@ -320,7 +322,23 @@ static const double HASH_UPPER = 0.77;
 
 #define UInt64_equal(a, b) ((a) == (b))
 
-#define Real64_hash(key) UInt64_hash((UInt64)key)
+// careful, this is really just pointer equality/hash,
+// not underlying object equality/hash
+// TODO: handle 32/64 bit
+#define Ptr_hash(key) UInt64_hash((UInt64)key)
+#define Ptr_equal(a, b) ((a) == (b))
+
+#define Int64_equal(a, b) ((a) == (b))
+
+#define Int64_hash(key) UInt64_hash((UInt64)key)
+
+// #define Real64_hash(key) UInt64_hash(*(UInt64*)&key)
+
+UInt32 Real64_hash(double key)
+{
+    UInt64* ptr = (UInt64*)&key;
+    return UInt64_hash(*ptr);
+}
 
 #define Real64_equal(a, b) ((a) == (b))
 
@@ -328,8 +346,7 @@ static inline UInt32 __ac_X31_hash_string(const char* s)
 {
     UInt32 i = (UInt32)*s;
     if (i)
-        for (++s; *s; ++s)
-            i = (i << 5) - i + (UInt32)*s;
+        for (++s; *s; ++s) i = (i << 5) - i + (UInt32)*s;
     return i;
 }
 
@@ -367,33 +384,33 @@ static inline UInt32 __ac_Wang_hash(UInt32 key)
 
 #define Dict_nBuckets(h) ((h)->nBuckets)
 
-#define Dict_foreach(h, kvar, vvar, code)                                  \
-    {                                                                      \
-        for (UInt32 i = Dict_begin(h); i != Dict_end(h); ++i) {            \
-            if (not Dict_exist(h, i)) continue;                            \
-            kvar = Dict_key(h, i);                                         \
-            vvar = Dict_val(h, i);                                         \
-            code;                                                          \
-        }                                                                  \
+#define Dict_foreach(h, kvar, vvar, code)                                      \
+    {                                                                          \
+        for (UInt32 _i_ = Dict_begin(h); _i_ != Dict_end(h); ++_i_) {          \
+            if (not Dict_exist(h, _i_)) continue;                              \
+            kvar = Dict_key(h, _i_);                                           \
+            vvar = Dict_val(h, _i_);                                           \
+            code;                                                              \
+        }                                                                      \
     }
 
-#define Dict_foreach_value(h, vvar, code)                                  \
-    {                                                                      \
-        for (UInt32 i = Dict_begin(h); i != Dict_end(h); ++i) {            \
-            if (not Dict_exist(h, i)) continue;                            \
-            vvar = Dict_val(h, i);                                         \
-            code;                                                          \
-        }                                                                  \
+#define Dict_foreach_value(h, vvar, code)                                      \
+    {                                                                          \
+        for (UInt32 _i_ = Dict_begin(h); _i_ != Dict_end(h); ++_i_) {          \
+            if (not Dict_exist(h, _i_)) continue;                              \
+            vvar = Dict_val(h, _i_);                                           \
+            code;                                                              \
+        }                                                                      \
     }
 
 #define Set_foreach(h, kvar, code) Dict_foreach_key(h, kvar, code)
-#define Dict_foreach_key(h, kvar, code)                                    \
-    {                                                                      \
-        for (UInt32 i = Dict_begin(h); i != Dict_end(h); ++i) {            \
-            if (not Dict_exist(h, i)) continue;                            \
-            kvar = Dict_key(h, i);                                         \
-            code;                                                          \
-        }                                                                  \
+#define Dict_foreach_key(h, kvar, code)                                        \
+    {                                                                          \
+        for (UInt32 _i_ = Dict_begin(h); _i_ != Dict_end(h); ++_i_) {          \
+            if (not Dict_exist(h, _i_)) continue;                              \
+            kvar = Dict_key(h, _i_);                                           \
+            code;                                                              \
+        }                                                                      \
     }
 
 #define MAKE_SET(T) DICT_INIT(T, char, false, T##_hash, T##_equal)
@@ -408,10 +425,17 @@ MAKE_DICT(UInt32, UInt32)
 MAKE_DICT(CString, UInt32)
 // MAKE_DICT(UInt32, Real64)
 // MAKE_DICT(CString, Real64)
-// MAKE_DICT(UInt32, Ptr)
-// MAKE_DICT(CString, Ptr)
+MAKE_DICT(UInt32, Ptr)
+MAKE_DICT(CString, Ptr)
 MAKE_DICT(UInt32, CString)
 MAKE_DICT(CString, CString)
+MAKE_DICT(UInt64, Ptr)
+MAKE_DICT(Ptr, UInt64)
+MAKE_DICT(Ptr, Ptr)
+// OH COME ON. JUST KEEP the 4 combinations of Int64/32, intptr_t, CString.
+// evrything else is the same.
+
+// MAKE_DICT(Ptr, CString)
 
 // #define MAKE_SET_INT                                                       \
 //     DICT_INIT(UInt32, char, false, Dict_UInt32_hash, Dict_UInt32_equal)

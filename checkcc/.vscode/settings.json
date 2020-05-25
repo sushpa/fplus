@@ -4,6 +4,7 @@
         "*.ac": "java",
         "*.h": "c",
         "*.t": "c",
+        "*.fp": "fplus",
         "string": "c",
         "__bit_reference": "c",
         "algorithm": "c",
@@ -29,6 +30,7 @@
         "__split_buffer": "c",
         "initializer_list": "c",
         "gslicen": "c",
-        "__string": "cpp"
+        "__string": "cpp",
+        "utility": "c"
     }
 }

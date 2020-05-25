@@ -1,19 +1,19 @@
-# declare type String
+# declare type Text
 declare type Strings
-# declare type as point
+# declare type point
 
 # declared funcs are basically implemented in C, they
 # can be funcs or macros, doesn't matter here
-# declare function print(what as String)
-# declare function print(what as number)
-# declare function describe(what as String)
-# declare function describe(what as number)
-# declare function describe(what as Boolean)
-# declare function json(p as as point)
-# declare function json(p as number)
-# declare function json(p as String)
-# declare function json(p as Boolean)
-# declare function json(p as Other)
+# declare function print(what Text)
+# declare function print(what number)
+# declare function describe(what Text)
+# declare function describe(what number)
+# declare function describe(what YesOrNo)
+# declare function json(p point)
+# declare function json(p number)
+# declare function json(p Text)
+# declare function json(p YesOrNo)
+# declare function json(p Other)
 # declare function Point_new_()
 
 # let ui = import("ch.gui")
@@ -22,16 +22,17 @@ declare type Strings
 # need an inheritance graph to avoid two types inheriting from each other or generally mutually recursive inheritance
 # need a call graph to understand recursion patterns etc. and more imp. to avoid runaway recursion in the compiler when e.g. a constructor and a function depend on each other
 
-# when do you run analyseExpr on a type? when an instance of it is used in a func (vars or args)
-# and on a func? whenever it is encountered.
+# when do you run analyseExpr on a type? when an instance of it used in a func (vars or args)
+# and on a func? whenever it encountered.
 # start processing at main, and see where you go.
 # that means dead code will not be analyzed, but what the heck, not my problem.
 
-type Expr
+deprecated v20200923
+export type Expr
     var meg = 33.2
     var bx = 4 < 5
     # var b = msp(Point())
-    var f = 3<3
+    shared var f = 3<3
 end type
 
 # for enums: #define T_value(e) -> T##_vals[e]
@@ -40,7 +41,7 @@ end type
 # and each enum gens its print/describe/json etc funcs.
 # printing name by default not numeric value.
 
-type Another #extends Point
+export type Another #extends Point
     var g = 12
     var exp = Expr()
 end type
@@ -55,7 +56,7 @@ end type
 type Other # extends Another
     var m = 43
     var we = Another()
-    # var po = as point()
+    # var po = point()
 end type
 
 type Point # extends Other
@@ -68,27 +69,26 @@ type Point # extends Other
     var cstr = "xyz"
 end type
 
-fxfunc(x as Number) := x * 1.5
+export fxfunc(x) := x * 1.5
 
-function Point(x as Number)
+export function Point(x)
     let p = Point()
     p.y = x
     describe(x)
     return p
 end function
 
-function main(args as Strings) returns Number
-
+function main(args[] Text) returns Real
     let po = Point()
     let pcx = Point(78)
     let mg = args
-    # let cm as number[] = [8, 7, 6, 5]
+    let cm[] Integer = [8, 7, 6, 5]
     # json(cm[3])
     json(po)
     var masd = YetAnother()
     json(pcx)
-    var nuk = "hurritu"
-    var mk = 3 < 6 <= 5
+    var nuk Text = "hurritu"
+    var mk YesOrNo = 3 < 6 <= 5
     json(mk)
     # var sd = po.o.we #+ ui.Window(1024x768, title = "Jim jox")
     # json(sd)
@@ -99,7 +99,7 @@ function main(args as Strings) returns Number
     return 6
     # print(pcx)
     # po = 0
-    # var pm as number
+    # var pm number
     # var nzz = zeros(450)
     # nzz[2:65] = 1
     # nzz[1:2:-1] = random()
@@ -111,33 +111,33 @@ function main(args as Strings) returns Number
     # sum will be promoted out, but it has an elemental op INSIDE it.
     # so in addition to the isElemental flag you need a hasElemental
     # function that dives.
-    # Like is promotion where the loop repeats to check for multiple
+    # Like promotion where the loop repeats to check for multiple
     # promotions in the same statement, the same should happen here,
     # but the current stmt should also be set back to the newly promoted
     # one so that itcan be searched for embedded elemental ops. the next
     # stmt will be the original, so elemental ops remaining will be treated
     # again -- make sure that after elemental promotions are done, the
-    # flag is unset.
+    # flag unset.
 
-    # the problem is that the term inside nzz will be promoted even though
+    # the problem that the term inside nzz will be promoted even though
     # it has a dependency. hopefully no one writes code like this.
     # -- promoted within the enclosing 'for', not outside it
     # nzz[7:89] = nzz[1:82] + sum(nzz[7:47]+nzz[80:120]) * nzz[31:112]
 
     # var pox = ui.Window(400x300)
-    # var pox = new(as point, frame = 400x300)
+    # var pox = new point, frame = 400x300)
     # pox.x = 6
     # pox.cstr.jmp = "mereger"
     # json(po)
     # var postr = pox.json()
 end function
 
-# var mx [as date] = [now(), now(), now()]
-# var mx as date[4,4] = [now(), now(), now()]
-# var mx as number|kg.m/s[6,:] = [now(), now(), now()]
-# var mx as Date = [now(), now(), now()]
-# var mx[4,4] as Date = [now(), now(), now()]
-# var mx[6,:] as Number|kg.m/s = [now(), now(), now()]
+# var mx  date] = [now(), now(), now()]
+# var mx date[4,4] = [now(), now(), now()]
+# var mx number|kg.m/s[6,:] = [now(), now(), now()]
+# var mx Date = [now(), now(), now()]
+# var mx[4,4] Date = [now(), now(), now()]
+# var mx[6,:]|kg.m/s = [now(), now(), now()]
 
 function funky()
     joyce()

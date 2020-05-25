@@ -54,9 +54,9 @@ typedef struct ASTTypeSpec {
 } ASTTypeSpec;
 
 typedef struct ASTVar {
+    char* name;
     ASTTypeSpec* typeSpec;
     struct ASTExpr* init;
-    char* name;
     uint16_t line;
     struct {
         bool used : 1, //
@@ -143,6 +143,10 @@ typedef struct ASTExpr {
     };
     struct ASTExpr* left;
     union {
+        // ASTEvalInfo eval;
+        uint32_t hash;
+    };
+    union {
         char* string;
         double real;
         int64_t integer;
@@ -166,8 +170,8 @@ typedef struct ASTScope {
 } ASTScope;
 
 typedef struct ASTType {
-    ASTTypeSpec* super;
     char* name;
+    ASTTypeSpec* super;
     ASTScope* body;
     uint16_t line;
     uint8_t col;
@@ -185,10 +189,10 @@ typedef struct ASTEnum {
 } ASTEnum;
 
 typedef struct ASTFunc {
+    char* name;
     ASTScope* body;
     List(ASTVar) * args;
     ASTTypeSpec* returnSpec;
-    char* name;
     char* selector;
     struct {
         uint16_t line;
@@ -217,8 +221,8 @@ typedef struct ASTFunc {
 } ASTFunc;
 
 typedef struct ASTTest {
-    ASTScope* body;
     char* name;
+    ASTScope* body;
     char* selector;
     struct {
         uint16_t line;
@@ -229,6 +233,7 @@ typedef struct ASTTest {
 } ASTTest;
 
 typedef struct ASTModule {
+    char* name;
     List(ASTFunc) * funcs;
     List(ASTTest) * tests;
     List(ASTExpr) * exprs;
@@ -236,7 +241,6 @@ typedef struct ASTModule {
     List(ASTVar) * globals;
     List(ASTImport) * imports;
     List(ASTEnum) * enums;
-    char* name;
     char* moduleName;
 } ASTModule;
 
@@ -850,6 +854,10 @@ static void Parser_genc_open(Parser* parser)
         parser->capsMangledName);
     printf("#define THISMODULE %s\n", parser->mangledName);
     printf("#define THISFILE \"%s\"\n", parser->filename);
+    printf("#define NUMLINES \"%s\"\n", parser->token.line);
+    // if(genCoverage)
+    printf("static UInt64 _cov_[NUMLINES] = {};\n");
+    printf("static ticks _lprof_[NUMLINES] = {};\n");
 }
 
 static void Parser_genc_close(Parser* parser)
