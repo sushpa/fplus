@@ -57,6 +57,11 @@ typedef struct ASTVar {
     char* name;
     ASTTypeSpec* typeSpec;
     struct ASTExpr* init;
+    // TODO: ASTExpr* lastref; // last expr in owning scope that refers to this
+    // var. Note that you should dive to search for the last expr, it may be
+    // within an inner scope. The drop call should go at the end of such
+    // subscope, NOT within the subscope itself after the actual expr. (so set
+    // the if/for/while as the lastref, not the actual lastref)
     uint16_t line;
     struct {
         bool used : 1, //
@@ -201,6 +206,8 @@ typedef struct ASTFunc {
                 usesGUI : 1, usesSerialisation : 1, isExported : 1,
                 usesReflection : 1, nodispatch : 1, isStmt : 1, isDeclare : 1,
                 isCalledFromWithinLoop : 1, elemental : 1, isDefCtor : 1,
+                intrinsic : 1, // intrinsic: print, describe, json, etc. not to
+                               // be output by linter
                 analysed : 1, // semantic pass has been done, don't repeat
                 returnsNewObjectSometimes : 1,
                 returnsNewObjectAlways : 1; // what this func returns is an
@@ -822,8 +829,10 @@ static void getSelector(ASTFunc* func)
             bufp += wrote;
             remain -= wrote;
         }
-        func->selector = PoolB_alloc(&strPool, selLen + 1);
-        memcpy(func->selector, buf, selLen + 1);
+        // TODO: why not use pstrndup here?
+        func->selector = pstrndup(buf, selLen + 1);
+        // func->selector = PoolB_alloc(strPool, selLen + 1);
+        // memcpy(func->selector, buf, selLen + 1);
     } else {
         func->selector = func->name;
     }
@@ -854,9 +863,10 @@ static void Parser_genc_open(Parser* parser)
         parser->capsMangledName);
     printf("#define THISMODULE %s\n", parser->mangledName);
     printf("#define THISFILE \"%s\"\n", parser->filename);
-    printf("#define NUMLINES \"%s\"\n", parser->token.line);
+    printf("#define NUMLINES %d\n", parser->token.line);
     // if(genCoverage)
     printf("static UInt64 _cov_[NUMLINES] = {};\n");
+    printf("static ticks _lprof_last_, _lprof_tmp_;\n");
     printf("static ticks _lprof_[NUMLINES] = {};\n");
 }
 

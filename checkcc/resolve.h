@@ -12,7 +12,7 @@ static void resolveTypeSpec(
 {
     // TODO: disallow a type that derives from itself!
     if (typeSpec->typeType != TYUnresolved) return;
-    if (not*typeSpec->name) return;
+    if (not *typeSpec->name) return;
 
     // TODO: DO THIS IN PARSE... stuff!!
 
@@ -116,10 +116,10 @@ static void resolveVars(
             // check subscript argument count
             // recheck kind since the var may have failed resolution
             // TODO: handle dims 0 as dims 1 because arr[] is the same as arr[:]
-//            if (expr->kind == tkSubscriptResolved
-//                and ASTExpr_countCommaList(expr->left)
-//                    != expr->var->typeSpec->dims)
-//                Parser_errorIndexDimsMismatch(parser, expr);
+            //            if (expr->kind == tkSubscriptResolved
+            //                and ASTExpr_countCommaList(expr->left)
+            //                    != expr->var->typeSpec->dims)
+            //                Parser_errorIndexDimsMismatch(parser, expr);
             // do it in analysis after type/dims inference
         }
         break;
@@ -148,6 +148,26 @@ static void resolveVars(
             resolveVars(parser, expr->right->left, scope, inFuncCall);
 
         break;
+
+    case tkString: {
+        // strings may have embedded variable names of the form $name or
+        // $(name), so resolve them. by the time this func is called, the string
+        // will be null-terminated
+        char* pos = strchr(expr->string, '$');
+        while (pos) {
+            size_t len = strspn(pos + 1,
+                "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ123456789"
+                "0");
+            if (len > 63) len = 63;
+            char buf[64];
+            strncpy(buf, pos + 1, len);
+            buf[63] = 0;
+            eprintf("lookup %s\n", buf);
+            ASTVar* var = ASTScope_getVar(scope, buf);
+            if (not var) Parser_errorUnrecognizedVar(parser, expr);
+            pos = strchr(pos + 1, '$');
+        }
+    } break;
 
     default:
         if (expr->prec) {

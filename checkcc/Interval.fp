@@ -1,56 +1,66 @@
 
-type Interval
+type IntRange
     var lo = 0
     var hi = 0
-    check lo <= hi
+    always lo <= hi
 end type
 
-type NotInterval extends Interval
-    # represents two intervals [-inf, a] and [b, inf] to mean
-    # everything OUTSIDE the interval [a,b]
-end type
-
-products(a as Interval, b as Interval) :=
+products(a as IntRange, b as IntRange) :=
     [ a.lo*b.lo, a.lo*b.hi, a.hi*b.lo, a.hi*b.hi ]
 
-Interval(x as Number) :=
-    Interval(lo = x, hi = x)
+IntRange(x as Real) :=
+    IntRange(lo = x, hi = x)
 
-add(a as Interval, b as Interval) :=
-    Interval(lo = a.lo + b.lo, hi = a.hi + b.hi)
+add(a as IntRange, b as IntRange) :=
+    IntRange(lo = a.lo + b.lo, hi = a.hi + b.hi)
 
-sub(a as Interval, b as Interval) :=
-    Interval(lo = a.lo + b.lo, hi = a.hi + b.hi)
+sub(a as IntRange, b as IntRange) :=
+    IntRange(lo = a.lo + b.lo, hi = a.hi + b.hi)
 
-mul(a as Interval, b as Interval) :=
-    Interval(
+mul(a as IntRange, b as IntRange) :=
+    IntRange(
         lo = min(products(a, b)),
         hi = max(products(a, b)))
     #CSE for products() which is pure
     # i guess if it is a #define, then C backend will apply
     # CSE on the muls
 
-div(a as Interval, b as Interval) :=
-    Interval(lo = a.lo + b.lo, hi = a.hi + b.hi)
+function div(a as IntRange, b as IntRange) result (ret as IntRange)
+    requires not b contains 0
+    ret = IntRange(lo = a.lo / b.lo, hi = a.hi / b.hi) # NO!!
+end function
 
-recip(a as Interval) :=
-    Interval(lo = 1/a.hi, hi = a.lo)
+function log(a as RealRange) result (ret as RealRange)
+    -- range literals are just like array literals. How to disambiguate?
+    requires not a intersects [-inf:0]
+    ret = RealRange(lo = log(a.lo), hi = log(a.hi))
+end function
 
-flip(a as Interval) :=
-    Interval(lo = -a.hi, hi = -a.lo)
+function recip(a as RealRange) result (ret as RealRange)
+    requires not a contains 0
+    ret = RealRange(lo = 1/a.hi, hi = 1/a.lo)
+end function
+
+function sin(a as RealRange) result (ret as RealRange)
+    ret = RealRange(lo = msin(a.lo), hi = mcos(a.hi))
+    ensures ret within [-1,1]
+end function
+
+flip(a as IntRange) :=
+    IntRange(lo = -a.hi, hi = -a.lo)
  # * -1
 
-# negate(a as Interval, b as Interval) := [
-#     Interval(lo = a.lo + b.lo, hi = a.hi + b.hi),
-#     Interval(lo = a.lo + b.lo, hi = a.hi + b.hi),
+# negate(a as IntRange, b as IntRange) := [
+#     IntRange(lo = a.lo + b.lo, hi = a.hi + b.hi),
+#     IntRange(lo = a.lo + b.lo, hi = a.hi + b.hi),
 # ]
- # but this would return 2 intervals: [-1, 1] -> [-inf, -1], [1, +inf]
-negate(a as Interval) :=
+ # but this would ret = 2 intervals: [-1, 1] -> [-inf, -1], [1, +inf]
+negate(a as IntRange) :=
     NotInterval(lo = a.lo, hi = a.hi)
 
-unite(a as Interval, b as Interval) :=
-    Interval(lo = a.lo + b.lo, hi = a.hi + b.hi)
+unite(a as IntRange, b as IntRange) :=
+    IntRange(lo = a.lo + b.lo, hi = a.hi + b.hi)
 
-intersect(a as Interval, b as Interval) :=
-    Interval(lo = max(a.lo, b.lo), hi = min(a.hi, b.hi)) or nil # might violate invariant
+intersect(a as IntRange, b as IntRange) :=
+    IntRange(lo = max(a.lo, b.lo), hi = min(a.hi, b.hi)) or nil # might violate invariant
 

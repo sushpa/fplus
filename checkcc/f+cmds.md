@@ -47,29 +47,6 @@ f+ build
 
 In this mode, if the compiler finds a module that is not used by any program, it reports an 'unused module' warning for it. Try not to have these, since they represent a pointless cognitive load for users trying to read your source code. Instead, move them into `scratch` if you must really keep them around.
 
-### Run tests
-
-Run all tests in the project:
-```sh
-f+ test
-```
-This tests each module that is a dependency of one of the programs in the project. If a module is not used by any program, it is marked as an unused module and not tested. (Note that it will be tested once any program begins to use it.)
-
-Run the tests in a module:
-
-```sh
-f+ test mymod
-f+ test modules/mymod
-f+ test modules/mymod.fp
-```
-
-Run a particular test:
-```sh
-f+ test mymod "should handle negative values"
-```
-
-Recall that all names are generally case-insensitive, and so are test descriptions. Modules are defined starting with a lower-case letter, although usages such as `f+ test Mymod` will still work, since it can  find the right module. In much the same way, a variable `foo` can be referred to as `Foo` in the code and it will be resolved (and cleaned up by the linter).
-
 ### Publish a package
 
 With one single command, you can publish your package to all configured destinations. This can include source code repositories (by default it runs `git push` for all remotes), but also binary repositories for linux (Most distributions based on `apt`, `yum`, `apk`, and other popular package managers) and macOS (`Homebrew`, `Fink`, `MacPorts`). The entire project is (re-)built automatically as and if required. The version number is incremented, or can be explicitly specified.

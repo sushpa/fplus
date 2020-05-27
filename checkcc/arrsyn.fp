@@ -4,7 +4,7 @@ var mdict as Real|kg.m2/s2[String] = {"s" = 7, "e" = 8, "n" = 9, "t" = 10}
 
 var marr[] as Real = {7, 8, 9, 10}
 
-var marr[] as @kg.m2/s2 = {7, 8, 9, 10}
+var marr[] as ~kg.m2/s2 = {7, 8, 9, 10}
 
 var marr[] @kg.m2/s2 = {7, 8, 9, 10}
 

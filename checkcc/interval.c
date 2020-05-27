@@ -487,6 +487,21 @@ static void F_jins(FIntv* fintv, FIntv* other)
         fintv->next = F_new(other->lo, other->hi, fintv->next);
     }
 }
+
+// TODO F_compl [7:8, 90:99]->[-inf:6, 9:89, 100:inf] same no of subranges
+//     or 1 more.
+//     or 1 less modify in place and add ins
+//         / del 1 if needed.
+//           // lo0=-inf
+//           nhi
+//     = lo - 1 next nlo = hi
+//     + 1 TODO F_intersect
+
+//           then you can tell exactly what range is problematic eg log on
+//       [-35:-20, -5:inf]
+//           ->err [-35:-20, -5 0] is problem region but you cann do it also by
+//               F_del the valid region.
+
 // jins: "Just insert". Otherwise ins will call snap each time.
 static void I_ins(Intv* intv, Intv* other)
 {
@@ -559,7 +574,7 @@ static void F_del1(FIntv* fintv, double value)
     // I_print(intv);
 }
 
-static void I_del(Intv* intv, Intv* other) {}
+static void I_del(Intv* intv, Intv* other) { }
 
 #define F_haz(F, v)                                                            \
     printf("%s %s %g\n", #F, F_find(F, v) ? "has" : "doesn't have", v);

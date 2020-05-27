@@ -1,18 +1,18 @@
 # at some point checkc should output to a file not stdout
 DIAG=
 
-CFLOPT=-O0 -Wall
+CFLOPT=-O3 -Wall -Wno-unused-function -Wno-unused-label
 CFLDBG=-O0 -g -Werror -DDEBUG
 CFLFAST=-O3 -march=native -ffast-math -funroll-loops -DNOSTACKCHECK -DNONULLCHECK -DNOBOUNDSCHECK
 
-%.bin: %.fp fp_base.h fp_runtime.h
+%.bin: %.fp *.[ch]
 	./comp $< $(DIAG) > $@.c && cc $(CFLOPT) $@.c -o $@
 #	rm $@.c
 
-%-d.bin: %.fp fp_base.h fp_runtime.h
+%-d.bin: %.fp *.[ch]
 	./comp $< $(DIAG) > $@.c && cc $(CFLDBG) $@.c -o $@
 #	rm $@.c
 
-%-f.bin: %.fp fp_base.h fp_runtime.h
+%-f.bin: %.fp *.[ch]
 	./comp $< $(DIAG) > $@.c && cc $(CFLFAST) $@.c -o $@
 #	rm $@.c

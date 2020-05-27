@@ -9,7 +9,7 @@
 #include <math.h>
 #include <unistd.h> /* sysconf(3) */
 
-#include "chstd.h"
+#include "fp_base.h"
 
 #ifdef WINDOWS
 #include <windows.h>
@@ -124,7 +124,7 @@ static const char* const _fp_bools_yn_[2] = { "no", "yes" };
 // #define str_cmp_GT(a, b) (strcmp(a, b) > 0)
 // #define str_cmp_LT(a, b) (strcmp(a, b) < 0)
 
-#define Boolean_json_(x, _) printf(_fp_bools_tf_[x])
+#define Boolean_json_(x, _) printf("%s", _fp_bools_tf_[x])
 #define Number_json_(x, _) printf("%g", x)
 #define String_json_(x, _) printf("\"%s\"", x) // should be escape(x)
 
@@ -190,6 +190,7 @@ static const char* _undersc72_ = "------------------------"
 
 static void fp_coverage_report();
 static void fp_lineprofile_report();
+static void fp_lineprofile_begin();
 int main(int argc, char* argv[])
 {
     ticks t0 = getticks();
@@ -208,6 +209,7 @@ int main(int argc, char* argv[])
     // just minimise use of stack and don't bother checking, esp. if
     // you can statically disallow unrestrained recursive or mutually
     // recursive funcs.
+    fp_lineprofile_begin();
     Strings_main(NULL
 #ifdef DEBUG
         ,

@@ -84,7 +84,7 @@ static void ASTType_gen(ASTType* type, int level)
 
 static void ASTFunc_gen(ASTFunc* func, int level)
 {
-    if (func->isDefCtor) return;
+    if (func->isDefCtor or func->intrinsic) return;
     if (func->isDeclare) printf("declare ");
 
     printf("%s%s(", func->isStmt ? "\n" : "function ", func->name);

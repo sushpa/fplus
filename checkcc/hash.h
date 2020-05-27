@@ -342,6 +342,42 @@ UInt32 Real64_hash(double key)
 
 #define Real64_equal(a, b) ((a) == (b))
 
+// ---
+#define _rotl_KAZE(x, n) (((x) << (n)) | ((x) >> (32 - (n))))
+#define _PADr_KAZE(x, n) (((x) << (n)) >> (n))
+#define ROLInBits                                                              \
+    27 // 5 in r.1; Caramba: it should be ROR by 5 not ROL, from the very
+       // beginning the idea was to mix two bytes by shifting/masking the first
+       // 5 'noisy' bits (ASCII 0-31 symbols).
+// CAUTION: Add 8 more bytes to the buffer being hashed, usually malloc(...+8) -
+// to prevent out of boundary reads!
+uint32_t FNV1A_Hash_Yorikke_v3(const char* str, uint32_t wrdlen)
+{
+    const uint32_t PRIME = 591798841;
+    uint32_t hash32 = 2166136261;
+    uint64_t PADDEDby8;
+    const char* p = str;
+    for (; wrdlen > 2 * sizeof(uint32_t);
+         wrdlen -= 2 * sizeof(uint32_t), p += 2 * sizeof(uint32_t)) {
+        hash32
+            = (_rotl_KAZE(hash32, ROLInBits) ^ (*(uint32_t*)(p + 0))) * PRIME;
+        hash32
+            = (_rotl_KAZE(hash32, ROLInBits) ^ (*(uint32_t*)(p + 4))) * PRIME;
+    }
+    // Here 'wrdlen' is 1..8
+    PADDEDby8 = _PADr_KAZE(*(uint64_t*)(p + 0),
+        (8 - wrdlen) << 3); // when (8-8) the QWORD remains intact
+    hash32
+        = (_rotl_KAZE(hash32, ROLInBits) ^ *(uint32_t*)((char*)&PADDEDby8 + 0))
+        * PRIME;
+    hash32
+        = (_rotl_KAZE(hash32, ROLInBits) ^ *(uint32_t*)((char*)&PADDEDby8 + 4))
+        * PRIME;
+    return hash32 ^ (hash32 >> 16);
+}
+// Last touch: 2019-Oct-03, Kaze
+// ---
+
 static inline UInt32 __ac_X31_hash_string(const char* s)
 {
     UInt32 i = (UInt32)*s;

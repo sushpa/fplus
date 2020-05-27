@@ -27,12 +27,14 @@ declare type Strings
 # start processing at main, and see where you go.
 # that means dead code will not be analyzed, but what the heck, not my problem.
 
-deprecated v20200923
-export type Expr
+# deprecated v20200923
+# export
+type Expr
     var meg = 33.2
     var bx = 4 < 5
     # var b = msp(Point())
-    shared var f = 3<3
+    # shared
+    var f = 3<3
 end type
 
 # for enums: #define T_value(e) -> T##_vals[e]
@@ -41,7 +43,8 @@ end type
 # and each enum gens its print/describe/json etc funcs.
 # printing name by default not numeric value.
 
-export type Another #extends Point
+# export
+type Another #extends Point
     var g = 12
     var exp = Expr()
 end type
@@ -69,26 +72,28 @@ type Point # extends Other
     var cstr = "xyz"
 end type
 
-export fxfunc(x) := x * 1.5
+# export
+fxfunc(x as Number) := x * 1.5
 
-export function Point(x)
+# export
+function Point(x as Number)
     let p = Point()
     p.y = x
     describe(x)
     return p
 end function
 
-function main(args[] Text) returns Real
+function main(args as Strings) result Number
     let po = Point()
     let pcx = Point(78)
     let mg = args
-    let cm[] Integer = [8, 7, 6, 5]
+    let cm = [8, 7, 6, 5]
     # json(cm[3])
     json(po)
     var masd = YetAnother()
     json(pcx)
-    var nuk Text = "hurritu"
-    var mk YesOrNo = 3 < 6 <= 5
+    var nuk = "hurritu"
+    var mk = 3 < 6 <= 5
     json(mk)
     # var sd = po.o.we #+ ui.Window(1024x768, title = "Jim jox")
     # json(sd)

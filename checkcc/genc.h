@@ -405,9 +405,12 @@ static void ASTScope_genc(ASTScope* scope, int level)
 
         if (genLineNumbers) printf("#line %d\n", stmt->line);
         if (genCoverage) printf("_cov_[%d]++;\n", stmt->line - 1);
-        if (genLineProfile)
-            printf("_lprof_[%d] = getticks();\n", stmt->line - 1);
-
+        if (genLineProfile) {
+            printf("_lprof_tmp_ = getticks();\n");
+            printf("_lprof_[%d] += (_lprof_tmp_-_lprof_last_)/100;\n",
+                stmt->line - 1);
+            printf("_lprof_last_ = _lprof_tmp_;\n");
+        }
         ASTExpr_genc(stmt, level, true, false, false);
         if (not isCtrlExpr(stmt) and stmt->kind != tkKeyword_return)
             puts(";");
@@ -451,7 +454,7 @@ static void ASTType_genJson(ASTType* type)
 }
 
 ///////////////////////////////////////////////////////////////////////////
-static void ASTType_genJsonReader(ASTType* type) {}
+static void ASTType_genJsonReader(ASTType* type) { }
 
 static const char* functionEntryStuff_UNESCAPED
     = "#ifndef NOSTACKCHECK\n"
@@ -694,6 +697,7 @@ static void ASTExpr_genc(
         break;
 
     case tkString:
+        // TODO: parse vars inside, escape stuff, etc.
         printf(escStrings ? "\\%s\\\"" : "%s\"", expr->string);
         break;
 
@@ -702,11 +706,13 @@ static void ASTExpr_genc(
         break;
 
     case tkRegex:
+        // 'raw strings' or 'regexes'
         printf("\"%s\"", expr->string + 1);
         break;
 
     case tkInline:
-        printf("mkRe_(\"%s\")", expr->string + 1);
+        // inline C code?
+        printf("%s", expr->string + 1);
         break;
 
     case tkLineComment:
@@ -1180,21 +1186,38 @@ static const char* coverageFunc[] = { //
     "static void fp_coverage_report() {\n"
     "    int count=0,l=NUMLINES;\n"
     "    while(--l>0) count+=!!_cov_[l];\n"
-    "    printf(\"coverage: %.2f%%\",l*100.0/NUMLINES);\n"
+    "    printf(\"coverage: %d/%d lines = %.2f%%\\n\","
+    "        count, NUMLINES, count*100.0/NUMLINES);\n"
     "}"
 };
 // WARNING: DO NOT USE THESE STRINGS WITH PRINTF(...) USE PUTS(...).
-static const char* lineProfileFunc[] = { //
-    "static void fp_lineprofile_report() { /* unused */ }",
+static const char* lineProfileFunc[] = {
+    //
+    "static void fp_lineprofile_report() { /* unused */ }\n"
+    "static void fp_lineprofile_begin() { /* unused */ }\n",
     "static void fp_lineprofile_report() {\n"
-    "    FILE* fd = fopen(\"profile.out\", \"w\");\n"
-    "    for (int i=1; i<NUMLINES; i++)\n"
-    "        if (not _lprof_[i]) _lprof_[i] = lprof[i-1];\n"
-    "    for (int i=NUMLINES; i>0; i--) _lprof_[i] -= _lprof_[i-1];\n"
-    "    for (int i=0; i<NUMLINES; i++)\n"
-    "        fprintf(fd,\"%.17f\",(double)_lprof_[i]);\n"
+    // "    printf(\"profiler: %llu cycles\\n\","
+    // "        _lprof_[NUMLINES-1]-_lprof_[0]);\n"
+    "    FILE* fd = fopen(\".\" THISFILE \"r\", \"w\");\n"
+    // "    for (int i=1; i<NUMLINES; i++)\n"
+    // "        if (0== _lprof_[i]) _lprof_[i] = _lprof_[i-1];\n"
+    // "    for (int i=NUMLINES-1; i>0; i--) _lprof_[i] -= _lprof_[i-1];\n"
+    "    ticks sum=0; for (int i=0; i<NUMLINES; i++) sum += _lprof_[i];\n"
+    "    for (int i=0; i<NUMLINES; i++) {\n"
+    "        double pct = _lprof_[i] * 100.0 / sum;\n"
+    "        if (pct>1.0)"
+    "            fprintf(fd,\" %8.1f%% |\\n\", pct);\n"
+    "        else if (pct == 0.0)"
+    "            fprintf(fd,\"           |\\n\");\n"
+    "        else"
+    "            fprintf(fd,\"         ~ |\\n\");\n"
+    "    }\n"
     "    fclose(fd);\n"
-    "}"
+    "    system(\"paste -d ' ' .\" THISFILE \"r \" THISFILE \" > \" "
+    "THISFILE "
+    "\"r\" );"
+    "}\n"
+    "static void fp_lineprofile_begin() {_lprof_last_=getticks();}\n"
 };
 ///////////////////////////////////////////////////////////////////////////
 // TODO: why do you need to pass level here?

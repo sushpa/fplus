@@ -1,14 +1,13 @@
 
-#define allocstat(T)                                                       \
-    if (T##_allocTotal)                                                    \
-        eprintf("*** %-24s %4ld B x %5d = %7ld B\n", #T, sizeof(T),        \
+#define allocstat(T)                                                           \
+    if (T##_allocTotal)                                                        \
+        eprintf("*** %-24s %4ld B x %5d = %7ld B\n", #T, sizeof(T),            \
             T##_allocTotal, T##_allocTotal * sizeof(T));
 
 static void expralloc_stat()
 {
     int iexpr, sum = 0, thres = 0;
-    for (int i = 0; i < 128; i++)
-        sum += exprsAllocHistogram[i];
+    for (int i = 0; i < 128; i++) sum += exprsAllocHistogram[i];
     thres = sum / 20;
 
     eputs("\e[1mASTExpr allocation by kind \e[0m(those above 5% of "
@@ -17,9 +16,8 @@ static void expralloc_stat()
           "     %%\n");
     for (int i = 0; i < 128; i++) {
         if ((iexpr = exprsAllocHistogram[i]) > thres)
-            eprintf("  %-8s %4d %7.2f\n",
-                TokenKind_repr((TokenKind)i, false), iexpr,
-                iexpr * 100.0 / sum);
+            eprintf("  %-8s %4d %7.2f\n", TokenKind_repr((TokenKind)i, false),
+                iexpr, iexpr * 100.0 / sum);
     }
     eputs("-------------------------------------------------------\n");
 }
@@ -53,25 +51,25 @@ static void printstats(Parser* const parser, double tms)
     eputs("-------------------------------------------------------"
           "\n");
     eprintf("*** Total size of nodes                     = %7d B\n",
-        gPool.usedTotal);
+        gPool->usedTotal);
     eprintf("*** Space allocated for nodes               = %7d B\n",
-        gPool.capTotal);
+        gPool->capTotal);
     eprintf("*** Node space utilisation                  = %7.1f %%\n",
-        gPool.usedTotal * 100.0 / gPool.capTotal);
+        gPool->usedTotal * 100.0 / gPool->capTotal);
     eputs("-------------------------------------------------------"
           "\n");
     eprintf("*** File size                               = %7lu B\n",
         parser->end - parser->data - 2);
     eprintf("*** Node size to file size ratio            = %7.1f x\n",
-        gPool.usedTotal * 1.0 / (parser->end - parser->data - 2));
+        gPool->usedTotal * 1.0 / (parser->end - parser->data - 2));
     eputs("-------------------------------------------------------"
           "\n");
     eprintf("*** Space used for strings                  = %7u B\n",
-        strPool.usedTotal);
+        strPool->usedTotal);
     eprintf("*** Allocated for strings                   = %7u B\n",
-        strPool.capTotal);
+        strPool->capTotal);
     eprintf("*** Space utilisation                       = %7.1f %%\n",
-        strPool.usedTotal * 100.0 / strPool.capTotal);
+        strPool->usedTotal * 100.0 / strPool->capTotal);
     eputs("-------------------------------------------------------"
           "\n");
     eputs("\e[1mMemory-related calls\e[0m\n");

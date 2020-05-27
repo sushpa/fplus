@@ -1,0 +1,97 @@
+#/bin/sh
+
+# set -x
+# if [ "$1" == "d" ]
+# then
+#     DIAG="d"
+#     FILE=$2
+# else
+#     DIAG=
+#     FILE=$1
+# fi
+
+# printf "  ...\r" 1>&2
+
+
+# internal use
+# fp-run <TGT> <DIAG>
+fp-run() {
+    # [ -f "$1" ] || exit 6
+    make -s -r -j DIAG=$2 -f Makerunner $1 && [ -f "$1" ] && ./$1 $*
+}
+
+# f+ <FILE> [d]
+fp-run-debug() {
+    TGT=${1%%.fp}-d.bin
+    fp-run $TGT $2
+}
+
+# f+ -r <FILE> [d]
+fp-run-release() {
+    TGT=${2%%.fp}.bin
+    fp-run $TGT $3
+}
+
+# f+ -f <FILE> [d]
+fp-run-fast() {
+    TGT=${2%%.fp}-f.bin
+    fp-run $TGT $3
+}
+
+# f+ -c <FILE> [d]
+# This is only for private use and debugging the compiler.
+fp-gen-c() {
+    FILE=${2%%.fp}.fp
+    make -j -s -r checkc.bin && ./checkc.bin $FILE $3
+}
+
+# f+ -l <FILE> [d]
+fp-gen-fp() {
+    # the l flag to checkc.bin indicates linting mode.
+    FILE=${2%%.fp}.fp
+    make -j -s -r checkc.bin && ./checkc.bin $FILE $3 l
+}
+
+# f+ -t [module] [test-desc] [issue-no]
+fp-run-tests() {
+    # need a Maketester file. Tests will be run through
+    # makefiles, only repeated if source has changed.
+    echo "Testing not yet implemented"
+}
+
+# f+ -a
+# More comprehensive analysis, interval analysis,
+# abstract interpretation, fact checking, etc.
+fp-check() {
+    echo "Separate analysis not yet implemented"
+    # need a flag to checkc.bin
+}
+
+# f+ -p
+fp-purge() {
+    make clean
+}
+
+fp-usage() {
+    echo "usage: f+ [options] <filename> [d]
+Runs the given program in debug mode.
+options:
+    -l    Lint the file
+    -c    Compile the file to C
+    -r    Run program in release mode
+    -f    Run program in fast mode
+    -t    Run tests
+    -a    Perform static analysis
+    -p    Purge build files
+'d' after the file prints compiler diagnostics."
+}
+
+if [ "$1" == "-l" ]; then fp-gen-fp $*;
+elif [ "$1" == "-c" ]; then fp-gen-c $*;
+elif [ "$1" == "-r" ]; then fp-run-release $*;
+elif [ "$1" == "-f" ]; then fp-run-fast $*;
+elif [ "$1" == "-t" ]; then fp-run-tests $*;
+elif [ "$1" == "-a" ]; then fp-check $*;
+elif [ "$1" == "-p" ]; then fp-purge $*;
+elif [ -f "${1%%.fp}.fp" ]; then fp-run-debug $*;
+else fp-usage $1; fi

@@ -904,6 +904,7 @@ static PtrList* parseModule(Parser* self)
                 ASTFunc* func
                     = ASTFunc_createDeclWithArg(defFuncs[i], NULL, type->name);
                 func->line = type->line;
+                func->intrinsic = true;
                 PtrList_append(funcsTop, func);
                 if ((*funcsTop)->next) funcsTop = &(*funcsTop)->next;
             }
