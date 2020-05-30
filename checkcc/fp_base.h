@@ -1,3 +1,4 @@
+#include <assert.h>
 
 #ifndef FPLUS_BASE_H
 #define FPLUS_BASE_H
@@ -247,6 +248,7 @@ typedef struct fp_Pool {
 static void* fp_Pool_alloc(fp_Pool* self, size_t reqd)
 {
     void* ans = NULL;
+    // printf("asked for %zu B\n", reqd);
 
     // This is a pool for single objects, not arrays or large strings.
     // dont ask for a big fat chunk larger than 16KB (or up to 256KB
@@ -263,6 +265,44 @@ static void* fp_Pool_alloc(fp_Pool* self, size_t reqd)
     self->used += reqd;
     self->usedTotal += reqd;
     return ans;
+}
+
+typedef union {
+    UInt32 bits;
+    struct {
+        UInt32 id : 8, ptr : 24;
+    };
+} fp_SmallPtr;
+
+// returns a "fp_SmallPtr"
+static fp_SmallPtr fp_Pool_allocs(fp_Pool* self, size_t reqd)
+{
+    fp_SmallPtr ans = {};
+
+    // This is a pool for single objects, not arrays or large strings.
+    // dont ask for a big fat chunk larger than 16KB (or up to 256KB
+    // depending on how much is already there) all at one time.
+    if (self->used + reqd > self->cap) {
+        if (self->ref) fp_Array_push(Ptr)(&self->ptrs, self->ref);
+        self->cap = (self->cap > 64 KB ? 256 KB : 4 KB);
+        self->capTotal += self->cap;
+        self->ref = calloc(1, self->cap);
+        assert(self->ref != NULL);
+        self->used = 0;
+    }
+    ans.ptr = (self->used);
+    ans.id = self->ptrs.used; // if 0, means current otherwise ptrs.ref[id-1]
+
+    self->used += reqd;
+    self->usedTotal += reqd;
+
+    return ans;
+}
+
+static void* fp_Pool_deref(fp_Pool* self, fp_SmallPtr sptr)
+{
+    return sptr.id ? self->ptrs.ref[sptr.id - 1] + sptr.ptr
+                   : self->ref + sptr.ptr;
 }
 
 static void fp_Pool_free(fp_Pool* self)
@@ -304,6 +344,7 @@ static fp_PtrList* fp_PtrList_with_next(void* item, void* next)
     // TODO: how to get separate alloc counts of List_ASTType
     // List_ASTFunc etc.?
     fp_PtrList* li = fp_new(fp_PtrList);
+    // printf("%d\n", fp_PtrList_allocTotal);
     li->item = item;
     li->next = next;
     return li;
@@ -336,26 +377,15 @@ static fp_PtrList** fp_PtrList_append(fp_PtrList** selfp, void* item)
 
 static void fp_PtrList_shift(fp_PtrList** selfp, void* item)
 {
-    // if (*selfp == NULL) { // first append call
-    //     *selfp = fp_PtrList_with(item);
-    //  } else {
-    //     fp_PtrList* self = *selfp;
     *selfp = fp_PtrList_with_next(item, *selfp);
-    //  }
 }
-
-// #define fp_foreach(T, var, listp, listSrc)                                    \
-//     fp_PtrList* listp = listSrc;                                              \
-//     if (listp)                                                             \
-//         for (T var = (T)listp->item; listp and (var = (T)listp->item);      \
-//              listp = listp->next)
 
 #define fp_foreach(T, var, listSrc) fp_foreachn(T, var, _listp_, listSrc)
 #define fp_foreachn(T, var, listp, listSrc)                                    \
     for (fp_PtrList* listp = listSrc; listp; listp = NULL)                     \
         for (T var = (T)listp->item; listp and (var = (T)listp->item);         \
              listp = listp->next)
-#endif /* FPLUS_BASE_H */
+#endif
 
 #pragma mark - String Functions
 

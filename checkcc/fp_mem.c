@@ -29,42 +29,10 @@ typedef struct fp_mem__SizeClassInfo {
     int count;
 } fp_mem__SizeClassInfo;
 // size -> fp_mem__SizeClassInfo* map
-static fp_Dict(UInt64, Ptr) fp_mem__sizeDict[1];
+static fp_Dict(UInt64, Ptr) fp_mem__sizeDict[1] = {};
 
 #define STR(X) #X
 #define SPOT(x, fn, fil, lin) fil ":" STR(lin) ": " x
-
-#define fp_mem_dealloc(x, n)                                                   \
-    fp_mem__dealloc(                                                           \
-        x, (n) * sizeof(*(x)), SPOT(#x, __func__, __FILE__, __LINE__))
-#define fp_mem_heapfree(x)                                                     \
-    fp_mem__heapfree(x, SPOT(#x, __func__, __FILE__, __LINE__))
-
-// just put into freelist. why need desc?
-// f+ in module fp.mem
-// var sizeDict[UInt64] as SizeClassInfo = {} -- can be modif within module
-// function dealloc(ptr as Ptr, size as UInt64, desc as CCharPtr)
-//    var inf as SizeClassInfo =
-//        getOrSet(sizeDict, key = size, value = SizeClassInfo())
-//    insert(&inf.list, item = ptr)
-//    inf.count += 1
-// end function
-static void fp_mem__dealloc(void* ptr, UInt64 size, const char* desc)
-{
-    EP;
-    int stat[1];
-    int d = fp_Dict_put(UInt64, Ptr)(fp_mem__sizeDict, size, stat);
-    if (not fp_Dict_val(fp_mem__sizeDict, d))
-        fp_Dict_val(fp_mem__sizeDict, d) = NEW(fp_mem__SizeClassInfo);
-    fp_mem__SizeClassInfo* inf = fp_Dict_val(fp_mem__sizeDict, d);
-    // if (inf->count>=32) { /* really free it if on heap using fp_mem_heapfree
-    // */} else
-    // {
-    inf->list = fp_PtrList_with_next(ptr, inf->list);
-    inf->count++;
-    // }
-    EX
-}
 
 // TODO: fp_mem_alloc should not be affected: disabling fp_heap_alloc merely
 // makes fp_heap_alloc, fp_mem_heapfree identical to malloc,free.
@@ -88,6 +56,7 @@ void* fp_mem__alloc(UInt64 size, const char* desc)
     return fp_mem__heapmalloc(size, "");
 }
 UInt64 fp_mem_stats() { return 0; }
+#define fp_mem__dealloc(ptr, size, desc) fp_mem_heapfree(ptr)
 
 #else // FP_NOHEAPCHECK ---------------------------------------------------//
       // TODO: the compiler will call fp_mem__alloc directly with a custom built
@@ -169,6 +138,47 @@ void fp_mem__heapfree(void* ptr, const char* desc)
     EX
 }
 
+#define fp_mem_dealloc(x, n)                                                   \
+    fp_mem__dealloc(                                                           \
+        x, (n) * sizeof(*(x)), SPOT(#x, __func__, __FILE__, __LINE__))
+#define fp_mem_heapfree(x)                                                     \
+    fp_mem__heapfree(x, SPOT(#x, __func__, __FILE__, __LINE__))
+
+// just put into freelist. why need desc?
+// f+ in module fp.mem
+// var sizeDict[UInt64] as SizeClassInfo = {} -- can be modif within module
+// function dealloc(ptr as Ptr, size as UInt64, desc as CCharPtr)
+//    var inf as SizeClassInfo =
+//        getOrSet(sizeDict, key = size, value = SizeClassInfo())
+//    insert(&inf.list, item = ptr)
+//    inf.count += 1
+// end function
+static void fp_mem__dealloc(void* ptr, UInt64 size, const char* desc)
+{
+    EP;
+    int stat[1] = {};
+    int d = fp_Dict_put(UInt64, Ptr)(fp_mem__sizeDict, size, stat);
+
+    // newly added, or got a previously deleted bucket so set new list
+    if (*stat /* or not fp_Dict_val(fp_mem__sizeDict, d)*/) {
+        void* ptr = fp_new(fp_mem__SizeClassInfo);
+        fp_Dict_val(fp_mem__sizeDict, d) = ptr;
+    }
+    fp_mem__SizeClassInfo* inf = fp_Dict_val(fp_mem__sizeDict, d);
+    // if (inf->count>=32) { /* really free it if on heap using fp_mem_heapfree
+    // */} else
+    // {
+
+    inf->list = fp_PtrList_with_next(ptr, inf->list);
+
+    inf->count++;
+#ifndef NOHEAPTRACKER
+    fp_Dict_deleteByKey(Ptr, fp_mem__PtrInfo)(fp_mem__ptrDict, ptr);
+#endif
+
+    EX
+}
+
 // TODO: this func is not so great for strings, as it is "exact-fit". Freed
 // pointers are reused only for objects of exactly the same size as the
 // pointer's previous data. This is nearly useless for strings. They have their
@@ -182,9 +192,9 @@ void* fp_mem__alloc(UInt64 size, const char* desc)
     int d = fp_Dict_get(UInt64, Ptr)(fp_mem__sizeDict, size);
     if (d < fp_Dict_end(fp_mem__sizeDict)) {
         fp_mem__SizeClassInfo* inf = fp_Dict_val(fp_mem__sizeDict, d);
-        if (inf->list) {
+        if (inf and inf->list) {
             void* ret = inf->list->item;
-            fp_mem_dealloc(inf->list, 1); // WHY??
+            fp_mem_dealloc(inf->list, 1); // WHY?? -> to drop the listitem
             inf->list = inf->list->next;
             inf->count--;
             return ret;
@@ -226,7 +236,7 @@ void* fp_mem__alloc(UInt64 size, const char* desc)
 }
 
 // f+ fp.mem.stats()
-UInt64 fp_mem_stats()
+UInt64 fp_mem_stats(bool heap)
 {
     EP;
     int i = 0;
@@ -235,7 +245,7 @@ UInt64 fp_mem_stats()
         int stat[1];
 
         fp_Dict_foreach(fp_mem__ptrDict, Ptr key, fp_mem__PtrInfo val, {
-            if (not val.heap) continue;
+            if (heap != val.heap) continue;
             int d = fp_Dict_put(CString, fp_mem__Stat)(
                 fp_mem__allocStats, val.desc, stat);
             if (*stat) {
@@ -252,6 +262,7 @@ UInt64 fp_mem_stats()
             fp_Dict_foreach(fp_mem__allocStats, CString key, fp_mem__Stat val,
                 { indxs[i++] = _i_; });
             qsort(indxs, fp_mem__allocStats->size, sizeof(int), fp_mem__cmpsum);
+            printf("\n%s STATISTICS\n", heap ? "HEAP" : "POOL");
             puts("-------------------------------------------------------------"
                  "-");
             printf("Allocations | Total Size (B) | Variable and Location\n");
@@ -262,13 +273,15 @@ UInt64 fp_mem_stats()
                 fp_mem__Stat val = fp_mem__allocStats->vals[indxs[i]];
                 printf("%11llu | %14llu | %s\n", val.count, val.sum, key);
             }
-            UInt64 rss = fp_gPool->capTotal;
+            UInt64 rss = heap ? fp_mem__heapTotal : fp_gPool->usedTotal;
             // if (sum) {
             puts("---------------------------------------------------------"
                  "-----");
-            printf("Heap residual %llu bytes (%.2f%% of pool total %llu "
+            // todo: this should be heap total or pool total resp. depending on
+            // the arg
+            printf("Leaked %llu bytes (%.2f%% of %s total %llu "
                    "bytes)\n",
-                sum, sum * 100.0 / rss, rss);
+                sum, sum * 100.0 / rss, heap ? "heap" : "pool", rss);
             // }
             fp_Dict_clear(CString, fp_mem__Stat)(fp_mem__allocStats);
         } else {
@@ -285,11 +298,13 @@ UInt64 fp_mem_stats()
 int main()
 {
     EP;
-    double* d = fp_mem_alloc("d[] as ~kg.m/s2", 8 * sizeof(double));
-    double* d3 = fp_mem_alloc("d3[] as Real", 64 * sizeof(double));
-    double* d2 = fp_mem_alloc("d2 as MyType", 32 * sizeof(double));
-    double *e, *ex;
-    for (int i = 0; i < 132; i++) {
+    double* d = fp_mem_alloc("d", 8 * sizeof(double));
+    // double* d3 = fp_mem_alloc("d3[] as Real", 2 * sizeof(double));
+    // fp_mem_dealloc(d3, 2);
+
+    // double* d2 = fp_mem_alloc("d2 as MyType", 32 * sizeof(double));
+    char *e, *ex;
+    for (int i = 0; i < 200; i++) {
         // TODO: in such a tight and long loop, if the subpool is close to the
         // end around the start of the loop, most of the allocations will go to
         // the heap -> a new subpool will not be created at all if size > 256,
@@ -299,18 +314,19 @@ int main()
         // remainder, and alloc a new subpool anyway. direct fallthrough to
         // malloc should be only for requests that are really large.
         // to see the difference, change 256 to 257 below and see the effect.
-        e = fp_mem_alloc("e as String", 256 * sizeof(char));
+        e = fp_mem_alloc("e", 256 * sizeof(char));
         // really large requests would be those larger than the next upcoming
         // subpool size.
+        // printf("%d. %p\n", i, e);
         //...
-        // if (i > 13)
-        // fp_mem_dealloc(e);
+        // if (i > 23)
+        fp_mem_dealloc(e, 256);
         // fp_mem_heapfree(e);
         // ex = fp_mem_alloc("ex as String", 14 * i * sizeof(char));
         // }
     }
 
-    // fp_mem_heapfree(d3);
+    // fp_mem_dealloc(d, 8);
     // fp_mem_heapfree(d3);
     // fp_mem_heapfree(d);
     // fp_mem_heapfree(d2);
@@ -320,7 +336,16 @@ int main()
     // REPORT IS ONLY USEFUL TO SEE WHAT COULD HAVE BEEN RELEASED WHILE
     // THE PROGRAM WAS RUNNING, TO GIVE BACK MEM to the system.
     // SO DON'T CALL IT "LEAKED", JUST "LEFT OVER"
-    UInt64 s = fp_mem_stats();
+
+    fp_mem_stats(true);
+    fp_mem_stats(false);
+
+    printf("%d x %zu B -> %zu B SizeClassInfo\n",
+        fp_mem__SizeClassInfo_allocTotal, sizeof(fp_mem__SizeClassInfo),
+        fp_mem__SizeClassInfo_allocTotal * sizeof(fp_mem__SizeClassInfo));
+
+    printf("%d x %zu B -> %zu B fp_PtrList\n", fp_PtrList_allocTotal,
+        sizeof(fp_PtrList), fp_PtrList_allocTotal * sizeof(fp_PtrList));
 
     EX
 }
