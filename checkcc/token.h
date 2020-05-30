@@ -154,10 +154,12 @@ static char Token_peekCharAfter(Token* self)
 }
 
 #define Token_compareKeyword(tok)                                              \
-    if (sizeof(#tok) - 1 == l and not strncmp(#tok, s, l)) {                   \
+    if (sizeof(#tok) - 1 == l and not strncasecmp(#tok, s, l)) {               \
         self->kind = tkKeyword_##tok;                                          \
         return;                                                                \
     }
+
+// #define Token_compareKeyword(tok) Token_compareKeywordWith(tok,tok)
 
 // Check if an (ident) self->token matches a keyword and return its type
 // accordingly.
@@ -186,6 +188,7 @@ static void Token_tryKeywordMatch(Token* self)
     Token_compareKeyword(or)
     Token_compareKeyword(in)
     Token_compareKeyword(else)
+    // Token_compareKeyword(elif)
     Token_compareKeyword(type)
     Token_compareKeyword(check)
     Token_compareKeyword(extends)
@@ -195,6 +198,19 @@ static void Token_tryKeywordMatch(Token* self)
     Token_compareKeyword(return)
     Token_compareKeyword(result)
     Token_compareKeyword(as)
+
+    if (not strncasecmp("else if ", s, 8))
+    {
+        self->kind = tkKeyword_elif;
+        self->matchlen = 7;
+        return;
+    }
+    if (not strncasecmp("not in ", s, 7)) {
+        self->kind = tkKeyword_notin;
+        self->matchlen = 6;
+        return;
+    }
+
     // Token_compareKeyword(elif)
 
     //        Token_compareKeyword(print);
@@ -320,10 +336,9 @@ static void Token_detect(Token* self)
                 self->pos++;
                 break;
             }
-            if (tt == tkBackslash)
-                if (Token_getType(self, 1) == tmp) { // why if?
-                    self->pos++;
-                }
+            if (tt == tkBackslash and Token_getType(self, 1) == tmp)
+                self->pos++;
+            if (tt == tkNewline) self->line++, self->col = 0;
         }
         switch (tmp) {
         case tkStringBoundary:
@@ -366,12 +381,8 @@ static void Token_detect(Token* self)
             tt = Token_getType(self, 1);
             self->pos++;
             // line number should be incremented for line continuations
-            if (tt == tkSpaces) {
-                found_spc++;
-            }
-            if (tt == tkExclamation) {
-                found_cmt = true;
-            }
+            if (tt == tkSpaces) { found_spc++; }
+            if (tt == tkExclamation) { found_cmt = true; }
             if (tt == tkNewline) {
                 self->line++;
                 self->col = -found_spc - 1; // account for extra spaces

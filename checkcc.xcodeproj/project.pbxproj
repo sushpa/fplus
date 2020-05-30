@@ -41,10 +41,8 @@
 		859CB3DE241BB49800C32B9E /* context.h */ = {isa = PBXFileReference; explicitFileType = text; fileEncoding = 4; path = context.h; sourceTree = "<group>"; };
 		859CB3DF241BB49800C32B9E /* str.h */ = {isa = PBXFileReference; explicitFileType = text; fileEncoding = 4; path = str.h; sourceTree = "<group>"; };
 		85D999E424414181005669B4 /* main.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = main.c; sourceTree = "<group>"; };
-		85D999E6244142EE005669B4 /* genlua.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = genlua.h; sourceTree = "<group>"; };
 		85D999E7244142EF005669B4 /* resolve.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = resolve.h; sourceTree = "<group>"; };
 		85D999E8244142EF005669B4 /* genc.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = genc.h; sourceTree = "<group>"; };
-		85D999E9244142EF005669B4 /* gencpp.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = gencpp.h; sourceTree = "<group>"; };
 		85D999EA244142EF005669B4 /* tokenKind.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = tokenKind.h; sourceTree = "<group>"; };
 		85D999EB244142EF005669B4 /* typecheck.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = typecheck.h; sourceTree = "<group>"; };
 		85D999EC244142EF005669B4 /* token.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = token.h; sourceTree = "<group>"; };
@@ -105,8 +103,6 @@
 				85D999ED244142EF005669B4 /* cycle.h */,
 				85D999EF244142EF005669B4 /* errors.h */,
 				85D999E8244142EF005669B4 /* genc.h */,
-				85D999E9244142EF005669B4 /* gencpp.h */,
-				85D999E6244142EE005669B4 /* genlua.h */,
 				85D999E7244142EF005669B4 /* resolve.h */,
 				85D999EC244142EF005669B4 /* token.h */,
 				85D999EA244142EF005669B4 /* tokenKind.h */,

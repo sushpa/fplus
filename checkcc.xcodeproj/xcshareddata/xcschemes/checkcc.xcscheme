@@ -54,12 +54,12 @@
       </BuildableProductRunnable>
       <CommandLineArguments>
          <CommandLineArgument
-            argument = "/Users/Sushant/Dropbox/xcode-checkcc/checkcc/checkcc/array.ch"
-            isEnabled = "NO">
+            argument = "/Users/Sushant/Dropbox/xcode-checkcc/checkcc/checkcc/simptest1.fp"
+            isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "/Users/Sushant/Dropbox/xcode-checkcc/checkcc/checkcc/testcse.fp"
-            isEnabled = "YES">
+            argument = "l"
+            isEnabled = "NO">
          </CommandLineArgument>
       </CommandLineArguments>
    </LaunchAction>

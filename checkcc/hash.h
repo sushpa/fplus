@@ -30,83 +30,86 @@
 #include <string.h>
 #include <limits.h>
 
-#define empty(flag, i) ((flag[i >> 4] >> ((i & 0xfU) << 1)) & 2)
-#define deleted(flag, i) ((flag[i >> 4] >> ((i & 0xfU) << 1)) & 1)
-#define emptyOrDel(flag, i) ((flag[i >> 4] >> ((i & 0xfU) << 1)) & 3)
+#define fp_Dict__empty(flag, i) ((flag[i >> 4] >> ((i & 0xfU) << 1)) & 2)
+#define fp_Dict__deleted(flag, i) ((flag[i >> 4] >> ((i & 0xfU) << 1)) & 1)
+#define fp_Dict__emptyOrDel(flag, i) ((flag[i >> 4] >> ((i & 0xfU) << 1)) & 3)
 
-#define setNotDeleted(flag, i) (flag[i >> 4] &= ~(1ul << ((i & 0xfU) << 1)))
-#define setDeleted(flag, i) (flag[i >> 4] |= 1ul << ((i & 0xfU) << 1))
+#define fp_Dict__setNotDeleted(flag, i)                                        \
+    (flag[i >> 4] &= ~(1ul << ((i & 0xfU) << 1)))
+#define fp_Dict__setDeleted(flag, i) (flag[i >> 4] |= 1ul << ((i & 0xfU) << 1))
 
-#define setNotEmpty(flag, i) (flag[i >> 4] &= ~(2ul << ((i & 0xfU) << 1)))
-#define clearFlags(flag, i) (flag[i >> 4] &= ~(3ul << ((i & 0xfU) << 1)))
+#define fp_Dict__setNotEmpty(flag, i)                                          \
+    (flag[i >> 4] &= ~(2ul << ((i & 0xfU) << 1)))
+#define fp_Dict__clearFlags(flag, i)                                           \
+    (flag[i >> 4] &= ~(3ul << ((i & 0xfU) << 1)))
 
-#define flagsSize(m) ((m) < 16 ? 1 : (m) >> 4)
+#define fp_Dict__flagsSize(m) ((m) < 16 ? 1 : (m) >> 4)
 
 #define roundUp32(x)                                                           \
     (--(x), (x) |= (x) >> 1, (x) |= (x) >> 2, (x) |= (x) >> 4,                 \
         (x) |= (x) >> 8, (x) |= (x) >> 16, ++(x))
 
-static const double HASH_UPPER = 0.77;
+static const double fp_Dict_HASH_UPPER = 0.77;
 
 // Sets do not have any values, but the type of the value ptr is char*.
 
-// Generally it is not recommended to use Dict_has because you call it and
-// then you call Dict_get again. So just call Dict_get and do whatever.
-// If you don't really want the index, then its fine to call Dict_has.
-#define Dict(K, V) Dict_##K##_##V
-#define Dict_init(K, V) Dict_init_##K##_##V
-#define Dict_free(K, V) Dict_free_##K##_##V
-#define Dict_freedata(K, V) Dict_freedata_##K##_##V
-#define Dict_clear(K, V) Dict_clear_##K##_##V
-#define Dict_resize(K, V) Dict_resize_##K##_##V
-#define Dict_put(K, V) Dict_put_##K##_##V
-#define Dict_get(K, V) Dict_get_##K##_##V
-#define Dict_has(K, V) Dict_has_##K##_##V
-#define Dict_del(K, V) Dict_del_##K##_##V
-#define Dict_delk(K, V) Dict_delk_##K##_##V
+// Generally it is not recommended to use fp_Dict_has because you call it and
+// then you call fp_Dict_get again. So just call fp_Dict_get and do whatever.
+// If you don't really want the index, then its fine to call fp_Dict_has.
+#define fp_Dict(K, V) fp_Dict_##K##_##V
+#define fp_Dict_init(K, V) fp_Dict_init_##K##_##V
+#define fp_Dict_free(K, V) fp_Dict_free_##K##_##V
+#define fp_Dict_freedata(K, V) fp_Dict_freedata_##K##_##V
+#define fp_Dict_clear(K, V) fp_Dict_clear_##K##_##V
+#define fp_Dict_resize(K, V) fp_Dict_resize_##K##_##V
+#define fp_Dict_put(K, V) fp_Dict_put_##K##_##V
+#define fp_Dict_get(K, V) fp_Dict_get_##K##_##V
+#define fp_Dict_has(K, V) fp_Dict_has_##K##_##V
+#define fp_Dict_delete(K, V) fp_Dict_del_##K##_##V
+#define fp_Dict_deleteByKey(K, V) fp_Dict_delk_##K##_##V
 
 // TODO: why not void instead of char?
-#define Set(K) Dict(K, char)
-#define Set_init(K) Dict_init(K, char)
-#define Set_free(K) Dict_free(K, char)
-#define Set_freedata(K) Dict_freedata(K, char)
-#define Set_clear(K) Dict_clear(K, char)
-#define Set_resize(K) Dict_resize(K, char)
-#define Set_put(K) Dict_put(K, char)
-#define Set_get(K) Dict_get(K, char)
-#define Set_has(K) Dict_has(K, char)
-#define Set_del(K) Dict_del(K, char)
-#define Set_delk(K) Dict_delk(K, char)
+#define fp_Set(K) fp_Dict(K, char)
+#define fp_Set_init(K) fp_Dict_init(K, char)
+#define fp_Set_free(K) fp_Dict_free(K, char)
+#define fp_Set_freedata(K) fp_Dict_freedata(K, char)
+#define fp_Set_clear(K) fp_Dict_clear(K, char)
+#define fp_Set_resize(K) fp_Dict_resize(K, char)
+#define fp_Set_put(K) fp_Dict_put(K, char)
+#define fp_Set_get(K) fp_Dict_get(K, char)
+#define fp_Set_has(K) fp_Dict_has(K, char)
+#define fp_Set_del(K) fp_Dict_delete(K, char)
+#define fp_Set_delk(K) fp_Dict_deleteByKey(K, char)
 
 // TODO: do it without any templating at all, void* keys, values, etc.
 
 #define __DICT_TYPE(K, V)                                                      \
-    typedef struct Dict(K, V)                                                  \
+    typedef struct fp_Dict(K, V)                                               \
     {                                                                          \
         UInt32 nBuckets, size, nOccupied, upperBound;                          \
         UInt32* flags;                                                         \
         K* keys;                                                               \
         V* vals;                                                               \
     }                                                                          \
-    Dict(K, V);
+    fp_Dict(K, V);
 
 // #define __DICT_PROTOTYPES(K, V)                                            \
-//     Dict(K, V) * Dict_init(K, V)();                                        \
-//     void Dict_free(K, V)(Dict(K, V) * h);                                  \
-//     void Dict_freedata(K, V)(Dict(K, V) * h);                              \
-//     void Dict_clear(K, V)(Dict(K, V) * h);                                 \
-//     UInt32 Dict_get(K, V)(const Dict(K, V) * const h, K key);                    \
-//     bool Dict_has(K, V)(const Dict(K, V) * const h, K key);                      \
-//     int Dict_resize(K, V)(Dict(K, V) * h, UInt32 nnBuckets);               \
-//     UInt32 Dict_put(K, V)(Dict(K, V) * h, K key, int* ret);                \
-//     void Dict_del(K, V)(Dict(K, V) * h, UInt32 x);
+//     fp_Dict(K, V) * fp_Dict_init(K, V)();                                        \
+//     void fp_Dict_free(K, V)(fp_Dict(K, V) * h);                                  \
+//     void fp_Dict_freedata(K, V)(fp_Dict(K, V) * h);                              \
+//     void fp_Dict_clear(K, V)(fp_Dict(K, V) * h);                                 \
+//     UInt32 fp_Dict_get(K, V)(const fp_Dict(K, V) * const h, K key);                    \
+//     bool fp_Dict_has(K, V)(const fp_Dict(K, V) * const h, K key);                      \
+//     int fp_Dict_resize(K, V)(fp_Dict(K, V) * h, UInt32 nnBuckets);               \
+//     UInt32 fp_Dict_put(K, V)(fp_Dict(K, V) * h, K key, int* ret);                \
+//     void fp_Dict_delete(K, V)(fp_Dict(K, V) * h, UInt32 x);
 
 #define __DICT_IMPL(Scope, K, V, IsMap, hash, equal)                           \
-    Scope Dict(K, V) * Dict_init(K, V)()                                       \
+    Scope fp_Dict(K, V) * fp_Dict_init(K, V)()                                 \
     {                                                                          \
-        return calloc(1, sizeof(Dict(K, V)));                                  \
+        return calloc(1, sizeof(fp_Dict(K, V)));                               \
     }                                                                          \
-    Scope void Dict_freedata(K, V)(Dict(K, V) * h)                             \
+    Scope void fp_Dict_freedata(K, V)(fp_Dict(K, V) * h)                       \
     {                                                                          \
         if (h) {                                                               \
             free(h->keys);                                                     \
@@ -114,15 +117,16 @@ static const double HASH_UPPER = 0.77;
             if (IsMap) free(h->vals);                                          \
         }                                                                      \
     }                                                                          \
-    Scope void Dict_free(K, V)(Dict(K, V) * h) { free(h); }                    \
-    Scope void Dict_clear(K, V)(Dict(K, V) * h)                                \
+    Scope void fp_Dict_free(K, V)(fp_Dict(K, V) * h) { free(h); }              \
+    Scope void fp_Dict_clear(K, V)(fp_Dict(K, V) * h)                          \
     {                                                                          \
         if (h and h->flags) {                                                  \
-            memset(h->flags, 0xAA, flagsSize(h->nBuckets) * sizeof(UInt32));   \
+            memset(h->flags, 0xAA,                                             \
+                fp_Dict__flagsSize(h->nBuckets) * sizeof(UInt32));             \
             h->size = h->nOccupied = 0;                                        \
         }                                                                      \
     }                                                                          \
-    Scope UInt32 Dict_get(K, V)(const Dict(K, V)* const h, K key)              \
+    Scope UInt32 fp_Dict_get(K, V)(const fp_Dict(K, V)* const h, K key)        \
     {                                                                          \
         if (h->nBuckets) {                                                     \
             UInt32 k, i, last, mask, step = 0;                                 \
@@ -130,21 +134,22 @@ static const double HASH_UPPER = 0.77;
             k = hash(key);                                                     \
             i = k & mask;                                                      \
             last = i;                                                          \
-            while (not empty(h->flags, i)                                      \
-                and (deleted(h->flags, i) or not equal(h->keys[i], key))) {    \
+            while (not fp_Dict__empty(h->flags, i)                             \
+                and (fp_Dict__deleted(h->flags, i)                             \
+                    or not equal(h->keys[i], key))) {                          \
                 i = (i + (++step)) & mask;                                     \
                 if (i == last) return h->nBuckets;                             \
             }                                                                  \
-            return emptyOrDel(h->flags, i) ? h->nBuckets : i;                  \
+            return fp_Dict__emptyOrDel(h->flags, i) ? h->nBuckets : i;         \
         } else                                                                 \
             return 0;                                                          \
     }                                                                          \
-    Scope bool Dict_has(K, V)(const Dict(K, V)* const h, K key)                \
+    Scope bool fp_Dict_has(K, V)(const fp_Dict(K, V)* const h, K key)          \
     {                                                                          \
-        UInt32 x = Dict_get(K, V)(h, key);                                     \
-        return x < h->nBuckets && Dict_exist(h, x);                            \
+        UInt32 x = fp_Dict_get(K, V)(h, key);                                  \
+        return x < h->nBuckets && fp_Dict_exist(h, x);                         \
     }                                                                          \
-    Scope int Dict_resize(K, V)(Dict(K, V) * h, UInt32 nnBuckets)              \
+    Scope int fp_Dict_resize(K, V)(fp_Dict(K, V) * h, UInt32 nnBuckets)        \
     { /* This function uses 0.25*nBuckets bytes of working space instead       \
          of [sizeof(key_t+val_t)+.25]*nBuckets. */                             \
         UInt32* nFlags = 0;                                                    \
@@ -152,12 +157,14 @@ static const double HASH_UPPER = 0.77;
         {                                                                      \
             roundUp32(nnBuckets);                                              \
             if (nnBuckets < 4) nnBuckets = 4;                                  \
-            if (h->size >= (UInt32)(nnBuckets * HASH_UPPER + 0.5))             \
+            if (h->size >= (UInt32)(nnBuckets * fp_Dict_HASH_UPPER + 0.5))     \
                 j = 0; /* requested size is too small */                       \
             else { /* size to be changed (shrink or expand); rehash */         \
-                nFlags = malloc(flagsSize(nnBuckets) * sizeof(UInt32));        \
+                nFlags                                                         \
+                    = malloc(fp_Dict__flagsSize(nnBuckets) * sizeof(UInt32));  \
                 if (not nFlags) return -1;                                     \
-                memset(nFlags, 0xAA, flagsSize(nnBuckets) * sizeof(UInt32));   \
+                memset(nFlags, 0xAA,                                           \
+                    fp_Dict__flagsSize(nnBuckets) * sizeof(UInt32));           \
                 if (h->nBuckets < nnBuckets) { /* expand */                    \
                     K* nKeys = realloc(h->keys, nnBuckets * sizeof(K));        \
                     if (not nKeys) {                                           \
@@ -178,23 +185,23 @@ static const double HASH_UPPER = 0.77;
         }                                                                      \
         if (j) { /* rehashing is needed */                                     \
             for (j = 0; j != h->nBuckets; ++j) {                               \
-                if (emptyOrDel(h->flags, j) == 0) {                            \
+                if (fp_Dict__emptyOrDel(h->flags, j) == 0) {                   \
                     K key = h->keys[j];                                        \
                     V val;                                                     \
                     UInt32 new_mask;                                           \
                     new_mask = nnBuckets - 1;                                  \
                     if (IsMap) val = h->vals[j];                               \
-                    setDeleted(h->flags, j);                                   \
+                    fp_Dict__setDeleted(h->flags, j);                          \
                     while (1) { /* kick-out process; sort of like in           \
                                    Cuckoo hashing */                           \
                         UInt32 k, i, step = 0;                                 \
                         k = hash(key);                                         \
                         i = k & new_mask;                                      \
-                        while (not empty(nFlags, i))                           \
+                        while (not fp_Dict__empty(nFlags, i))                  \
                             i = (i + (++step)) & new_mask;                     \
-                        setNotEmpty(nFlags, i);                                \
+                        fp_Dict__setNotEmpty(nFlags, i);                       \
                         if (i < h->nBuckets                                    \
-                            and emptyOrDel(h->flags, i) == 0) {                \
+                            and fp_Dict__emptyOrDel(h->flags, i) == 0) {       \
                             /* kick out the existing element */                \
                             {                                                  \
                                 K tmp = h->keys[i];                            \
@@ -206,8 +213,8 @@ static const double HASH_UPPER = 0.77;
                                 h->vals[i] = val;                              \
                                 val = tmp;                                     \
                             }                                                  \
-                            setDeleted(h->flags, i);                           \
-                            /* mark it deleted in the old table */             \
+                            fp_Dict__setDeleted(h->flags, i);                  \
+                            /* mark it fp_Dict__deleted in the old table */    \
                         } else {                                               \
                             /* write the element and break the loop */         \
                             h->keys[i] = key;                                  \
@@ -225,21 +232,21 @@ static const double HASH_UPPER = 0.77;
             h->flags = nFlags;                                                 \
             h->nBuckets = nnBuckets;                                           \
             h->nOccupied = h->size;                                            \
-            h->upperBound = (UInt32)(h->nBuckets * HASH_UPPER + 0.5);          \
+            h->upperBound = (UInt32)(h->nBuckets * fp_Dict_HASH_UPPER + 0.5);  \
         }                                                                      \
         return 0;                                                              \
     }                                                                          \
-    Scope UInt32 Dict_put(K, V)(Dict(K, V) * h, K key, int* ret)               \
+    Scope UInt32 fp_Dict_put(K, V)(fp_Dict(K, V) * h, K key, int* ret)         \
     {                                                                          \
         UInt32 x;                                                              \
         if (h->nOccupied >= h->upperBound) { /* update the hash table */       \
             if (h->nBuckets > (h->size << 1)) {                                \
-                if (Dict_resize(K, V)(h, h->nBuckets - 1) < 0) {               \
-                    /* clear "deleted" elements */                             \
+                if (fp_Dict_resize(K, V)(h, h->nBuckets - 1) < 0) {            \
+                    /* clear "fp_Dict__deleted" elements */                    \
                     *ret = -1;                                                 \
                     return h->nBuckets;                                        \
                 }                                                              \
-            } else if (Dict_resize(K, V)(h, h->nBuckets + 1) < 0) {            \
+            } else if (fp_Dict_resize(K, V)(h, h->nBuckets + 1) < 0) {         \
                 /* expand the hash table */                                    \
                 *ret = -1;                                                     \
                 return h->nBuckets;                                            \
@@ -251,14 +258,14 @@ static const double HASH_UPPER = 0.77;
             x = site = h->nBuckets;                                            \
             k = hash(key);                                                     \
             i = k & mask;                                                      \
-            if (empty(h->flags, i))                                            \
+            if (fp_Dict__empty(h->flags, i))                                   \
                 x = i; /* for speed up */                                      \
             else {                                                             \
                 last = i;                                                      \
-                while (not empty(h->flags, i)                                  \
-                    and (deleted(h->flags, i)                                  \
+                while (not fp_Dict__empty(h->flags, i)                         \
+                    and (fp_Dict__deleted(h->flags, i)                         \
                         or not equal(h->keys[i], key))) {                      \
-                    if (deleted(h->flags, i)) site = i;                        \
+                    if (fp_Dict__deleted(h->flags, i)) site = i;               \
                     i = (i + (++step)) & mask;                                 \
                     if (i == last) {                                           \
                         x = site;                                              \
@@ -266,39 +273,39 @@ static const double HASH_UPPER = 0.77;
                     }                                                          \
                 }                                                              \
                 if (x == h->nBuckets) {                                        \
-                    if (empty(h->flags, i) and site != h->nBuckets)            \
+                    if (fp_Dict__empty(h->flags, i) and site != h->nBuckets)   \
                         x = site;                                              \
                     else                                                       \
                         x = i;                                                 \
                 }                                                              \
             }                                                                  \
         }                                                                      \
-        if (empty(h->flags, x)) { /* not present at all */                     \
+        if (fp_Dict__empty(h->flags, x)) { /* not present at all */            \
             h->keys[x] = key;                                                  \
-            clearFlags(h->flags, x);                                           \
+            fp_Dict__clearFlags(h->flags, x);                                  \
             ++h->size;                                                         \
             ++h->nOccupied;                                                    \
             *ret = 1;                                                          \
-        } else if (deleted(h->flags, x)) { /* deleted */                       \
+        } else if (fp_Dict__deleted(h->flags, x)) { /* fp_Dict__deleted */     \
             h->keys[x] = key;                                                  \
-            clearFlags(h->flags, x);                                           \
+            fp_Dict__clearFlags(h->flags, x);                                  \
             ++h->size;                                                         \
             *ret = 2;                                                          \
         } else                                                                 \
             *ret = 0;                                                          \
-        /* Don't touch h->keys[x] if present and not deleted */                \
+        /* Don't touch h->keys[x] if present and not fp_Dict__deleted */       \
         return x;                                                              \
     }                                                                          \
-    Scope void Dict_del(K, V)(Dict(K, V) * h, UInt32 x)                        \
+    Scope void fp_Dict_delete(K, V)(fp_Dict(K, V) * h, UInt32 x)               \
     {                                                                          \
-        if (x != h->nBuckets and not emptyOrDel(h->flags, x)) {                \
-            setDeleted(h->flags, x);                                           \
+        if (x != h->nBuckets and not fp_Dict__emptyOrDel(h->flags, x)) {       \
+            fp_Dict__setDeleted(h->flags, x);                                  \
             --h->size;                                                         \
         }                                                                      \
     }                                                                          \
-    Scope void Dict_delk(K, V)(Dict(K, V) * h, K key)                          \
+    Scope void fp_Dict_deleteByKey(K, V)(fp_Dict(K, V) * h, K key)             \
     {                                                                          \
-        Dict_del(K, V)(h, Dict_get(K, V)(h, key));                             \
+        fp_Dict_delete(K, V)(h, fp_Dict_get(K, V)(h, key));                    \
     }
 
 #define DICT_DECLARE(K, V)                                                     \
@@ -334,7 +341,7 @@ static const double HASH_UPPER = 0.77;
 
 // #define Real64_hash(key) UInt64_hash(*(UInt64*)&key)
 
-UInt32 Real64_hash(double key)
+static UInt32 Real64_hash(double key)
 {
     UInt64* ptr = (UInt64*)&key;
     return UInt64_hash(*ptr);
@@ -345,13 +352,13 @@ UInt32 Real64_hash(double key)
 // ---
 #define _rotl_KAZE(x, n) (((x) << (n)) | ((x) >> (32 - (n))))
 #define _PADr_KAZE(x, n) (((x) << (n)) >> (n))
-#define ROLInBits                                                              \
-    27 // 5 in r.1; Caramba: it should be ROR by 5 not ROL, from the very
-       // beginning the idea was to mix two bytes by shifting/masking the first
-       // 5 'noisy' bits (ASCII 0-31 symbols).
+#define ROLInBits 27
+// 5 in r.1; Caramba: it should be ROR by 5 not ROL, from the very
+// beginning the idea was to mix two bytes by shifting/masking the first
+// 5 'noisy' bits (ASCII 0-31 symbols).
 // CAUTION: Add 8 more bytes to the buffer being hashed, usually malloc(...+8) -
 // to prevent out of boundary reads!
-uint32_t FNV1A_Hash_Yorikke_v3(const char* str, uint32_t wrdlen)
+static uint32_t FNV1A_Hash_Yorikke_v3(const char* str, uint32_t wrdlen)
 {
     const uint32_t PRIME = 591798841;
     uint32_t hash32 = 2166136261;
@@ -404,47 +411,47 @@ static inline UInt32 __ac_Wang_hash(UInt32 key)
     key ^= (key >> 16);
     return key;
 }
-#define Dict_int_hash_func2(key) __ac_Wang_hash((UInt32)key)
+#define fp_Dict_int_hash_func2(key) __ac_Wang_hash((UInt32)key)
 
-#define Dict_exist(h, x) (not emptyOrDel((h)->flags, (x)))
+#define fp_Dict_exist(h, x) (not fp_Dict__emptyOrDel((h)->flags, (x)))
 
-#define Dict_key(h, x) ((h)->keys[x])
+#define fp_Dict_key(h, x) ((h)->keys[x])
 
-#define Dict_val(h, x) ((h)->vals[x])
+#define fp_Dict_val(h, x) ((h)->vals[x])
 
-#define Dict_begin(h) (UInt32)(0)
+#define fp_Dict_begin(h) (UInt32)(0)
 
-#define Dict_end(h) ((h)->nBuckets)
+#define fp_Dict_end(h) ((h)->nBuckets)
 
-#define Dict_size(h) ((h)->size)
+#define fp_Dict_size(h) ((h)->size)
 
-#define Dict_nBuckets(h) ((h)->nBuckets)
+#define fp_Dict_nBuckets(h) ((h)->nBuckets)
 
-#define Dict_foreach(h, kvar, vvar, code)                                      \
+#define fp_Dict_foreach(h, kvar, vvar, code)                                   \
     {                                                                          \
-        for (UInt32 _i_ = Dict_begin(h); _i_ != Dict_end(h); ++_i_) {          \
-            if (not Dict_exist(h, _i_)) continue;                              \
-            kvar = Dict_key(h, _i_);                                           \
-            vvar = Dict_val(h, _i_);                                           \
+        for (UInt32 _i_ = fp_Dict_begin(h); _i_ != fp_Dict_end(h); ++_i_) {    \
+            if (not fp_Dict_exist(h, _i_)) continue;                           \
+            kvar = fp_Dict_key(h, _i_);                                        \
+            vvar = fp_Dict_val(h, _i_);                                        \
             code;                                                              \
         }                                                                      \
     }
 
-#define Dict_foreach_value(h, vvar, code)                                      \
+#define fp_Dict_foreach_value(h, vvar, code)                                   \
     {                                                                          \
-        for (UInt32 _i_ = Dict_begin(h); _i_ != Dict_end(h); ++_i_) {          \
-            if (not Dict_exist(h, _i_)) continue;                              \
-            vvar = Dict_val(h, _i_);                                           \
+        for (UInt32 _i_ = fp_Dict_begin(h); _i_ != fp_Dict_end(h); ++_i_) {    \
+            if (not fp_Dict_exist(h, _i_)) continue;                           \
+            vvar = fp_Dict_val(h, _i_);                                        \
             code;                                                              \
         }                                                                      \
     }
 
-#define Set_foreach(h, kvar, code) Dict_foreach_key(h, kvar, code)
-#define Dict_foreach_key(h, kvar, code)                                        \
+#define fp_Set_foreach(h, kvar, code) fp_Dict_foreach_key(h, kvar, code)
+#define fp_Dict_foreach_key(h, kvar, code)                                     \
     {                                                                          \
-        for (UInt32 _i_ = Dict_begin(h); _i_ != Dict_end(h); ++_i_) {          \
-            if (not Dict_exist(h, _i_)) continue;                              \
-            kvar = Dict_key(h, _i_);                                           \
+        for (UInt32 _i_ = fp_Dict_begin(h); _i_ != fp_Dict_end(h); ++_i_) {    \
+            if (not fp_Dict_exist(h, _i_)) continue;                           \
+            kvar = fp_Dict_key(h, _i_);                                        \
             code;                                                              \
         }                                                                      \
     }
@@ -474,23 +481,23 @@ MAKE_DICT(Ptr, Ptr)
 // MAKE_DICT(Ptr, CString)
 
 // #define MAKE_SET_INT                                                       \
-//     DICT_INIT(UInt32, char, false, Dict_UInt32_hash, Dict_UInt32_equal)
+//     DICT_INIT(UInt32, char, false, fp_Dict_UInt32_hash, fp_Dict_UInt32_equal)
 
 // #define MAKE_MAP_INT(V)                                                    \
-//     DICT_INIT(UInt32, V, true, Dict_UInt32_hash, Dict_UInt32_equal)
+//     DICT_INIT(UInt32, V, true, fp_Dict_UInt32_hash, fp_Dict_UInt32_equal)
 
 // #define MAKE_SET_INT64                                                     \
-//     DICT_INIT(UInt64, char, false, Dict_UInt64_hash, Dict_UInt64_equal)
+//     DICT_INIT(UInt64, char, false, fp_Dict_UInt64_hash, fp_Dict_UInt64_equal)
 
 // #define MAKE_MAP_INT64(V)                                                  \
-//     DICT_INIT(UInt64, V, true, Dict_UInt64_hash, Dict_UInt64_equal)
+//     DICT_INIT(UInt64, V, true, fp_Dict_UInt64_hash, fp_Dict_UInt64_equal)
 
 // typedef const char* CString;
 
 // #define MAKE_SET_STR                                                       \
-//     DICT_INIT(CString, char, false, Dict_CString_hash, Dict_CString_equal)
+//     DICT_INIT(CString, char, false, fp_Dict_CString_hash, fp_Dict_CString_equal)
 
 // #define MAKE_MAP_STR(V)                                                    \
-//     DICT_INIT(CString, V, true, Dict_CString_hash, Dict_CString_equal)
+//     DICT_INIT(CString, V, true, fp_Dict_CString_hash, fp_Dict_CString_equal)
 
 #endif /* HAVE_DICT */

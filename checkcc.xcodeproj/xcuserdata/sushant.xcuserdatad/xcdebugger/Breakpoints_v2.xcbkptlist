@@ -1072,7 +1072,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "794"
             endingLineNumber = "794"
-            landmarkName = "parseIdent(parser)"
+            landmarkName = "discard(parser, expected)"
             landmarkType = "9">
          </BreakpointContent>
       </BreakpointProxy>
@@ -1088,7 +1088,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "794"
             endingLineNumber = "794"
-            landmarkName = "parseIdent(parser)"
+            landmarkName = "discard(parser, expected)"
             landmarkType = "9">
          </BreakpointContent>
       </BreakpointProxy>
@@ -1120,7 +1120,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "794"
             endingLineNumber = "794"
-            landmarkName = "parseIdent(parser)"
+            landmarkName = "discard(parser, expected)"
             landmarkType = "9">
          </BreakpointContent>
       </BreakpointProxy>
@@ -1134,8 +1134,8 @@
             filePath = "checkcc/genc.h"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "147"
-            endingLineNumber = "147"
+            startingLineNumber = "158"
+            endingLineNumber = "158"
             landmarkName = "ASTExpr_genPrintVars(expr, level)"
             landmarkType = "9">
          </BreakpointContent>
@@ -1168,7 +1168,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "794"
             endingLineNumber = "794"
-            landmarkName = "parseIdent(parser)"
+            landmarkName = "discard(parser, expected)"
             landmarkType = "9">
          </BreakpointContent>
       </BreakpointProxy>
@@ -1184,7 +1184,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "794"
             endingLineNumber = "794"
-            landmarkName = "parseIdent(parser)"
+            landmarkName = "discard(parser, expected)"
             landmarkType = "9">
          </BreakpointContent>
       </BreakpointProxy>
@@ -1200,7 +1200,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "794"
             endingLineNumber = "794"
-            landmarkName = "parseIdent(parser)"
+            landmarkName = "discard(parser, expected)"
             landmarkType = "9">
          </BreakpointContent>
       </BreakpointProxy>
@@ -1230,8 +1230,8 @@
             filePath = "checkcc/genc.h"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "210"
-            endingLineNumber = "210"
+            startingLineNumber = "222"
+            endingLineNumber = "222"
             landmarkName = "ASTExpr_promotionCandidate(expr)"
             landmarkType = "9">
          </BreakpointContent>
@@ -1248,8 +1248,8 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "122"
             endingLineNumber = "122"
-            landmarkName = "unknown"
-            landmarkType = "0">
+            landmarkName = "ASTExpr_unmarkVisited(expr)"
+            landmarkType = "9">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -1278,8 +1278,8 @@
             filePath = "checkcc/genc.h"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "154"
-            endingLineNumber = "154"
+            startingLineNumber = "165"
+            endingLineNumber = "165"
             landmarkName = "ASTExpr_genPrintVars(expr, level)"
             landmarkType = "9">
          </BreakpointContent>
@@ -1326,10 +1326,10 @@
             filePath = "checkcc/genc.h"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "446"
-            endingLineNumber = "446"
-            landmarkName = "unknown"
-            landmarkType = "0">
+            startingLineNumber = "458"
+            endingLineNumber = "458"
+            landmarkName = "ASTType_genJson(type)"
+            landmarkType = "9">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -1358,8 +1358,8 @@
             filePath = "checkcc/genc.h"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "1084"
-            endingLineNumber = "1084"
+            startingLineNumber = "1106"
+            endingLineNumber = "1106"
             landmarkName = "ASTExpr_genc(expr, level, spacing, inFuncArgs, escStrings)"
             landmarkType = "9">
          </BreakpointContent>
@@ -1424,7 +1424,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "794"
             endingLineNumber = "794"
-            landmarkName = "parseIdent(parser)"
+            landmarkName = "discard(parser, expected)"
             landmarkType = "9">
          </BreakpointContent>
       </BreakpointProxy>
@@ -1440,7 +1440,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "794"
             endingLineNumber = "794"
-            landmarkName = "parseIdent(parser)"
+            landmarkName = "discard(parser, expected)"
             landmarkType = "9">
          </BreakpointContent>
       </BreakpointProxy>
@@ -1568,7 +1568,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "794"
             endingLineNumber = "794"
-            landmarkName = "parseIdent(parser)"
+            landmarkName = "discard(parser, expected)"
             landmarkType = "9">
          </BreakpointContent>
       </BreakpointProxy>
@@ -1600,7 +1600,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "236"
             endingLineNumber = "236"
-            landmarkName = "ASTModule"
+            landmarkName = "ASTTest"
             landmarkType = "16">
          </BreakpointContent>
       </BreakpointProxy>
@@ -1632,7 +1632,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "833"
             endingLineNumber = "833"
-            landmarkName = "parseModule(self)"
+            landmarkName = "parseImport(self)"
             landmarkType = "9">
          </BreakpointContent>
       </BreakpointProxy>
@@ -1648,7 +1648,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "830"
             endingLineNumber = "830"
-            landmarkName = "parseModule(self)"
+            landmarkName = "parseImport(self)"
             landmarkType = "9">
          </BreakpointContent>
       </BreakpointProxy>
@@ -1664,8 +1664,8 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "21"
             endingLineNumber = "21"
-            landmarkName = "unknown"
-            landmarkType = "0">
+            landmarkName = "ASTImport_undefc(import)"
+            landmarkType = "9">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -1710,8 +1710,8 @@
             filePath = "checkcc/errors.h"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "263"
-            endingLineNumber = "263"
+            startingLineNumber = "277"
+            endingLineNumber = "277"
             landmarkName = "Parser_errorConstructorHasCycle(parser, type)"
             landmarkType = "9">
          </BreakpointContent>
@@ -1774,8 +1774,8 @@
             filePath = "checkcc/errors.h"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "274"
-            endingLineNumber = "274"
+            startingLineNumber = "288"
+            endingLineNumber = "288"
             landmarkName = "Parser_errorArgsCountMismatch(parser, expr)"
             landmarkType = "9">
          </BreakpointContent>
@@ -1790,8 +1790,8 @@
             filePath = "checkcc/errors.h"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "282"
-            endingLineNumber = "282"
+            startingLineNumber = "296"
+            endingLineNumber = "296"
             landmarkName = "Parser_errorArgsCountMismatch(parser, expr)"
             landmarkType = "9">
          </BreakpointContent>
@@ -2033,7 +2033,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "628"
             endingLineNumber = "628"
-            landmarkName = "ASTFunc_hashExprs(parser, func)"
+            landmarkName = "ASTExpr_checkHashes(parser, expr, cseDict)"
             landmarkType = "9">
          </BreakpointContent>
       </BreakpointProxy>
@@ -2049,7 +2049,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "629"
             endingLineNumber = "629"
-            landmarkName = "ASTFunc_hashExprs(parser, func)"
+            landmarkName = "ASTExpr_checkHashes(parser, expr, cseDict)"
             landmarkType = "9">
             <Locations>
                <Location
@@ -2226,6 +2226,134 @@
             startingLineNumber = "514"
             endingLineNumber = "514"
             landmarkName = "hashExpr(parser, expr, cseDict)"
+            landmarkType = "9">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "BD08DB91-D7B1-4F81-A2D5-5DECF22296C8"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "checkcc/main.c"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "947"
+            endingLineNumber = "947"
+            landmarkName = "main(argc, argv)"
+            landmarkType = "9">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "09920671-509A-49EF-AB38-A84143456311"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "checkcc/main.c"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "946"
+            endingLineNumber = "946"
+            landmarkName = "main(argc, argv)"
+            landmarkType = "9">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "291B42D8-E740-402E-9734-C6EBA3B1E900"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "checkcc/main.c"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "912"
+            endingLineNumber = "912"
+            landmarkName = "main(argc, argv)"
+            landmarkType = "9">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "B38F6424-8997-42A5-BBBB-44C8EB952DB5"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "checkcc/main.c"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "904"
+            endingLineNumber = "904"
+            landmarkName = "main(argc, argv)"
+            landmarkType = "9">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "CC02851A-7270-48B5-819D-E9D36165D0A6"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "checkcc/resolve.h"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "156"
+            endingLineNumber = "156"
+            landmarkName = "resolveVars(parser, expr, scope, inFuncCall)"
+            landmarkType = "9">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "587B9951-2AE3-460B-9B67-0827D3BEB5D7"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "checkcc/gen.h"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "87"
+            endingLineNumber = "87"
+            landmarkName = "ASTFunc_gen(func, level)"
+            landmarkType = "9">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "17346476-4BEE-4E5C-BD81-FCB42C194BD7"
+            shouldBeEnabled = "Yes"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "checkcc/errors.h"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "445"
+            endingLineNumber = "445"
+            landmarkName = "Parser_errorArgTypeMismatch(parser, expr, var)"
+            landmarkType = "9">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "16DE475C-39CB-46A6-9C51-504D2D79D2AC"
+            shouldBeEnabled = "Yes"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "checkcc/errors.h"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "433"
+            endingLineNumber = "433"
+            landmarkName = "Parser_errorInvalidTypeForOp(parser, expr)"
             landmarkType = "9">
          </BreakpointContent>
       </BreakpointProxy>

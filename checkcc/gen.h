@@ -57,7 +57,8 @@ static void ASTVar_gen(ASTVar* var, int level)
 
 static void ASTScope_gen(ASTScope* scope, int level)
 {
-    foreach (ASTExpr*, stmt, scope->stmts) {
+    fp_foreach(ASTExpr*, stmt, scope->stmts)
+    {
         ASTExpr_gen(stmt, level, true, false);
         puts("");
     }
@@ -74,7 +75,8 @@ static void ASTType_gen(ASTType* type, int level)
     puts("");
     if (not type->body) return;
 
-    foreach (ASTExpr*, stmt, type->body->stmts) {
+    fp_foreach(ASTExpr*, stmt, type->body->stmts)
+    {
         if (not stmt) continue;
         ASTExpr_gen(stmt, level + STEP, true, false);
         puts("");
@@ -89,7 +91,7 @@ static void ASTFunc_gen(ASTFunc* func, int level)
 
     printf("%s%s(", func->isStmt ? "\n" : "function ", func->name);
 
-    foreachn(ASTVar*, arg, args, func->args)
+    fp_foreachn(ASTVar*, arg, args, func->args)
     {
         ASTVar_gen(arg, level);
         printf(args->next ? ", " : "");
@@ -185,6 +187,8 @@ static void ASTExpr_gen(
 
     case tkKeyword_for:
     case tkKeyword_if:
+    case tkKeyword_elif:
+    case tkKeyword_else:
     case tkKeyword_while:
         printf("%s ", TokenKind_repr(expr->kind, false));
         if (expr->left) ASTExpr_gen(expr->left, 0, true, escapeStrings);
@@ -278,17 +282,14 @@ static void ASTModule_gen(ASTModule* module, int level)
 {
     printf("! module %s\n", module->name);
 
-    foreach (ASTImport*, import, module->imports)
+    fp_foreach(ASTImport*, import, module->imports)
         ASTImport_gen(import, level);
 
     puts("");
 
-    foreach (ASTType*, type, module->types)
-        ASTType_gen(type, level);
+    fp_foreach(ASTType*, type, module->types) ASTType_gen(type, level);
 
-    foreach (ASTFunc*, func, module->funcs)
-        ASTFunc_gen(func, level);
+    fp_foreach(ASTFunc*, func, module->funcs) ASTFunc_gen(func, level);
 
-    foreach (ASTTest*, test, module->tests)
-        ASTTest_gen(test, level);
+    fp_foreach(ASTTest*, test, module->tests) ASTTest_gen(test, level);
 }

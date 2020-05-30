@@ -168,8 +168,8 @@ MAKE_cmp3way(Number)
 // debug mode, error -> print to stderr, fatal -> print to stderr and exit
 #define print printf
 #define String_print puts
-#define Number_print(x) printf("%g\n", _fp_bools_yn_[x])
-#define Boolean_print(x) printf("%g\n", x)
+#define Boolean_print(x) printf("%g\n", _fp_bools_yn_[x])
+#define Number_print(x) printf("%g\n", x)
 #define String_describe(x) printf("%s String =\n    \"%s\"\n", #x, x)
 #define Number_describe(x) printf("%s Number =\n    %g\n", #x, x)
 #define Boolean_describe(x)                                                    \

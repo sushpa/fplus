@@ -52,6 +52,12 @@ fp-gen-fp() {
     make -j -s -r checkc.bin && ./checkc.bin $FILE $3 l
 }
 
+# f+ -? <FILE> [d]
+# Debugging use, same as fp-lint > /dev/null
+fp-parse() {
+    fp-gen-fp $* > /dev/null
+}
+
 # f+ -t [module] [test-desc] [issue-no]
 fp-run-tests() {
     # need a Maketester file. Tests will be run through
@@ -93,5 +99,6 @@ elif [ "$1" == "-f" ]; then fp-run-fast $*;
 elif [ "$1" == "-t" ]; then fp-run-tests $*;
 elif [ "$1" == "-a" ]; then fp-check $*;
 elif [ "$1" == "-p" ]; then fp-purge $*;
+elif [ "$1" == "-?" ]; then fp-parse $*;
 elif [ -f "${1%%.fp}.fp" ]; then fp-run-debug $*;
 else fp-usage $1; fi

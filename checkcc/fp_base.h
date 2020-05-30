@@ -17,26 +17,26 @@
 
 #pragma mark - Heap allocation stuff
 
-static int globalCallocCount = 0;
+static int fp_globals__callocCount = 0;
 #define calloc(n, s)                                                           \
     calloc(n, s);                                                              \
-    globalCallocCount++;
-static int globalMallocCount = 0;
+    fp_globals__callocCount++;
+static int fp_globals__mallocCount = 0;
 #define malloc(s)                                                              \
     malloc(s);                                                                 \
-    globalMallocCount++;
-static int globalStrdupCount = 0;
+    fp_globals__mallocCount++;
+static int fp_globals__strdupCount = 0;
 #define strdup(s)                                                              \
     strdup(s);                                                                 \
-    globalStrdupCount++;
-static int globalReallocCount = 0;
+    fp_globals__strdupCount++;
+static int fp_globals__reallocCount = 0;
 #define realloc(ptr, s)                                                        \
     realloc(ptr, s);                                                           \
-    globalReallocCount++;
-static int globalStrlenCount = 0;
+    fp_globals__reallocCount++;
+static int fp_globals__strlenCount = 0;
 #define strlen(s)                                                              \
     strlen(s);                                                                 \
-    globalStrlenCount++;
+    fp_globals__strlenCount++;
 
 #pragma mark - Custom types
 typedef char bool;
@@ -62,7 +62,7 @@ union Value {
 #define SArray(T) T*
 
 #define mkarr(A, sz) A
-#define Array_get_Number(A, i) A[(i)-1]
+#define fp_Array_get_Number(A, i) A[(i)-1]
 #define unreachable(fmt, ...)                                                  \
     {                                                                          \
         eprintf("\n\e[31m*** COMPILER INTERNAL ERROR\e[0m at ./%s:%d\n"        \
@@ -73,7 +73,7 @@ union Value {
     }
 //    exit(12);
 
-#pragma mark - Array
+#pragma mark - fp_Array
 
 //#define DEFAULT0(T) DEFAULT0_##T
 //#define DEFAULT0_double 0.0
@@ -91,44 +91,44 @@ typedef size_t Size;
 typedef const char* CString;
 typedef double Real64;
 
-#define Array(T) Array_##T
-#define Array_free(T) Array_free_##T
-#define Array_get(T) Array_get_##T
-#define Array_growTo(T) Array_growTo_##T
-#define Array_concat_cArray(T) Array_concat_cArray_##T
-#define Array_concat_otherArray(T) Array_concat_otherArray_##T
-#define Array_grow(T) Array_grow_##T
-#define Array_push(T) Array_push_##T
-#define Array_justPush(T) Array_justPush_##T
-#define Array_clear(T) Array_clear_##T
-#define Array_initWith_cArray(T) Array_initWith_cArray_##T
-#define Array_pop(T) Array_pop_##T
-#define Array_top(T) Array_top_##T
-#define Array_empty(T) Array_empty_##T
+#define fp_Array(T) fp_Array_##T
+#define fp_Array_free(T) fp_Array_free_##T
+#define fp_Array_get(T) fp_Array_get_##T
+#define fp_Array_growTo(T) fp_Array_growTo_##T
+#define fp_Array_concat_cArray(T) fp_Array_concat_cfp_Array_##T
+#define fp_Array_concat_otherArray(T) fp_Array_concat_otherfp_Array_##T
+#define fp_Array_grow(T) fp_Array_grow_##T
+#define fp_Array_push(T) fp_Array_push_##T
+#define fp_Array_justPush(T) fp_Array_justPush_##T
+#define fp_Array_clear(T) fp_Array_clear_##T
+#define fp_Array_initWith_cArray(T) fp_Array_initWith_cfp_Array_##T
+#define fp_Array_pop(T) fp_Array_pop_##T
+#define fp_Array_top(T) fp_Array_top_##T
+#define fp_Array_empty(T) fp_Array_empty_##T
 
 // convenience for manual writing
-#define PtrArray Array(Ptr)
-// #define PtrArray_free Array_free(Ptr)
-// #define PtrArray_growTo Array_growTo(Ptr)
-// #define PtrArray_concat_cArray Array_concat_cArray(Ptr)
-// #define PtrArray_concat_otherArray Array_concat_otherArray(Ptr)
-// #define PtrArray_grow Array_grow(Ptr)
-#define PtrArray_push Array_push(Ptr)
-// #define PtrArray_clear Array_clear(Ptr)
-// #define PtrArray_initWithCArray Array_initWithCArray(Ptr)
-// #define PtrArray_justPush Array_justPush(Ptr)
-#define PtrArray_pop Array_pop(Ptr)
-#define PtrArray_top Array_top(Ptr)
-#define PtrArray_empty Array_empty(Ptr)
-#define PtrArray_topAs(T, self) ((T)PtrArray_top(self))
+#define fp_PtrArray fp_Array(Ptr)
+// #define fp_PtrArray_free fp_Array_free(Ptr)
+// #define fp_PtrArray_growTo fp_Array_growTo(Ptr)
+// #define fp_PtrArray_concat_cArray fp_Array_concat_cArray(Ptr)
+// #define fp_PtrArray_concat_otherArray fp_Array_concat_otherArray(Ptr)
+// #define fp_PtrArray_grow fp_Array_grow(Ptr)
+#define fp_PtrArray_push fp_Array_push(Ptr)
+// #define fp_PtrArray_clear fp_Array_clear(Ptr)
+// #define fp_PtrArray_initWithCArray fp_Array_initWithCArray(Ptr)
+// #define fp_PtrArray_justPush fp_Array_justPush(Ptr)
+#define fp_PtrArray_pop fp_Array_pop(Ptr)
+#define fp_PtrArray_top fp_Array_top(Ptr)
+#define fp_PtrArray_empty fp_Array_empty(Ptr)
+#define fp_PtrArray_topAs(T, self) ((T)fp_PtrArray_top(self))
 
-// #define PtrArray_topAs(T, self) Array_topAs(T, self)
+// #define fp_PtrArray_topAs(T, self) fp_Array_topAs(T, self)
 
 #define roundUp32(x)                                                           \
     (--(x), (x) |= (x) >> 1, (x) |= (x) >> 2, (x) |= (x) >> 4,                 \
         (x) |= (x) >> 8, (x) |= (x) >> 16, ++(x))
 
-// dont get smart and try to do Array(Array(Array(whatever)))
+// dont get smart and try to do fp_Array(fp_Array(fp_Array(whatever)))
 
 // Should be using adhoc to generate these.
 
@@ -138,71 +138,76 @@ typedef double Real64;
 // compilation time YES "COMPILATION" MEANS TO BINARY NOT TO C, that
 // should be < 20ms for a typical project.
 #define MAKE_Array(T)                                                          \
-    typedef struct Array(T)                                                    \
+    typedef struct fp_Array(T)                                                 \
     {                                                                          \
         T* ref;                                                                \
         UInt32 used;                                                           \
         UInt32 cap;                                                            \
     }                                                                          \
-    Array(T);                                                                  \
-    static void Array_free(T)(Array(T) * self)                                 \
+    fp_Array(T);                                                               \
+    static void fp_Array_free(T)(fp_Array(T) * self)                           \
     {                                                                          \
         if (self->cap) free(self->ref);                                        \
     }                                                                          \
-    static void Array_growTo(T)(Array(T) * self, UInt32 size)                  \
+    static void fp_Array_growTo(T)(fp_Array(T) * self, UInt32 size)            \
     {                                                                          \
         self->cap = roundUp32(size);                                           \
         self->ref = realloc(self->ref, sizeof(T) * self->cap);                 \
         memset(                                                                \
             self->ref + self->used, 0, sizeof(T) * (self->cap - self->used));  \
     }                                                                          \
-    static T Array_get(T)(Array(T) * self, UInt32 index)                       \
+    static T fp_Array_get(T)(fp_Array(T) * self, UInt32 index)                 \
     {                                                                          \
         return self->ref[index];                                               \
     }                                                                          \
-    static void Array_concat_cArray(T)(Array(T) * self, T * cArray, int count) \
+    static void fp_Array_concat_cArray(T)(                                     \
+        fp_Array(T) * self, T * cArray, int count)                             \
     {                                                                          \
         const UInt32 reqd = self->used + count;                                \
-        if (reqd >= self->cap) Array_growTo(T)(self, reqd);                    \
+        if (reqd >= self->cap) fp_Array_growTo(T)(self, reqd);                 \
         memcpy(self->ref + self->used, cArray, count * sizeof(T));             \
     }                                                                          \
-    static void Array_concat_otherArray(T)(Array(T) * self, Array(T) * other)  \
+    static void fp_Array_concat_otherArray(T)(                                 \
+        fp_Array(T) * self, fp_Array(T) * other)                               \
     {                                                                          \
-        Array_concat_cArray(T)(self, other->ref, other->used);                 \
+        fp_Array_concat_cArray(T)(self, other->ref, other->used);              \
     }                                                                          \
-    static void Array_clear(T)(Array(T) * self) { self->used = 0; }            \
-    static void Array_initWith_cArray(T)(                                      \
-        Array(T) * self, T * cArray, int count)                                \
+    static void fp_Array_clear(T)(fp_Array(T) * self) { self->used = 0; }      \
+    static void fp_Array_initWith_cArray(T)(                                   \
+        fp_Array(T) * self, T * cArray, int count)                             \
     {                                                                          \
-        Array_clear(T)(self);                                                  \
-        Array_concat_cArray(T)(self, cArray, count);                           \
+        fp_Array_clear(T)(self);                                               \
+        fp_Array_concat_cArray(T)(self, cArray, count);                        \
     }                                                                          \
-    static void Array_grow(T)(Array(T) * self)                                 \
+    static void fp_Array_grow(T)(fp_Array(T) * self)                           \
     { /* maybe self can be merged with growTo */                               \
         self->cap = self->cap ? 2 * self->cap : 8;                             \
         self->ref = realloc(self->ref, sizeof(T) * self->cap);                 \
         memset(                                                                \
             self->ref + self->used, 0, sizeof(T) * (self->cap - self->used));  \
     }                                                                          \
-    static void Array_justPush(T)(Array(T) * self, T node)                     \
+    static void fp_Array_justPush(T)(fp_Array(T) * self, T node)               \
     { /* when you know that cap is enough */                                   \
         self->ref[self->used++] = node;                                        \
     }                                                                          \
-    static void Array_push(T)(Array(T) * self, T node)                         \
+    static void fp_Array_push(T)(fp_Array(T) * self, T node)                   \
     {                                                                          \
-        if (self->used >= self->cap) Array_grow(T)(self);                      \
-        Array_justPush(T)(self, node);                                         \
+        if (self->used >= self->cap) fp_Array_grow(T)(self);                   \
+        fp_Array_justPush(T)(self, node);                                      \
     }                                                                          \
-    static T Array_pop(T)(Array(T) * self)                                     \
+    static T fp_Array_pop(T)(fp_Array(T) * self)                               \
     {                                                                          \
         assert(self->used > 0);                                                \
         return self->ref[--self->used];                                        \
     }                                                                          \
-    static T Array_top(T)(Array(T) * self)                                     \
+    static T fp_Array_top(T)(fp_Array(T) * self)                               \
     {                                                                          \
         return self->used ? self->ref[self->used - 1] : 0;                     \
     }                                                                          \
-    static bool Array_empty(T)(Array(T) * self) { return self->used == 0; }
+    static bool fp_Array_empty(T)(fp_Array(T) * self)                          \
+    {                                                                          \
+        return self->used == 0;                                                \
+    }
 
 MAKE_Array(Ptr);
 // MAKE_Array(UInt32);
@@ -213,8 +218,8 @@ MAKE_Array(Ptr);
 // MAKE_Array(float);
 // make array for strings etc later
 
-// Array_top(T) is only defined for value types to keep the number
-// of instantiations (of the "template" Array) down. So void* represents
+// fp_Array_top(T) is only defined for value types to keep the number
+// of instantiations (of the "template" fp_Array) down. So void* represents
 // object ptrs of all types. Cast them when you need to deref or do ->
 // etc. self is used to get a void* as a T (usually a SomeType*)
 
@@ -222,24 +227,24 @@ MAKE_Array(Ptr);
 // since self is not templated, it's your job to send items of the
 // right size, or face the music
 // ASSUMING SIZE IS 8. THAT MEANS NO FLOAT OR UINT32, only sizeof(void*)
-// #define Array_concat_cArray(T, Array, arr, count) \
-//     Array_concat_cArray_(Array, arr, count * sizeof(T))
+// #define fp_Array_concat_cArray(T, fp_Array, arr, count) \
+//     fp_Array_concat_cfp_Array_(fp_Array, arr, count * sizeof(T))
 // TODO: the compiler should optimise away calls to concat if the
 // original arrays can be used one after the other. e.g. concat two
 // arrays then print it can be done by simply printing first then
 // second, no memcpy involved.
-// #define Array_concat_otherArray(T, s1, s2) \
-//     Array_concat_otherArray_(s1, s2, sizeof(T))
+// #define fp_Array_concat_otherArray(T, s1, s2) \
+//     fp_Array_concat_otherfp_Array_(s1, s2, sizeof(T))
 #pragma mark - Pool
 
-typedef struct PoolB {
+typedef struct fp_Pool {
     void* ref;
     UInt32 cap, capTotal; // BYTES
-    Array(Ptr) ptrs;
-    UInt32 used, usedTotal; // used BYTES, unlike in Array!
-} PoolB;
+    fp_Array(Ptr) ptrs;
+    UInt32 used, usedTotal; // used BYTES, unlike in fp_Array!
+} fp_Pool;
 
-static void* PoolB_alloc(PoolB* self, size_t reqd)
+static void* fp_Pool_alloc(fp_Pool* self, size_t reqd)
 {
     void* ans = NULL;
 
@@ -247,7 +252,7 @@ static void* PoolB_alloc(PoolB* self, size_t reqd)
     // dont ask for a big fat chunk larger than 16KB (or up to 256KB
     // depending on how much is already there) all at one time.
     if (self->used + reqd > self->cap) {
-        if (self->ref) Array_push(Ptr)(&self->ptrs, self->ref);
+        if (self->ref) fp_Array_push(Ptr)(&self->ptrs, self->ref);
         self->cap = (self->cap > 64 KB ? 256 KB : 4 KB);
         self->capTotal += self->cap;
         self->ref = calloc(1, self->cap);
@@ -260,53 +265,51 @@ static void* PoolB_alloc(PoolB* self, size_t reqd)
     return ans;
 }
 
-static void PoolB_free(PoolB* self)
+static void fp_Pool_free(fp_Pool* self)
 {
     // TODO: reset used here?
     if (self->cap) free(self->ref);
     for (int i = 0; i < self->ptrs.used; i++) free(self->ptrs.ref[i]);
 }
 
-PoolB gPool[1] = {};
-PoolB strPool[1] = {};
+fp_Pool fp_gPool[1] = {};
+fp_Pool fp_sPool[1] = {};
 
-#define NEW(T)                                                                 \
-    PoolB_alloc(gPool, sizeof(T));                                             \
-    T##_allocTotal++;
+#define fp_new(T) (T##_allocTotal++, fp_Pool_alloc(fp_gPool, sizeof(T)));
 
 // This macro should be invoked on each struct defined.
 #define MKSTAT(T) static int T##_allocTotal = 0;
 
-#pragma mark - PtrList
+#pragma mark - fp_PtrList
 
-MKSTAT(PtrList)
+MKSTAT(fp_PtrList)
 
-#define List(T) PtrList
-typedef struct PtrList {
+#define List(T) fp_PtrList
+typedef struct fp_PtrList {
     void* item;
-    struct PtrList* next;
-} PtrList;
+    struct fp_PtrList* next;
+} fp_PtrList;
 
-static PtrList* PtrList_with(void* item)
+static fp_PtrList* fp_PtrList_with(void* item)
 {
     // TODO: how to get separate alloc counts of List_ASTType
     // List_ASTFunc etc.?
-    PtrList* li = NEW(PtrList);
+    fp_PtrList* li = fp_new(fp_PtrList);
     li->item = item;
     return li;
 }
 
-static PtrList* PtrList_with_next(void* item, void* next)
+static fp_PtrList* fp_PtrList_with_next(void* item, void* next)
 {
     // TODO: how to get separate alloc counts of List_ASTType
     // List_ASTFunc etc.?
-    PtrList* li = NEW(PtrList);
+    fp_PtrList* li = fp_new(fp_PtrList);
     li->item = item;
     li->next = next;
     return li;
 }
 
-static int PtrList_count(PtrList* listPtr)
+static int fp_PtrList_count(fp_PtrList* listPtr)
 {
     int i = 0;
     while (listPtr) {
@@ -316,26 +319,40 @@ static int PtrList_count(PtrList* listPtr)
     return i;
 }
 
-static void PtrList_append(PtrList** selfp, void* item)
+// returns the a ref to the last listitem so you can use that for
+// repeated appends in O(1) and not O(N)
+static fp_PtrList** fp_PtrList_append(fp_PtrList** selfp, void* item)
 {
-    if (*selfp == NULL) // first append call
-        *selfp = PtrList_with(item);
-    else {
-        PtrList* self = *selfp;
+    if (*selfp == NULL) { // first append call
+        *selfp = fp_PtrList_with(item);
+        return selfp;
+    } else {
+        fp_PtrList* self = *selfp;
         while (self->next) self = self->next;
-        self->next = PtrList_with(item);
+        self->next = fp_PtrList_with(item);
+        return &(self->next);
     }
 }
 
-// #define foreach(T, var, listp, listSrc)                                    \
-//     PtrList* listp = listSrc;                                              \
+static void fp_PtrList_shift(fp_PtrList** selfp, void* item)
+{
+    // if (*selfp == NULL) { // first append call
+    //     *selfp = fp_PtrList_with(item);
+    //  } else {
+    //     fp_PtrList* self = *selfp;
+    *selfp = fp_PtrList_with_next(item, *selfp);
+    //  }
+}
+
+// #define fp_foreach(T, var, listp, listSrc)                                    \
+//     fp_PtrList* listp = listSrc;                                              \
 //     if (listp)                                                             \
 //         for (T var = (T)listp->item; listp and (var = (T)listp->item);      \
 //              listp = listp->next)
 
-#define foreach(T, var, listSrc) foreachn(T, var, _listp_, listSrc)
-#define foreachn(T, var, listp, listSrc)                                       \
-    for (PtrList* listp = listSrc; listp; listp = NULL)                        \
+#define fp_foreach(T, var, listSrc) fp_foreachn(T, var, _listp_, listSrc)
+#define fp_foreachn(T, var, listp, listSrc)                                    \
+    for (fp_PtrList* listp = listSrc; listp; listp = NULL)                     \
         for (T var = (T)listp->item; listp and (var = (T)listp->item);         \
              listp = listp->next)
 #endif /* FPLUS_BASE_H */
@@ -352,10 +369,23 @@ static void PtrList_append(PtrList** selfp, void* item)
 // DO NOT USE strdup,strndup,strcasecmp,strncasecmp: OK reimplemented
 // strcasecmp.
 
+#define fp_ispow2(num) (((num)-1) & (num))
+
+// round n up to a multiple of a power-of-2 number b.
+#define fp_roundmpow2(n, b) ((n + (b)-1) & -(intptr_t)(b))
+#define fp_roundm8(n) fp_roundmpow2(n, 8)
+#define fp_roundm16(n) fp_roundmpow2(n, 16)
+#define fp_roundm32(n) fp_roundmpow2(n, 32)
+
+// round a 32-bit number n upto the next power of 2.
+#define fp_roundup32(x)                                                        \
+    (--(x), (x) |= (x) >> 1, (x) |= (x) >> 2, (x) |= (x) >> 4,                 \
+        (x) |= (x) >> 8, (x) |= (x) >> 16, ++(x))
+
 static char* pstrndup(char* str, size_t len)
 {
-    char* ret = PoolB_alloc(strPool, len + 1);
-    memcpy(ret, str, len); // strPool uses calloc, so no need to zero last
+    char* ret = fp_Pool_alloc(fp_sPool, fp_roundm8(len + 1));
+    memcpy(ret, str, len); // fp_sPool uses calloc, so no need to zero last
     return ret;
 }
 

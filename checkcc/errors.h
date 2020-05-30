@@ -222,19 +222,34 @@ static void Parser_errorUnrecognizedFunc(
     Parser_errorIncrement(parser);
 }
 
-static void Parser_errorCallingFuncWithVoid(
-                                         Parser* const parser, const ASTExpr* const expr, const ASTExpr* const arg)
+static void Parser_errorStringInterp(
+    Parser* const parser, const ASTExpr* const expr, const char* const pos)
 {
-     eprintf(
-            "\n\e[31;1;4m ERROR                                               "
-            "                       \e[0m\n %s%s:%d:%d:\n The "
-            "\e[1m%s\e[0m function does not return a value.\n"
-            " You cannot use it as an argument in the call to \e[1m%s\e[0m.\n",
-            RELF(parser->filename), expr->line, expr->col, arg->func->name, expr->string
-           );
+    eprintf("\n\e[31;1;4m ERROR                                               "
+            "                       \e[0m\n %s%s:%d:%d:\n There is a syntax "
+            "error within"
+            " this string:\n"
+            "     %s\"\n"
+            " $ is used to specify a variable whose value is to be "
+            "interpolated into the\n"
+            " string. If you want a literal $ sign in the string, write it as "
+            "\\$.\n",
+        RELF(parser->filename), expr->line,
+        expr->col + (int)(pos - expr->string), expr->string);
     Parser_errorIncrement(parser);
 }
 
+static void Parser_errorCallingFuncWithVoid(
+    Parser* const parser, const ASTExpr* const expr, const ASTExpr* const arg)
+{
+    eprintf("\n\e[31;1;4m ERROR                                               "
+            "                       \e[0m\n %s%s:%d:%d:\n The "
+            "\e[1m%s\e[0m function does not return a value.\n"
+            " You cannot use it as an argument in the call to \e[1m%s\e[0m.\n",
+        RELF(parser->filename), expr->line, expr->col, arg->func->name,
+        expr->string);
+    Parser_errorIncrement(parser);
+}
 
 static void Parser_errorInheritanceCycle(
     Parser* const parser, const ASTType* const type)
@@ -379,21 +394,24 @@ static void Parser_errorInitMismatch(
 }
 
 static void Parser_errorInitDimsMismatch(
-                                     Parser* const parser, const ASTExpr* const expr, int dims)
+    Parser* const parser, const ASTExpr* const expr, int dims)
 {
     // if one of the types is "<invalid>", an error has already been
     // reported for it; so don't bother
-//    const char* const leftTypeName = ASTTypeSpec_name(expr->var->typeSpec);
-//    const char* const rightTypeName = ASTExpr_typeName(expr->var->init);
-    //    if (*leftTypeName == '<' or *rightTypeName == '<') return;
+    //    const char* const leftTypeName =
+    //    ASTTypeSpec_name(expr->var->typeSpec); const char* const rightTypeName
+    //    = ASTExpr_typeName(expr->var->init); if (*leftTypeName == '<' or
+    //    *rightTypeName == '<') return;
     eprintf("\n(%d) \e[31merror:\e[0m dimensions mismatch at %s%s:%d:%d\n"
-            "             can't init a \e[34m%dD\e[0m array \e[34m%s\e[0m with a \e[34m%dD\e[0m literal. \n"
-            "             just remove the dimension specification, the linter will take "
+            "             can't init a \e[34m%dD\e[0m array \e[34m%s\e[0m with "
+            "a \e[34m%dD\e[0m literal. \n"
+            "             just remove the dimension specification, the linter "
+            "will take "
             "care of it.\n",
-            parser->errCount + 1, RELF(parser->filename), expr->line, expr->col, expr->var->typeSpec->dims, expr->var->name, dims);
+        parser->errCount + 1, RELF(parser->filename), expr->line, expr->col,
+        expr->var->typeSpec->dims, expr->var->name, dims);
     Parser_errorIncrement(parser);
 }
-
 
 static void Parser_errorReadOnlyVar(
     Parser* const parser, const ASTExpr* const expr)
@@ -419,9 +437,11 @@ static void Parser_errorArgTypeMismatch(
     Parser* const parser, const ASTExpr* const expr, const ASTVar* const var)
 {
     eprintf("\n(%d) \e[31merror:\e[0m type mismatch for argument '"
-            "\e[34m%s\e[0m' at %s%s:%d:%d\n",
+            "\e[34m%s\e[0m' at %s%s:%d:%d\n"
+            "    need %s (%d), got %s (%d)\n",
         parser->errCount + 1, var->name, RELF(parser->filename), expr->line,
-        expr->col);
+        expr->col, ASTTypeSpec_name(var->typeSpec), var->typeSpec->typeType,
+        ASTExpr_typeName(expr), expr->typeType);
     Parser_errorIncrement(parser);
 }
 

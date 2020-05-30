@@ -12,7 +12,7 @@ static void resolveTypeSpec(
 {
     // TODO: disallow a type that derives from itself!
     if (typeSpec->typeType != TYUnresolved) return;
-    if (not *typeSpec->name) return;
+    if (not*typeSpec->name) return;
 
     // TODO: DO THIS IN PARSE... stuff!!
 
@@ -39,18 +39,17 @@ static void resolveTypeSpec(
 
 static void ASTScope_checkUnusedVars(Parser* parser, ASTScope* scope)
 {
-    foreach (ASTVar*, var, scope->locals)
-        if (not var->used) Parser_warnUnusedVar(parser, var);
+    fp_foreach(ASTVar*, var, scope->locals) if (not var->used)
+        Parser_warnUnusedVar(parser, var);
 
-    foreach (ASTExpr*, stmt, scope->stmts)
-        if (isCtrlExpr(stmt) and stmt->body)
-            ASTScope_checkUnusedVars(parser, stmt->body);
+    fp_foreach(ASTExpr*, stmt, scope->stmts) if (isCtrlExpr(stmt)
+        and stmt->body) ASTScope_checkUnusedVars(parser, stmt->body);
 }
 
 static void ASTFunc_checkUnusedVars(Parser* parser, ASTFunc* func)
 {
-    foreach (ASTVar*, arg, func->args)
-        if (not arg->used) Parser_warnUnusedArg(parser, arg);
+    fp_foreach(ASTVar*, arg, func->args) if (not arg->used)
+        Parser_warnUnusedArg(parser, arg);
 
     ASTScope_checkUnusedVars(parser, func->body);
 }
@@ -108,6 +107,7 @@ static void resolveVars(
             expr->kind = ret;
             expr->var = found;
             expr->var->used = true;
+            // expr->var->lastUsed = topExpr;
         } else {
             Parser_errorUnrecognizedVar(parser, expr);
         }
@@ -155,16 +155,38 @@ static void resolveVars(
         // will be null-terminated
         char* pos = strchr(expr->string, '$');
         while (pos) {
-            size_t len = strspn(pos + 1,
-                "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ123456789"
-                "0");
-            if (len > 63) len = 63;
-            char buf[64];
-            strncpy(buf, pos + 1, len);
-            buf[63] = 0;
-            eprintf("lookup %s\n", buf);
-            ASTVar* var = ASTScope_getVar(scope, buf);
-            if (not var) Parser_errorUnrecognizedVar(parser, expr);
+            if (pos[-1] != '\\') {
+                if (pos[1] == '(') pos++;
+                size_t len = strspn(pos + 1,
+                    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ123456"
+                    "789"
+                    "0");
+                if (len) {
+                    if (len > 31) len = 31;
+                    char buf[32];
+                    strncpy(buf, pos + 1, len);
+                    buf[len] = 0;
+                    buf[31] = 0;
+                    //            eprintf("lookup '%s'\n", buf);
+                    ASTVar* var = ASTScope_getVar(scope, buf);
+                    if (not var) {
+                        char* orig = expr->string;
+                        expr->string = buf;
+                        expr->col += (pos - orig);
+                        Parser_errorUnrecognizedVar(parser, expr);
+                        expr->col -= (pos - orig);
+                        expr->string = orig;
+                    } else {
+                        // we're not going to actually "resolve" the embedded
+                        // var, just lint the name here so it is in the correct
+                        // case
+                        memcpy(pos + 1, var->name, len);
+                    }
+
+                } else {
+                    Parser_errorStringInterp(parser, expr, pos);
+                }
+            }
             pos = strchr(pos + 1, '$');
         }
     } break;
@@ -175,15 +197,24 @@ static void resolveVars(
                 and not(inFuncCall and expr->kind == tkOpAssign))
                 resolveVars(parser, expr->left, scope, inFuncCall);
             resolveVars(parser, expr->right, scope, inFuncCall);
-        }
-        if (isSelfMutOp(expr)
-            and (expr->left->kind == tkIdentifierResolved
-                or expr->left->kind == tkSubscriptResolved)) {
-            // TODO: If you will allow changing the first arg of a function,
-            // using an & op or whatever, check for those mutations here
-            expr->left->var->changed = true;
-            if (not expr->left->var->isVar)
-                Parser_errorReadOnlyVar(parser, expr->left);
+
+            if (isSelfMutOp(expr)) {
+                ASTVar* var = NULL;
+                if (expr->left->kind == tkIdentifierResolved
+                    or expr->left->kind == tkSubscriptResolved)
+                    var = expr->left->var;
+                else if (expr->left->kind == tkPeriod
+                    and expr->left->left->kind == tkIdentifierResolved)
+                    var = expr->left->left->var;
+                if (var) {
+                    // TODO: If you will allow changing the first arg of a
+                    // function, using an & op or whatever, check for those
+                    // mutations here BTW this marks entire arrays as used
+                    var->changed = true;
+                    if (not var->isVar)
+                        Parser_errorReadOnlyVar(parser, expr->left);
+                }
+            }
         }
     }
 }
