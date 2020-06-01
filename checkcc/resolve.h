@@ -7,12 +7,31 @@ static bool isSelfMutOp(ASTExpr* expr)
         or expr->kind == tkOpAssign;
 }
 
+// isSelfMutOp(expr as ASTExpr) := expr.kind in [
+//     .plusEq, .minusEq, .slashEq, .timesEq, .opModEq, .opAssign
+// ]
+
+// function resolve(typeSpec as ASTTypeSpec, mod as ASTModule, par as Parser)
+//     if typeSpec.typeType != .unresolved then return
+//     if typeSpec.name == "" then return
+//     var tyty = typeTypeByName(typeSpec.name)
+//     if tyty != .unresolved
+//         typeSpec.typeType = tyty
+//     else
+//         type = lookupType(typeSpec.name, module = mod)
+//         typeSpec.typeType = .object
+//         typeSpec.type = type
+//     end if
+//     on error .itemNotFound
+//         errorUnrecognized(typeSpec, parser = parser)
+// end function
+
 static void resolveTypeSpec(
     Parser* parser, ASTTypeSpec* typeSpec, ASTModule* mod)
 {
     // TODO: disallow a type that derives from itself!
     if (typeSpec->typeType != TYUnresolved) return;
-    if (not*typeSpec->name) return;
+    if (not *typeSpec->name) return;
 
     // TODO: DO THIS IN PARSE... stuff!!
 
@@ -36,6 +55,11 @@ static void resolveTypeSpec(
         // called during such analysis.
     }
 }
+// function checkUnusedVars(scope as ASTScope, parser as Parser)
+//     for var = scope.locals
+//
+//     end for
+// end function
 
 static void ASTScope_checkUnusedVars(Parser* parser, ASTScope* scope)
 {

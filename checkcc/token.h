@@ -183,11 +183,9 @@ static void Token_tryKeywordMatch(Token* self)
     Token_compareKeyword(function)
     Token_compareKeyword(declare)
     Token_compareKeyword(test)
-    Token_compareKeyword(not)
     Token_compareKeyword(and)
     Token_compareKeyword(or)
     Token_compareKeyword(in)
-    Token_compareKeyword(else)
     // Token_compareKeyword(elif)
     Token_compareKeyword(type)
     Token_compareKeyword(check)
@@ -210,6 +208,7 @@ static void Token_tryKeywordMatch(Token* self)
         self->matchlen = 6;
         return;
     }
+    Token_compareKeyword(else) Token_compareKeyword(not )
 
     // Token_compareKeyword(elif)
 

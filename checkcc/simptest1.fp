@@ -336,11 +336,11 @@ function joyce()
     var joyce = 55.3
     joyce += 5
 
-    # if x == 3
-    #     print(x)
-    # else if x == 5
-    #     print(x+4)
-    # end if
+    if x == 3
+        print(x)
+    else if x == 5
+        print(x+4)
+    end if
 
     if x == 3
         print(x)

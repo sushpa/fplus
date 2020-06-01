@@ -57,10 +57,37 @@ static void ASTVar_gen(ASTVar* var, int level)
 
 static void ASTScope_gen(ASTScope* scope, int level)
 {
-    fp_foreach(ASTExpr*, stmt, scope->stmts)
+    fp_foreachn(ASTExpr*, expr, exprList, scope->stmts)
     {
-        ASTExpr_gen(stmt, level, true, false);
-        puts("");
+        switch (expr->kind) {
+        case tkKeyword_for:
+        case tkKeyword_if:
+        case tkKeyword_elif:
+        case tkKeyword_else:
+        case tkKeyword_while: {
+            printf("%.*s", level, spaces);
+            printf("%s ", TokenKind_repr(expr->kind, false));
+            if (expr->left) ASTExpr_gen(expr->left, 0, true, false);
+            puts("");
+            if (expr->body)
+                ASTScope_gen(
+                    expr->body, level + STEP); //, true, escapeStrings);
+            const char* tok = TokenKind_repr(expr->kind, false);
+            if (expr->kind == tkKeyword_else or expr->kind == tkKeyword_elif)
+                tok = "if";
+            if (expr->kind == tkKeyword_if or expr->kind == tkKeyword_elif)
+                if (exprList->next) {
+                    ASTExpr* next = exprList->next->item;
+                    if (next->kind == tkKeyword_else
+                        or next->kind == tkKeyword_elif)
+                        break;
+                }
+            printf("%.*send %s\n", level, spaces, tok);
+        } break;
+        default:
+            ASTExpr_gen(expr, level, true, false);
+            puts("");
+        }
     }
 }
 
@@ -183,19 +210,6 @@ static void ASTExpr_gen(
         // (to keep location). Send it to ASTVar_gen.
         assert(expr->var != NULL);
         ASTVar_gen(expr->var, 0);
-        break;
-
-    case tkKeyword_for:
-    case tkKeyword_if:
-    case tkKeyword_elif:
-    case tkKeyword_else:
-    case tkKeyword_while:
-        printf("%s ", TokenKind_repr(expr->kind, false));
-        if (expr->left) ASTExpr_gen(expr->left, 0, true, escapeStrings);
-        puts("");
-        if (expr->body)
-            ASTScope_gen(expr->body, level + STEP); //, true, escapeStrings);
-        printf("%.*send %s", level, spaces, TokenKind_repr(expr->kind, false));
         break;
 
     default:
