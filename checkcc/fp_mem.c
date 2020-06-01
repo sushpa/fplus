@@ -25,8 +25,9 @@ static const char* spc = "                ";
 MKSTAT(fp_mem__SizeClassInfo)
 
 typedef struct fp_mem__SizeClassInfo {
-    fp_PtrList* list;
-    int count;
+    fp_PtrArray arr; // init with null
+    // fp_PtrList* list;
+    // int count;
 } fp_mem__SizeClassInfo;
 // size -> fp_mem__SizeClassInfo* map
 static fp_Dict(UInt64, Ptr) fp_mem__sizeDict[1] = {};
@@ -47,7 +48,9 @@ static fp_Dict(UInt64, Ptr) fp_mem__sizeDict[1] = {};
 // fp_mem__alloc(size,rawstr) -> rawstr a string, file/line/func are not added
 // fp_mem__dealloc(ptr, nbytes, rawstr) -> drop ptr with nbytes size
 
-#ifdef FP_NOHEAPCHECK // --------------------------------------------------
+#define FP_POOL_DISABLED
+// #define NOHEAPTRACKER
+#ifdef FP_POOL_DISABLED // --------------------------------------------------
 #define fp_mem_alloc(nam, sz) fp_mem__alloc(sz, "")
 void* fp_mem__heapmalloc(UInt64 size, const char* desc) { return malloc(size); }
 #define fp_mem_heapfree free
@@ -55,10 +58,10 @@ void* fp_mem__alloc(UInt64 size, const char* desc)
 {
     return fp_mem__heapmalloc(size, "");
 }
-UInt64 fp_mem_stats() { return 0; }
+UInt64 fp_mem_stats(bool heap) { return 0; }
 #define fp_mem__dealloc(ptr, size, desc) fp_mem_heapfree(ptr)
-
-#else // FP_NOHEAPCHECK ---------------------------------------------------//
+#define fp_mem_dealloc(ptr, size) free(ptr)
+#else // FP_POOL_DISABLED ---------------------------------------------------//
       // TODO: the compiler will call fp_mem__alloc directly with a custom built
       // string.
 #define fp_mem_alloc(nam, sz)                                                  \
@@ -161,7 +164,8 @@ static void fp_mem__dealloc(void* ptr, UInt64 size, const char* desc)
 
     // newly added, or got a previously deleted bucket so set new list
     if (*stat /* or not fp_Dict_val(fp_mem__sizeDict, d)*/) {
-        void* ptr = fp_new(fp_mem__SizeClassInfo);
+        fp_mem__SizeClassInfo* ptr = fp_new(fp_mem__SizeClassInfo);
+        //*ptr =
         fp_Dict_val(fp_mem__sizeDict, d) = ptr;
     }
     fp_mem__SizeClassInfo* inf = fp_Dict_val(fp_mem__sizeDict, d);
@@ -169,9 +173,10 @@ static void fp_mem__dealloc(void* ptr, UInt64 size, const char* desc)
     // */} else
     // {
 
-    inf->list = fp_PtrList_with_next(ptr, inf->list);
+    // inf->list = fp_PtrList_with_next(ptr, inf->list);
+    fp_PtrArray_push(&inf->arr, ptr);
 
-    inf->count++;
+    // inf->count++;
 #ifndef NOHEAPTRACKER
     fp_Dict_deleteByKey(Ptr, fp_mem__PtrInfo)(fp_mem__ptrDict, ptr);
 #endif
@@ -192,11 +197,11 @@ void* fp_mem__alloc(UInt64 size, const char* desc)
     int d = fp_Dict_get(UInt64, Ptr)(fp_mem__sizeDict, size);
     if (d < fp_Dict_end(fp_mem__sizeDict)) {
         fp_mem__SizeClassInfo* inf = fp_Dict_val(fp_mem__sizeDict, d);
-        if (inf and inf->list) {
-            void* ret = inf->list->item;
-            fp_mem_dealloc(inf->list, 1); // WHY?? -> to drop the listitem
-            inf->list = inf->list->next;
-            inf->count--;
+        if (inf and inf->arr.used) {
+            void* ret = fp_PtrArray_pop(&inf->arr); // inf->arr->item;
+            // fp_mem_dealloc(inf->list, 1); // WHY?? -> to drop the listitem
+            // inf->list = inf->list->next;
+            // inf->count--;
             return ret;
         }
     }
@@ -293,18 +298,19 @@ UInt64 fp_mem_stats(bool heap)
     return sum;
 }
 
-#endif // FP_NOHEAPCHECK --------------------------------------------------
+#endif // FP_POOL_DISABLED --------------------------------------------------
 
 int main()
 {
     EP;
     double* d = fp_mem_alloc("d", 8 * sizeof(double));
-    // double* d3 = fp_mem_alloc("d3[] as Real", 2 * sizeof(double));
+    double* d3 = fp_mem_alloc("d3[] as Real", 2 * sizeof(double));
     // fp_mem_dealloc(d3, 2);
 
-    // double* d2 = fp_mem_alloc("d2 as MyType", 32 * sizeof(double));
-    char *e, *ex;
-    for (int i = 0; i < 200; i++) {
+    double* d2 = fp_mem_alloc("d2 as MyType", 32 * sizeof(double));
+    double *e, *ex;
+    double sum = 0.0;
+    for (int i = 0; i < 40000; i++) {
         // TODO: in such a tight and long loop, if the subpool is close to the
         // end around the start of the loop, most of the allocations will go to
         // the heap -> a new subpool will not be created at all if size > 256,
@@ -314,19 +320,31 @@ int main()
         // remainder, and alloc a new subpool anyway. direct fallthrough to
         // malloc should be only for requests that are really large.
         // to see the difference, change 256 to 257 below and see the effect.
-        e = fp_mem_alloc("e", 256 * sizeof(char));
+        e = (double[150000]) {}; // fp_mem_alloc("e", 150000 * sizeof(double));
+        ex = (double[120000]) {}; // fp_mem_alloc("ex", 120000 *
+                                  // sizeof(double));
+        for (int j = 0; j < 120000; j++) sum += e[j] + ex[j];
         // really large requests would be those larger than the next upcoming
         // subpool size.
         // printf("%d. %p\n", i, e);
         //...
         // if (i > 23)
-        fp_mem_dealloc(e, 256);
+        // fp_mem_dealloc(e, 150000);
+        // fp_mem_dealloc(ex, 120000);
         // fp_mem_heapfree(e);
         // ex = fp_mem_alloc("ex as String", 14 * i * sizeof(char));
         // }
     }
+    printf("%f", sum);
+
+    // no pool -> 5.845s O3 S, 4.550 L
+    // pool + tracking -> 3.415 O3 S, 4.624 L
+    // pool no tracking -> 3.194 O3 S, 4.447 L
+    // stack storage -> 2.502s S, L
 
     // fp_mem_dealloc(d, 8);
+    fp_mem_dealloc(d3, 2);
+    fp_mem_dealloc(d2, 32);
     // fp_mem_heapfree(d3);
     // fp_mem_heapfree(d);
     // fp_mem_heapfree(d2);
@@ -340,9 +358,15 @@ int main()
     fp_mem_stats(true);
     fp_mem_stats(false);
 
-    printf("%d x %zu B -> %zu B SizeClassInfo\n",
-        fp_mem__SizeClassInfo_allocTotal, sizeof(fp_mem__SizeClassInfo),
-        fp_mem__SizeClassInfo_allocTotal * sizeof(fp_mem__SizeClassInfo));
+    fp_Dict_foreach(fp_mem__sizeDict, UInt64 key, fp_mem__SizeClassInfo * inf,
+        {
+            printf("size class %llu B -> %d ptrs, total %u B / actual %u B\n",
+                key, inf->arr.used, inf->arr.used * 8, inf->arr.cap * 8);
+        })
+
+        printf("%d x %zu B -> %zu B SizeClassInfo\n",
+            fp_mem__SizeClassInfo_allocTotal, sizeof(fp_mem__SizeClassInfo),
+            fp_mem__SizeClassInfo_allocTotal * sizeof(fp_mem__SizeClassInfo));
 
     printf("%d x %zu B -> %zu B fp_PtrList\n", fp_PtrList_allocTotal,
         sizeof(fp_PtrList), fp_PtrList_allocTotal * sizeof(fp_PtrList));
