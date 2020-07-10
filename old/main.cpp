@@ -2,8 +2,6 @@
 //  main.cpp
 //  checkcc
 //
-//  Created by Sushant on 05.05.20.
-//  Copyright © 2020 Hypercode GmbH. All rights reserved.
 //
 
 #include <cstdio>

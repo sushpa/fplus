@@ -181,7 +181,7 @@
 			isa = PBXProject;
 			attributes = {
 				LastUpgradeCheck = 1140;
-				ORGANIZATIONNAME = "Hypercode GmbH";
+				ORGANIZATIONNAME = "";
 				TargetAttributes = {
 					859CB3CD241BB2D400C32B9E = {
 						CreatedOnToolsVersion = 11.3.1;

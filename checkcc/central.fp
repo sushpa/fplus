@@ -23,6 +23,13 @@ function central2d(Q[:,:] as Real, by[:] as Real, axis as Int) result (dQ[:,:] a
         end if
     end for
 
+    for j = 1:Q.shape[nonaxis]
+        for i = 1:Q.shape[axis]
+            dQ[i,j] = (Q[i+1,j] - Q[i-1,j]) / (by[i+1]-by[i-1])
+        end for i
+    end for j
+
+
     -- return dQ
 end function
 

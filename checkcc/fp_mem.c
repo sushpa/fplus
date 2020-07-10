@@ -48,7 +48,7 @@ static fp_Dict(UInt64, Ptr) fp_mem__sizeDict[1] = {};
 // fp_mem__alloc(size,rawstr) -> rawstr a string, file/line/func are not added
 // fp_mem__dealloc(ptr, nbytes, rawstr) -> drop ptr with nbytes size
 
-#define FP_POOL_DISABLED
+// #define FP_POOL_DISABLED
 // #define NOHEAPTRACKER
 #ifdef FP_POOL_DISABLED // --------------------------------------------------
 #define fp_mem_alloc(nam, sz) fp_mem__alloc(sz, "")
@@ -304,13 +304,13 @@ int main()
 {
     EP;
     double* d = fp_mem_alloc("d", 8 * sizeof(double));
-    double* d3 = fp_mem_alloc("d3[] as Real", 2 * sizeof(double));
+    double* d3 = fp_mem_alloc("d3", 2 * sizeof(double));
     // fp_mem_dealloc(d3, 2);
 
-    double* d2 = fp_mem_alloc("d2 as MyType", 32 * sizeof(double));
+    double* d2 = fp_mem_alloc("d2", 32 * sizeof(double));
     double *e, *ex;
     double sum = 0.0;
-    for (int i = 0; i < 40000; i++) {
+    for (int i = 0; i < 10000000; i++) {
         // TODO: in such a tight and long loop, if the subpool is close to the
         // end around the start of the loop, most of the allocations will go to
         // the heap -> a new subpool will not be created at all if size > 256,
@@ -320,20 +320,22 @@ int main()
         // remainder, and alloc a new subpool anyway. direct fallthrough to
         // malloc should be only for requests that are really large.
         // to see the difference, change 256 to 257 below and see the effect.
-        e = (double[150000]) {}; // fp_mem_alloc("e", 150000 * sizeof(double));
-        ex = (double[120000]) {}; // fp_mem_alloc("ex", 120000 *
-                                  // sizeof(double));
-        for (int j = 0; j < 120000; j++) sum += e[j] + ex[j];
+        e = fp_mem_alloc("e", 32 * sizeof(double));
+        ex = fp_mem_alloc("ex", 32 * sizeof(double));
+        for (int j = 0; j < 32; j++) sum += e[j] + ex[j];
         // really large requests would be those larger than the next upcoming
         // subpool size.
         // printf("%d. %p\n", i, e);
         //...
         // if (i > 23)
-        // fp_mem_dealloc(e, 150000);
-        // fp_mem_dealloc(ex, 120000);
+        // fp_mem_dealloc(e, 32);
+        // fp_mem_dealloc(ex, 32);
         // fp_mem_heapfree(e);
         // ex = fp_mem_alloc("ex as String", 14 * i * sizeof(char));
         // }
+        // nopool: 3.5  alloc/free , 4.7  alloc/nofree
+        // pool: 2 , 4.10
+        // tracker: 3 , 1m45s
     }
     printf("%f", sum);
 
@@ -344,7 +346,7 @@ int main()
 
     // fp_mem_dealloc(d, 8);
     fp_mem_dealloc(d3, 2);
-    fp_mem_dealloc(d2, 32);
+    // fp_mem_dealloc(d2, 32);
     // fp_mem_heapfree(d3);
     // fp_mem_heapfree(d);
     // fp_mem_heapfree(d2);

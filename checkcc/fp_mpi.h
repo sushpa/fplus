@@ -8,8 +8,8 @@ fp_mpi_allToAll
 fp_mpi_broadcast
 fp_mpi_barrier
 
-function scatter(arr[:,:] as Number, source in 0:1) in 5:7.5
-
+function scatter(arr[:,:] as Number, source as Number) result (out as Number)
+ 
 function scatter(arr, source) result (out)
     let arr[:,:] as ~kg/s
     let source[:,:,:] in 0:1
