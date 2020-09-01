@@ -203,6 +203,12 @@ static void I_snap(Intv* intv)
         intv = intv->next;
     }
 }
+// if you had a func called nextnum like this:
+//     nextnum(num as Int) := num + 1
+//     nextnum(num as Real) := nextafter(num, DBL_MAX)
+// then you could have one snap function, and since it's probably the only
+// one that differs in Intv and FIntv, the whole thing could be templated.
+// actually it can be done straight in C++ and also with C macros.
 static void F_snap(FIntv* fintv)
 {
     // return;
@@ -383,7 +389,7 @@ static void I_ins1(Intv* intv, int64_t value)
 
 static Intv* I_new(int64_t lo, int64_t hi, Intv* next)
 {
-    Intv* I = NEW(Intv);
+    Intv* I = fp_new(Intv);
     I->hi = hi;
     I->lo = lo;
     I->next = next;
@@ -392,7 +398,7 @@ static Intv* I_new(int64_t lo, int64_t hi, Intv* next)
 
 static FIntv* F_new(double lo, double hi, FIntv* next)
 {
-    FIntv* I = NEW(FIntv);
+    FIntv* I = fp_new(FIntv);
     I->hi = hi;
     I->lo = lo;
     I->next = next;
@@ -438,13 +444,13 @@ static Intv* I_clone(Intv* other)
 static FIntv* F_clone(FIntv* other)
 {
     // deep clone all items in chain
-    FIntv* Io = F_clone1(other);
-    FIntv* I = Io;
-    while (I->next) {
-        I->next = F_clone1(I->next);
-        I = I->next;
+    FIntv* Fo = F_clone1(other);
+    FIntv* F = Fo;
+    while (F->next) {
+        F->next = F_clone1(F->next);
+        F = F->next;
     }
-    return Io;
+    return Fo;
 }
 
 static void I_jins(Intv* intv, Intv* other)
@@ -574,7 +580,7 @@ static void F_del1(FIntv* fintv, double value)
     // I_print(intv);
 }
 
-static void I_del(Intv* intv, Intv* other) { }
+static void I_del(Intv* intv, Intv* other) {}
 
 #define F_haz(F, v)                                                            \
     printf("%s %s %g\n", #F, F_find(F, v) ? "has" : "doesn't have", v);

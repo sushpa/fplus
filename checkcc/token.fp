@@ -1,101 +1,101 @@
 
-let TokenKindTable[256] = {
-    tkNullChar, tkUnknown, tkUnknown,
-    tkUnknown, tkUnknown, tkUnknown,
-    tkUnknown, tkUnknown, tkUnknown,
-    tkUnknown, tkNewline, tkUnknown,
-    tkUnknown, tkUnknown, tkUnknown,
-    tkUnknown, tkUnknown, tkUnknown,
-    tkUnknown, tkUnknown, tkUnknown,
-    tkUnknown, tkUnknown, tkUnknown,
-    tkUnknown, tkUnknown, tkUnknown,
-    tkUnknown, tkUnknown, tkUnknown,
-    tkUnknown, tkUnknown,
-    tkSpaces, tkExclamation,
-    tkStringBoundary, tkHash, tkDollar,
-    tkOpMod, tkAmpersand, tkRegexBoundary,
-    tkParenOpen, tkParenClose, tkTimes,
-    tkPlus,  tkOpComma, tkMinus,
-    tkPeriod, tkSlash, tkDigit,
-    tkDigit, tkDigit, tkDigit,
-    tkDigit, tkDigit, tkDigit,
-    tkDigit, tkDigit, tkDigit,
-    tkOpColon, tkOpSemiColon, tkOpLT,
-    tkOpAssign, tkOpGT, tkQuestion,
-    tkAt,
-    tkAlphabet, tkAlphabet, tkAlphabet,
-    tkAlphabet, tkAlphabet, tkAlphabet,
-    tkAlphabet, tkAlphabet, tkAlphabet,
-    tkAlphabet, tkAlphabet, tkAlphabet,
-    tkAlphabet, tkAlphabet, tkAlphabet,
-    tkAlphabet, tkAlphabet, tkAlphabet,
-    tkAlphabet, tkAlphabet, tkAlphabet,
-    tkAlphabet, tkAlphabet, tkAlphabet,
-    tkAlphabet, tkAlphabet,
-    tkArrayOpen, tkBackslash, tkArrayClose,
-    tkPower, tkUnderscore,
-    tkInlineBoundary,
-    tkAlphabet, tkAlphabet, tkAlphabet,
-    tkAlphabet, tkAlphabet, tkAlphabet,
-    tkAlphabet, tkAlphabet, tkAlphabet,
-    tkAlphabet, tkAlphabet, tkAlphabet,
-    tkAlphabet, tkAlphabet, tkAlphabet,
-    tkAlphabet, tkAlphabet, tkAlphabet,
-    tkAlphabet, tkAlphabet, tkAlphabet,
-    tkAlphabet, tkAlphabet, tkAlphabet,
-    tkAlphabet, tkAlphabet,
-    tkBraceOpen, tkPipe, tkBraceClose,
-    tkTilde,
-    tkUnknown, tkUnknown, tkUnknown,
-    tkUnknown, tkUnknown, tkUnknown,
-    tkUnknown, tkUnknown, tkUnknown,
-    tkUnknown, tkUnknown, tkUnknown,
-    tkUnknown, tkUnknown, tkUnknown,
-    tkUnknown, tkUnknown, tkUnknown,
-    tkUnknown, tkUnknown, tkUnknown,
-    tkUnknown, tkUnknown, tkUnknown,
-    tkUnknown, tkUnknown, tkUnknown,
-    tkUnknown, tkUnknown, tkUnknown,
-    tkUnknown, tkUnknown, tkUnknown,
-    tkUnknown, tkUnknown, tkUnknown,
-    tkUnknown, tkUnknown, tkUnknown,
-    tkUnknown, tkUnknown, tkUnknown,
-    tkUnknown, tkUnknown, tkUnknown,
-    tkUnknown, tkUnknown, tkUnknown,
-    tkUnknown, tkUnknown, tkUnknown,
-    tkUnknown, tkUnknown, tkUnknown,
-    tkUnknown, tkUnknown, tkUnknown,
-    tkUnknown, tkUnknown, tkUnknown,
-    tkUnknown, tkUnknown, tkUnknown,
-    tkUnknown, tkUnknown, tkUnknown,
-    tkUnknown, tkUnknown, tkUnknown,
-    tkUnknown, tkUnknown, tkUnknown,
-    tkUnknown, tkUnknown, tkUnknown,
-    tkUnknown, tkUnknown, tkUnknown,
-    tkUnknown, tkUnknown, tkUnknown,
-    tkUnknown, tkUnknown, tkUnknown,
-    tkUnknown, tkUnknown, tkUnknown,
-    tkUnknown, tkUnknown, tkUnknown,
-    tkUnknown, tkUnknown, tkUnknown,
-    tkUnknown, tkUnknown, tkUnknown,
-    tkUnknown, tkUnknown, tkUnknown,
-    tkUnknown, tkUnknown, tkUnknown,
-    tkUnknown, tkUnknown, tkUnknown,
-    tkUnknown, tkUnknown, tkUnknown,
-    tkUnknown, tkUnknown, tkUnknown,
-    tkUnknown, tkUnknown, tkUnknown,
-    tkUnknown, tkUnknown, tkUnknown,
-    tkUnknown, tkUnknown, tkUnknown,
-    tkUnknown, tkUnknown, tkUnknown,
-    tkUnknown, tkUnknown, tkUnknown,
-    tkUnknown, tkUnknown, tkUnknown
-end
+let TokenKindTable = [
+    .tkNullChar, .tkUnknown, .tkUnknown,
+    .tkUnknown, .tkUnknown, .tkUnknown,
+    .tkUnknown, .tkUnknown, .tkUnknown,
+    .tkUnknown, .tkNewline, .tkUnknown,
+    .tkUnknown, .tkUnknown, .tkUnknown,
+    .tkUnknown, .tkUnknown, .tkUnknown,
+    .tkUnknown, .tkUnknown, .tkUnknown,
+    .tkUnknown, .tkUnknown, .tkUnknown,
+    .tkUnknown, .tkUnknown, .tkUnknown,
+    .tkUnknown, .tkUnknown, .tkUnknown,
+    .tkUnknown, .tkUnknown,
+    .tkSpaces, .tkExclamation,
+    .tkStringBoundary, .tkHash, .tkDollar,
+    .tkOpMod, .tkAmpersand, .tkRegexBoundary,
+    .tkParenOpen, .tkParenClose, .tkTimes,
+    .tkPlus,  .tkOpComma, .tkMinus,
+    .tkPeriod, .tkSlash, .tkDigit,
+    .tkDigit, .tkDigit, .tkDigit,
+    .tkDigit, .tkDigit, .tkDigit,
+    .tkDigit, .tkDigit, .tkDigit,
+    .tkOpColon, .tkOpSemiColon, .tkOpLT,
+    .tkOpAssign, .tkOpGT, .tkQuestion,
+    .tkAt,
+    .tkAlphabet, .tkAlphabet, .tkAlphabet,
+    .tkAlphabet, .tkAlphabet, .tkAlphabet,
+    .tkAlphabet, .tkAlphabet, .tkAlphabet,
+    .tkAlphabet, .tkAlphabet, .tkAlphabet,
+    .tkAlphabet, .tkAlphabet, .tkAlphabet,
+    .tkAlphabet, .tkAlphabet, .tkAlphabet,
+    .tkAlphabet, .tkAlphabet, .tkAlphabet,
+    .tkAlphabet, .tkAlphabet, .tkAlphabet,
+    .tkAlphabet, .tkAlphabet,
+    .tkArrayOpen, .tkBackslash, .tkArrayClose,
+    .tkPower, .tkUnderscore,
+    .tkInlineBoundary,
+    .tkAlphabet, .tkAlphabet, .tkAlphabet,
+    .tkAlphabet, .tkAlphabet, .tkAlphabet,
+    .tkAlphabet, .tkAlphabet, .tkAlphabet,
+    .tkAlphabet, .tkAlphabet, .tkAlphabet,
+    .tkAlphabet, .tkAlphabet, .tkAlphabet,
+    .tkAlphabet, .tkAlphabet, .tkAlphabet,
+    .tkAlphabet, .tkAlphabet, .tkAlphabet,
+    .tkAlphabet, .tkAlphabet, .tkAlphabet,
+    .tkAlphabet, .tkAlphabet,
+    .tkBraceOpen, .tkPipe, .tkBraceClose,
+    .tkTilde,
+    .tkUnknown, .tkUnknown, .tkUnknown,
+    .tkUnknown, .tkUnknown, .tkUnknown,
+    .tkUnknown, .tkUnknown, .tkUnknown,
+    .tkUnknown, .tkUnknown, .tkUnknown,
+    .tkUnknown, .tkUnknown, .tkUnknown,
+    .tkUnknown, .tkUnknown, .tkUnknown,
+    .tkUnknown, .tkUnknown, .tkUnknown,
+    .tkUnknown, .tkUnknown, .tkUnknown,
+    .tkUnknown, .tkUnknown, .tkUnknown,
+    .tkUnknown, .tkUnknown, .tkUnknown,
+    .tkUnknown, .tkUnknown, .tkUnknown,
+    .tkUnknown, .tkUnknown, .tkUnknown,
+    .tkUnknown, .tkUnknown, .tkUnknown,
+    .tkUnknown, .tkUnknown, .tkUnknown,
+    .tkUnknown, .tkUnknown, .tkUnknown,
+    .tkUnknown, .tkUnknown, .tkUnknown,
+    .tkUnknown, .tkUnknown, .tkUnknown,
+    .tkUnknown, .tkUnknown, .tkUnknown,
+    .tkUnknown, .tkUnknown, .tkUnknown,
+    .tkUnknown, .tkUnknown, .tkUnknown,
+    .tkUnknown, .tkUnknown, .tkUnknown,
+    .tkUnknown, .tkUnknown, .tkUnknown,
+    .tkUnknown, .tkUnknown, .tkUnknown,
+    .tkUnknown, .tkUnknown, .tkUnknown,
+    .tkUnknown, .tkUnknown, .tkUnknown,
+    .tkUnknown, .tkUnknown, .tkUnknown,
+    .tkUnknown, .tkUnknown, .tkUnknown,
+    .tkUnknown, .tkUnknown, .tkUnknown,
+    .tkUnknown, .tkUnknown, .tkUnknown,
+    .tkUnknown, .tkUnknown, .tkUnknown,
+    .tkUnknown, .tkUnknown, .tkUnknown,
+    .tkUnknown, .tkUnknown, .tkUnknown,
+    .tkUnknown, .tkUnknown, .tkUnknown,
+    .tkUnknown, .tkUnknown, .tkUnknown,
+    .tkUnknown, .tkUnknown, .tkUnknown,
+    .tkUnknown, .tkUnknown, .tkUnknown,
+    .tkUnknown, .tkUnknown, .tkUnknown,
+    .tkUnknown, .tkUnknown, .tkUnknown,
+    .tkUnknown, .tkUnknown, .tkUnknown,
+    .tkUnknown, .tkUnknown, .tkUnknown,
+    .tkUnknown, .tkUnknown, .tkUnknown,
+    .tkUnknown, .tkUnknown, .tkUnknown,
+    .tkUnknown, .tkUnknown, .tkUnknown
+]
 
 
 #define Token_matchesKeyword(tok)                                              \
-    # if (sizeof(#tok) - 1 == l and not strncmp(#tok, s, l)) return true
+    # if (sizeof(#tok) - 1 == l and not strncmp(#tok, s, l)) return yes
 
-static bool doesKeywordMatch(const char* s, const int l)
+function doesKeywordMatch(s as String, l as Number)
 {
 
     Token_matchesKeyword(and)
@@ -123,7 +123,7 @@ static bool doesKeywordMatch(const char* s, const int l)
     Token_matchesKeyword(return)
     Token_matchesKeyword(result)
     Token_matchesKeyword(as)
-    return false
+    return no
 end
 
 type Token
@@ -145,7 +145,7 @@ end type
 function peekCharAfter(token as Token) result (s as String)
     var i = token.matchlen
     if token.skipWhiteSpace
-        do j = 1len(s)
+        do j = 1:len(s)
             # we definitely need to allow auto converting bool to 0 or 1
             # if token.pos[i] == " " then i += 1
             i += (token.pos[j] == " ") # no branching
@@ -166,7 +166,7 @@ end function
 
 #define Token_compareKeyword(tok)                                              \
     # if (sizeof(#tok) - 1 == l and not strncmp(#tok, s, l)) {                   \
-    #     token.kind = tkKeyword_##tok                                          \
+    #     token.kind = .tkKeyword_##tok                                          \
     #     return                                                                \
     # end
 
@@ -175,7 +175,7 @@ end function
 static void Token_tryKeywordMatch(Token* token)
 {
     # TODO USE A DICT OR MPH FOR THIS!
-    if (token.kind != tkIdentifier) return
+    if (token.kind != .tkIdentifier) return
 
     const char* s = token.pos
     const int l = token.matchlen
@@ -211,7 +211,7 @@ static void Token_tryKeywordMatch(Token* token)
     #        Token_compareKeyword(print)
     #     if (sizeof("else if") - 1 == l and not strncmp("else if", s, l))
     # {
-    #     token.kind = tkKeyword_elseif
+    #     token.kind = .tkKeyword_elseif
     #     return
     # end
 end
@@ -223,85 +223,85 @@ function getType(token as Token, offs as Int) result (ret as TokenKind)
     const char cn = c ? token.pos[1 + offset]  0
     ret = (TokenKind)TokenKindTable[c]
     match token.pos
-    let map = {
-        `^<=` = TokenKind.opLE
+    let map[Regex] as TokenKind = {
+        `^<=` = .opLE
         `^==` = .opEQ
     }
     do i, k, v = map
-        if match(token.pos, regex = k) then ret = v
+        if match(token=token, regex=k) then ret = v
     end do
 
     case "<"
         match cn
         case "="
-            return tkOpLE
+            return .tkOpLE
         case else
-            return tkOpLT
+            return .tkOpLT
         end match
     case ">"
         match cn
         case "="
-            return tkOpGE
+            return .tkOpGE
         case else
-            return tkOpGT
+            return .tkOpGT
         end match
     case "="
         match cn
         case "="
-            return tkOpEQ
+            return .tkOpEQ
         case ">"
-            return tkOpResults
+            return .tkOpResults
         case else
-            return tkOpAssign
+            return .tkOpAssign
         end
     case "+"
         match cn
         case "="
-            return tkPlusEq
+            return .tkPlusEq
         end
-        return tkPlus
+        return .tkPlus
     case "-"
         match cn
         case "="
-            return tkMinusEq
+            return .tkMinusEq
         end
-        return tkMinus
+        return .tkMinus
     case "*"
         match cn
         case "="
-            return tkTimesEq
+            return .tkTimesEq
         end
-        return tkTimes
+        return .tkTimes
     case "/"
         match cn
         case "="
-            return tkSlashEq
+            return .tkSlashEq
         end
-        return tkSlash
+        return .tkSlash
     case "^"
         match cn
         case "="
-            return tkPowerEq
+            return .tkPowerEq
         end
-        return tkPower
+        return .tkPower
     case "%"
         match cn
         case "="
-            return tkOpModEq
+            return .tkOpModEq
         end
-        return tkOpMod
+        return .tkOpMod
     case "!"
         match cn
         case "="
-            return tkOpNE
+            return .tkOpNE
         end
-        return tkExclamation
+        return .tkExclamation
     case ""
         match cn
         case "="
-            return tkColEq
+            return .tkColEq
         case else
-            return tkOpColon
+            return .tkOpColon
         end
     case else
         return ret
@@ -310,213 +310,204 @@ end
 
 static void Token_detect(Token* token)
 {
-    TokenKind tt = Token_getType(token, 0)
-    TokenKind tt_ret = tkUnknown # = tt
-    static TokenKind tt_last
-        = tkUnknown # the previous token.token that was found
-    static TokenKind tt_lastNonSpace
-        = tkUnknown # the last non-space token.token found
+    var tt = getType(token=token, offs=0)
+    var tt_ret as TokenKind = .tkUnknown # = tt
+    var tt_last as TokenKind = .tkUnknown # the previous token.token that was found
+    var tt_lastNonSpace as TokenKind = .tkUnknown # the last non-space token.token found
     TokenKind tmp
     char* start = token.pos
-    bool found_e = false, found_dot = false, found_cmt = false
+    bool found_e = no, found_dot = no, found_cmt = no
     uint8_t found_spc = 0
 
     match tt
-    case tkStringBoundary
-    case tkInlineBoundary
-    case tkRegexBoundary
+    case .tkStringBoundary
+    case .tkInlineBoundary
+    case .tkRegexBoundary
         tmp = tt # remember which it is exactly
 
         # Incrementing pos is a side effect of getTypeAtCurrentPos(...)
-        while (tt != tkNullChar) {
+        while (tt != .tkNullChar) {
             # here we want to consume the ending " so we move next
             # before
             token.pos++
-            tt = Token_getType(token, 0)
-            if (tt == tkNullChar or tt == tmp) {
+            tt = getType(token=token, 0)
+            if (tt == .tkNullChar or tt == tmp) {
                 *token.pos = 0
                 token.pos++
                 break
             end
-            if (tt == tkBackslash)
-                if (Token_getType(token, 1) == tmp) { # why if?
-                    token.pos++
-                end
-        end
+            if tt == .tkBackslash and getType(token=token, offs=1) == tmp # why if?
+                token.pos+=1
+            end if
         match tmp
-        case tkStringBoundary
-            tt_ret = tkString
+        case .tkStringBoundary
+            tt_ret = .tkString
             break
-        case tkInlineBoundary
-            tt_ret = tkInline
+        case .tkInlineBoundary
+            tt_ret = .tkInline
             break
-        case tkRegexBoundary
-            tt_ret = tkRegex
+        case .tkRegexBoundary
+            tt_ret = .tkRegex
             break
         case else
-            tt_ret = tkUnknown
+            tt_ret = .tkUnknown
             printf("unreachable %s%d\n", __FILE__, __LINE__)
         end
         break
 
-    case tkSpaces
-        if (tt_last == tkOneSpace) # if prev char was a space return
+    case .tkSpaces
+        if (tt_last == .tkOneSpace) # if prev char was a space return
                                    # this as a run of spaces
-            while (tt != tkNullChar) {
+            while (tt != .tkNullChar) {
                 # here we dont want to consume the end char, so break
                 # before
-                tt = Token_getType(token, 1)
+                tt = getType(token=token, 1)
                 token.pos++
-                if (tt != tkSpaces) break
+                if (tt != .tkSpaces) break
             end
         else
             token.pos++
         # else its a single space
-        tt_ret = tkSpaces
+        tt_ret = .tkSpaces
         break
 
-    case tkOpComma
-    case tkOpSemiColon
+    case .tkOpComma
+    case .tkOpSemiColon
         #        line continuation tokens
         tt_ret = tt
 
-        while (tt != tkNullChar) {
-            tt = Token_getType(token, 1)
-            token.pos++
+        while tt != .tkNullChar
+            tt = getType(token=token, 1)
+            token.pos += 1
             # line number should be incremented for line continuations
-            if (tt == tkSpaces) {
-                found_spc++
-            end
-            if (tt == tkExclamation) {
-                found_cmt = true
-            end
-            if (tt == tkNewline) {
-                token.line++
+            if tt == .tkSpaces then found_spc++
+            if tt == .tkExclamation then found_cmt = yes
+            if tt == .tkNewline
+                token.line += 1
                 token.col = -found_spc - 1 # account for extra spaces
                                             # after , and for nl itself
                 found_spc = 0
-            end
-            if (found_cmt and tt != tkNewline) {
+            end if
+            if found_cmt and tt != .tkNewline
                 found_spc++
-                continue
-            end
-            if (tt != tkSpaces and tt != tkNewline) break
-        end
+                skip
+            end if
+            if tt != .tkSpaces and tt != .tkNewline then break
+        end while
         break
 
-    case tkArrayOpen
+    case .tkArrayOpen
         # mergearraydims should be set only when reading func args
-        if (not token.mergeArrayDims) goto defaultToken
+        if not token.mergeArrayDims goto defaultToken
 
-        while (tt != tkNullChar) {
-            tt = Token_getType(token, 1)
-            token.pos++
-            if (tt != tkOpColon and tt != tkOpComma) break
-        end
-        tt = Token_getType(token, 0)
-        if (tt != tkArrayClose) {
-            eprintf("expected a "]", found a "%c". now what?\n", *token.pos)
-        end
-        token.pos++
-        tt_ret = tkArrayDims
-        break
+        while tt != .tkNullChar
+            tt = getType(token=token, offs=1)
+            token.pos += 1
+            if (tt != .tkOpColon and tt != .tkOpComma) break
+        end while
+        tt = getType(token=token, offs=0)
+        if tt != .tkArrayClose
+            let char = token.pos[1]
+            write("Expected a ']', found a '$char'. now what?")
+        end if
+        token.pos += 1
+        tt_ret = .tkArrayDims
 
-    case tkAlphabet
-        # case tkPeriod
-    case tkUnderscore
-        while (tt != tkNullChar) {
-            tt = Token_getType(token, 1)
+    case .tkAlphabet
+        # case .tkPeriod
+    case .tkUnderscore
+        while (tt != .tkNullChar) {
+            tt = getType(token=token, offs=1)
             token.pos++
-            if (tt != tkAlphabet and tt != tkDigit and tt != tkUnderscore)
-                # and tt != tkPeriod)
+            if (tt != .tkAlphabet and tt != .tkDigit and tt != .tkUnderscore)
+                # and tt != .tkPeriod)
                 break #/ validate in parser not here
         end
-        tt_ret = tkIdentifier
+        tt_ret = .tkIdentifier
         break
 
-    case tkHash # tkExclamation
-        while (tt != tkNullChar) {
-            tt = Token_getType(token, 1)
-            token.pos++
-            if (tt == tkNewline) break
+    case .tkHash # .tkExclamation
+        while (tt != .tkNullChar) {
+            tt = getType(token=token, offs=1)
+            token.pos+=1
+            if (tt == .tkNewline) break
         end
-        tt_ret = tkLineComment
+        tt_ret = .tkLineComment
         break
 
-    case tkPipe
-        while (tt != tkNullChar) {
-            tt = Token_getType(token, 1)
+    case .tkPipe
+        while (tt != .tkNullChar) {
+            tt = getType(token=token, 1)
             token.pos++
-            if (tt != tkAlphabet and tt != tkDigit and tt != tkSlash
-                and tt != tkPeriod)
+            if (tt != .tkAlphabet and tt != .tkDigit and tt != .tkSlash
+                and tt != .tkPeriod)
                 break
         end
-        tt_ret = tkUnits
+        tt_ret = .tkUnits
         break
 
-    case tkDigit
-        tt_ret = tkNumber
+    case .tkDigit
+        tt_ret = .tkNumber
 
-        while (tt != tkNullChar) # EOF, basically null char
+        while (tt != .tkNullChar) # EOF, basically null char
         {
-            tt = Token_getType(token, 1)
+            tt = getType(token=token, 1)
             # numbers such as 1234500.00 are allowed
             # very crude, error-checking is parser"s job
             token.pos++
 
-            if (*token.pos == "e" or *token.pos == "E" or *token.pos == "d"
-                or *token.pos == "D") { # will all be changed to e btw
-                found_e = true
-                continue
-            end
-            if (found_e) {
-                found_e = false
-                continue
-            end
-            if (tt == tkPeriod) {
-                found_dot = true
-                continue
-            end
-            if (found_dot and tt == tkPeriod) tt_ret = tkMultiDotNumber
+            if match(string=token.pos, prefix=["e","E","d","D"])
+            # if (*token.pos == "e" or *token.pos == "E" or *token.pos == "d"
+            #     or *token.pos == "D") { # will all be changed to e btw
+                found_e = yes
+                skip
+            end if
+            if found_e #) {
+                found_e = no
+                skip
+            end if
+            if tt == .tkPeriod #) {
+                found_dot = yes
+                skip
+            end if
+            if found_dot and tt == .tkPeriod then tt_ret = .tkMultiDotNumber
 
-            if (tt != tkDigit and tt != tkPeriod and *token.pos != "i") break
+            if tt != .tkDigit and tt != .tkPeriod and _
+                token.pos[1] != "i" then break
         end
         break
 
-    case tkMinus
+    case .tkMinus
 
         match tt_lastNonSpace
-        case tkParenClose
-        case tkIdentifier # TODO keywords too?
-        case tkNumber
-        case tkArrayClose
-        case tkArrayDims
-        case tkMultiDotNumber
+        case .tkParenClose
+        case .tkIdentifier # TODO keywords too?
+        case .tkNumber
+        case .tkArrayClose
+        case .tkArrayDims
+        case .tkMultiDotNumber
             tt_ret = tt
-            break
         case else
-            tt_ret = tkUnaryMinus
-            break
-        end
+            tt_ret = .tkUnaryMinus
+        end match
         token.pos++
-        break
 
-    case tkOpNotResults
+    case .tkOpNotResults
         # 3-char tokens
         token.pos++
-    case tkOpEQ
-    case tkOpGE
-    case tkOpLE
-    case tkOpNE
-    case tkOpResults
-    case tkBackslash
-    case tkColEq
-    case tkPlusEq
-    case tkMinusEq
-    case tkTimesEq
-    case tkSlashEq
-    case tkPowerEq
-    case tkOpModEq
+    case .tkOpEQ
+    case .tkOpGE
+    case .tkOpLE
+    case .tkOpNE
+    case .tkOpResults
+    case .tkBackslash
+    case .tkColEq
+    case .tkPlusEq
+    case .tkMinusEq
+    case .tkTimesEq
+    case .tkSlashEq
+    case .tkPowerEq
+    case .tkOpModEq
 
         # 2-char tokens
         token.pos++
@@ -531,12 +522,12 @@ static void Token_detect(Token* token)
     token.pos = start
     token.kind = tt_ret
 
-    if (token.kind == tkIdentifier) Token_tryKeywordMatch(token)
+    if (token.kind == .tkIdentifier) Token_tryKeywordMatch(token)
 
-    if (token.kind == tkSpaces and token.matchlen == 1) token.kind = tkOneSpace
+    if (token.kind == .tkSpaces and token.matchlen == 1) token.kind = .tkOneSpace
 
     tt_last = token.kind
-    if (tt_last != tkOneSpace and tt_last != tkSpaces)
+    if (tt_last != .tkOneSpace and tt_last != .tkSpaces)
         tt_lastNonSpace = tt_last
 end
 
@@ -544,39 +535,39 @@ end
 static void Token_advance(Token* token)
 {
     match token>ind) {
-    case tkIdentifier
-    case tkString
-    case tkNumber
-    case tkMultiDotNumber
-    case tkFunctionCall
-    case tkSubscript
-    case tkDigit
-    case tkAlphabet
-    case tkRegex
-    case tkInline
-    case tkUnits
-    case tkKeyword_cheater
-    case tkKeyword_for
-    case tkKeyword_while
-    case tkKeyword_if
-    case tkKeyword_end
-    case tkKeyword_function
-    case tkKeyword_test
-    case tkKeyword_not
-    case tkKeyword_and
-    case tkKeyword_or
-    case tkKeyword_in
-    case tkKeyword_do
-    case tkKeyword_then
-    case tkKeyword_as
-    case tkKeyword_else
-    case tkKeyword_type
-    case tkKeyword_return
-    case tkKeyword_extends
-    case tkKeyword_var
-    case tkKeyword_let
-    case tkKeyword_import
-    case tkUnknown # bcz start of the file is this
+    case .tkIdentifier
+    case .tkString
+    case .tkNumber
+    case .tkMultiDotNumber
+    case .tkFunctionCall
+    case .tkSubscript
+    case .tkDigit
+    case .tkAlphabet
+    case .tkRegex
+    case .tkInline
+    case .tkUnits
+    case .tkKeyword_cheater
+    case .tkKeyword_for
+    case .tkKeyword_while
+    case .tkKeyword_if
+    case .tkKeyword_end
+    case .tkKeyword_function
+    case .tkKeyword_test
+    case .tkKeyword_not
+    case .tkKeyword_and
+    case .tkKeyword_or
+    case .tkKeyword_in
+    case .tkKeyword_do
+    case .tkKeyword_then
+    case .tkKeyword_as
+    case .tkKeyword_else
+    case .tkKeyword_type
+    case .tkKeyword_return
+    case .tkKeyword_extends
+    case .tkKeyword_var
+    case .tkKeyword_let
+    case .tkKeyword_import
+    case .tkUnknown # bcz start of the file is this
         break
     case else
         *token.pos = 0 # trample it so that idents etc. can be assigned
@@ -586,16 +577,16 @@ static void Token_advance(Token* token)
     token.pos += token.matchlen
     token.col += token.matchlen
     token.matchlen = 0
-    Token_detect(token)
+    detect(token=token)
 
-    if (token.kind == tkNewline) {
+    if token.kind == .tkNewline
         # WHY don"t you do token.token advance here?
-        token.line++
+        token.line += 1
         token.col = 0 # position of the nl itself is 0
-    end
+    end if
     if (token.skipWhiteSpace
-        and (token.kind == tkSpaces
-            or (token.strictSpacing and token.kind == tkOneSpace)))
-        Token_advance(token)
-end
+        and (token.kind == .tkSpaces
+            or (token.strictSpacing and token.kind == .tkOneSpace)))
+        advance(token=token!, ignore=no)
+end function
 #

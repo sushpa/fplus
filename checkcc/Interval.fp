@@ -1,12 +1,29 @@
 
-type Range
+type _Range
     var lo = 0
-    var hi = 0
+    var _hi = 0
     always lo <= hi
 end type
 
-products(a as Range, b as Range) :=
+# only funcs, types and module lets can be named starting with a _
+# (case restrictions still apply) and these will be private i.e. not show up
+# in IDE autocomplete etc.
+# ALL functions will anyway be C static since we build monolithic. If ever
+# incremental compilation is brought in, let's see, we'll need to mark publics
+# instead of marking privates.
+
+# *** JUST DO THIS: declare it UB for private vars to be written, ask all IDEs
+# to filter out _var names, and be done with it.
+
+# funcs using a private type must be private!
+products(a as _Range, b as Range) :=
     [ a.lo*b.lo, a.lo*b.hi, a.hi*b.lo, a.hi*b.hi ]
+
+# if you want to make types public/private as well, then types containing
+# items of private type must themselves be private. unless you plan on making
+# type members private / public! (which might be better)
+
+let some = _Range(5) # vars can still remain public since they are eval'd
 
 Range(x as Real) :=
     Range(lo = x, hi = x)
@@ -25,7 +42,7 @@ mul(a as Range, b as Range) :=
     # i guess if it is a #define, then C backend will apply
     # CSE on the muls
 
-function div(a as Range, b as Range) result (ret as Range)
+function _div(a as Range, b as Range) result (ret as Range)
     requires not b contains 0
     ret = Range(lo = a.lo / b.lo, hi = a.hi / b.hi) # NO!!
 end function
@@ -37,7 +54,10 @@ function log(a as Range) result (ret as Range)
     ret = Range(lo = log(a.lo), hi = log(a.hi))
 end function
 
-log(a[] as Range) := snap(Range(lo = log(a[:].lo), hi = log(a[:].hi)))
+let _six = Range(6)
+
+_log(a[] as Range) :=
+    snap(Range(lo = log(a[:].lo), hi = log(a[:].hi)))
 
 # function log(a[] as Range) result (ret[] as Range)
 function log(inp as List of Range)
@@ -47,34 +67,41 @@ function log(inp as List of Range)
     }
     var symTable as Dict of String of ASTNode = {
         "map" = { .kind = .tkOpColon },
-        "third" = { .kind = .tkKeywordIf },
+        "third" = { .kind = .tkKeywordIf }
     }
     var symTable as Dict of String and ASTNode = {
         "map" = ASTNode(kind = .tkOpColon),
         "third" = ASTNode(kind = .tkKeywordIf)
     }
+
+    var d as Range = {
+        .lo = 33,
+        .hi = 35,
+        .next = nil
+    }
+
     -- range literals are just like array literals. How to disambiguate?
     # resize(&ret, to = size(a))
     # requires a[0].lo > 0
     # requires not a intersects [-inf:0]
     # ret = snap(Range(lo = log(a[:].lo), hi = log(a[:].hi)))
-    for i = 1 to size(inp) do push(&ans, item: log(inp[i]))
+    for i = 1:len(inp) do push(&ans, item=log(inp[i]))
     ans = snap(ans)
 #  as List@Range
 end function
 
-
-function recip(a as Range) result (ret as Range)
+function _recip(a as Range) result (ret as Range)
     requires not a contains 0
-    ret = Range(lo = 1/a.hi, hi = 1/a.lo)
+    ret = Range(lo=1/a.hi, hi=1/a.lo)
 end function
 
-function sin(a as Range) result (ret as Range)
-    ret = Range(lo = msin(a.lo), hi = mcos(a.hi))
-    ensures ret within [-1,1]
+function _sin(a as Range) result (ret as Range)
+    ret = Range(lo=msin(a.lo), hi=mcos(a.hi))
+    ensures ret within [-1:1]
 end function
 
-flip(a as Range) := Range(lo = -a.hi, hi = -a.lo)
+_flip(a as Range) :=
+    Range(lo = -a.hi, hi = -a.lo)
  # * -1
 
 # negate(a as Range, b as Range) := [
@@ -82,12 +109,11 @@ flip(a as Range) := Range(lo = -a.hi, hi = -a.lo)
 #     Range(lo = a.lo + b.lo, hi = a.hi + b.hi),
 # ]
  # but this would ret = 2 intervals: [-1, 1] -> [-inf, -1], [1, +inf]
-negate(a as Range) :=
+_negate(a as Range) :=
     NotInterval(lo = a.lo, hi = a.hi)
 
-unite(a as Range, b as Range) :=
-    Range(lo = a.lo + b.lo, hi = a.hi + b.hi)
+_unite(a as Range, b as Range) := Range(lo = a.lo + b.lo, hi=a.hi+b.hi)
 
-intersect(a as Range, b as Range) :=
+_intersect(a as Range, b as Range) :=
     Range(lo = max(a.lo, b.lo), hi = min(a.hi, b.hi)) or nil # might violate invariant
 

@@ -453,7 +453,7 @@ static void Token_detect(Token* self)
         {
             tt = Token_getType(self, 1);
             // numbers such as 1234500.00 are allowed
-            // very crude, error-checking is parser's job
+            // very crude, error-checking is parser's job not tokenizer's
             self->pos++;
 
             if (*self->pos == 'e' or *self->pos == 'E' or *self->pos == 'd'

@@ -1,6 +1,5 @@
 int touch(char* strFilename)
 {
-    = "c:\\test.txt";
     BOOL bRet = FALSE;
     HANDLE hFile = CreateFile(strFilename, GENERIC_WRITE, FILE_SHARE_READ, NULL,
         OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);

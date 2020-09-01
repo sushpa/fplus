@@ -25,7 +25,7 @@ test "chstr"
     print(len(ss))
     check ss[3] == "brown"
     #free ss
-    var m = replace(s, what = "wuick", with = "bhingora")
+    var m = replace(s, this = "wuick", with = "bhingora")
     check m == "The bhingora brown dox"
     #free m
     var t = replace(s, map = ["wuick" = "quick", "dox" = "fox"])
@@ -38,7 +38,7 @@ test "chstrint"
     var m = "The quick"
     var j = "brown fox"
     var u = "jumps over"
-    var ret = "{{m}} {{j}} {{u}} the lazy dog."
+    var ret = "$m $j $u the lazy dog."
     print(ret)
 end test
 

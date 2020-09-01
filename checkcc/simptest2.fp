@@ -4,7 +4,8 @@ declare function print(wf as Number)
 declare function print(ws as Strings, filter as Number)
 declare function random(wr as Range)
 
-function start(args as Strings) returns Number
+function start(args as Strings) result (x as Number)
+    x = 6
     var arr as Number[] = [1, 2, 3, 4, 5]
     print(arr[3])
     print(arr)

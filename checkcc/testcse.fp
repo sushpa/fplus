@@ -13,7 +13,7 @@ function main(args[] as String) result Number
     # check len(args[]) > 1
 
     print("Hello")
-    print("Hello", wha = 5)
+    print("Hello", wha=5)
     var m = 0
     m = 3 + 5
 
