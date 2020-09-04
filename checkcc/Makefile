@@ -15,5 +15,8 @@ checkc-s.bin: main.c *.h
 checkc-d.bin: main.c *.h
 	$(CPP) -g -O0 $(CCFLAGS) $< -lc -o $@
 
+checkc-cov.bin: main.c *.h
+	$(CPP) -g -fprofile-arcs -ftest-coverage -O0 $(CCFLAGS) $< -lc -o $@
+
 clean:
 	@rm -r a.out* *.bin.* *.bin aout.c > /dev/null 2>&1; true

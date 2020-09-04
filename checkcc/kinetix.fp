@@ -1,0 +1,395 @@
+--
+-- Chemistry reader and other misc I/O functions
+--
+
+
+function processSpec(&f as File) result (species as Species)
+    let line = readline(&f)
+    let coeffDict = line2coeffs(line)
+    species = Species(coeffDict)
+end function
+
+function processReaction(&f as File) result (reaction as Reaction)
+    var line = readline(&f)
+    let coeffDictLHS = line2coeffs(line)
+    line = readline(&f)
+    let coeffDictRHS = line2coeffs(line)
+    line = readline(&f)
+    let AbE = num(line)
+    line = readline(&f)
+    let aAbE = num(line)
+    let rev = (aAbE[0] == 0)
+    reaction = Reaction(rev, coeffDictLHS, coeffDictRHS, AbE, aAbE)
+end function
+
+function processThermo(&f as File) result (thermo as JanafThermo)
+    var line = readline(&f)
+    let Ts = num(line)
+    line = readline(&f)
+    let coeffsLow = num(line)
+    line = readline(&f)
+    let coeffsHigh = num(line)
+    thermo = JanafThermo(low=coeffsLow, high=coeffsHigh, ts=Ts)
+end function
+----
+
+function readline(&f as File) result (line as String)
+    let raw = uppercase(strip(io.readline(&f)))
+    let lc = split(raw, at='!', limit=2, keep=no)
+    line = lc[0]
+    # if matches(line, regex=`^!`)
+    #     line = ""
+    # else if matches(line, regex=`!`)
+    #     let lc = split(line, at='!', limit=2, keep=no)
+    #     line = lc[0]
+    # end if
+end function
+
+function coeffspec(str as String)
+    let chars = split(str, at="")
+    var i = 0
+
+    for char = chars
+        if isdigit(char) or char == "."
+            i += 1
+        else
+            break
+        end if
+    end for
+
+    if i > 0
+        coeff = num(join(chars[1:i]))
+        spec = join(chars[i+1:end])
+    else
+        coeff = 1.0
+        spec = str
+    end if
+
+    return (coeff, spec)
+end function
+
+# function num(line)
+#     words = split(line)
+#     map(x->num(Real, x), words)
+# end
+# just use num(line)
+
+# function line2coeffs(line as String) result (dict[String] as Real)
+#     words = split(line)
+#     dict = words2coeffs(words)
+# end
+
+line2coeffs(line as String) := words2coeffs(split(line))
+function words2coeffs(words[] as String, swap=no) result (coeffDict[String] as Real)
+    check (iseven(len(words)))
+    # coeffDict = {} -- dict is already inited empty
+    for i = 1:2:len(words)
+        ikey = i + 1
+        ival = i
+
+        if swap then swap(&ikey, &ival)
+        -- should you prohibit global func / type names being used as vars?
+
+        key = words[ikey]
+        val = num(words[ival])
+
+        coeffDict[key] = val
+    end for
+end function
+
+
+function printElements()
+    print("Number of elements:", len(elements))
+    for (ekey, element) = elements
+        print("Element: $ekey")
+        print("  W = ", element.W)
+    end for
+    print(elements_used)
+end function
+
+function printSpecies()
+    for (key, spec) = species
+        printf("%-20s ", key)
+        --print(elements_used)
+        print(spec.elemCoeffs)
+     --   for elem in keys(elements) --_used
+     --       in(spec.elemCoeffs, elem) or skip
+     --       @printf "%f" spec.elemCoeffs[elem]
+     --   end
+        printf("%f", spec.W)
+        print()
+    end for
+end function
+
+function printThermos()
+    for (tkey, th) = thermos
+        print("Thermo: $tkey")
+        print(th.aLo)
+        print(th.aHi)
+        print(th.TLo, th.THi, th.TCo)
+        thermo.discontinuity(th)
+    end for
+end function
+
+function printReactionLine(rxn as Reaction)
+    for (k, v) = rxn.reactants
+        if v != 1.0 then print(v)
+        print("$k ")
+    end for
+
+    if rxn.reversible then print("<")
+    print("=> ")
+
+    for (k, v) = rxn.products
+        if v != 1.0 then print(v)
+        print("$k ")
+    end for
+
+    print()
+end function
+
+function printReactions(reactions[String] as Reaction)
+    for (rkey, reaction) = reactions
+        --ireac=num(rkey)
+        --ireac>2232 and ireac<2242 or skip
+        print("\nReaction: $rkey")
+        printReactionLine(reaction)
+        --print("products: ", reaction.products)
+        --print("reactants: ", reaction.reactants)
+        if reaction.Other.active then print("Low/High: ", reaction.Other)
+        if reaction.Troe.active then print("Troe coeffs: ", reaction.Troe)
+        if reaction.M.active then print("M: ", reaction.M.alpha)
+
+        mechanism.checkAtomBalance(reaction, species, elements)
+
+        if reaction.kf.active then print("kf: ", reaction.kf) --print("$(reaction.A)  $(reaction.b)  $(reaction.E)")
+        if reaction.kr.active then print("kr: ", reaction.kr) --print("$(reaction.A_) $(reaction.b_) $(reaction.E_)")
+    end for
+end function
+
+function printsummary()
+    print("Number of species: ", len(species))
+    print("Number of reactions: ", len(reactions))
+end function
+
+----
+function readSpecies(&f as File)
+    while not io.eof(f)
+        line = readline(&f)
+        words = split(line)
+        if len(words) == 0 then skip
+        if words[1] == "END" then break
+        for tok = words do species[tok] = Species()
+    end while
+end function
+
+function readElements(&f as File) result (eD[String] as Real)
+    --clear(elements_used)
+    while not io.eof(f)
+        line = readline(&f)
+        words = split(line)
+        if "END" in words then break
+        for tok = words do eD[tok] = 0
+    end while
+    --collect(keys(eD))
+end function
+
+function readreactions(&f as File)
+    var ir = 0
+    while yes
+        line = readline(&f)
+        line = replace(line, old=`\+\s*`, new="+")
+        line = replace(line, old=`\s*\+`, new="+")
+        line = replace(line, old="(+M)", new="+M") -- noooooonotntntnt
+
+        if contains(line, "<=>")
+            mode = "rev"
+        else if contains(line, "=>")
+            mode = "irrev"
+        else if contains(line, "=")
+            mode = "rev"
+        else if line == ""
+            skip
+        else
+            mode="other"
+        end if
+        words = split(line, regex=`[ /<=>()]`, keep=no)
+
+        if len(words) == 0 then skip
+        if line == "END" then break
+
+        if mode == "other"
+            if words[1] == "REV"
+                reactions[lastrxn].explicit = yes
+                reactions[lastrxn].reversible = yes
+                reactions[lastrxn].kr.A = num(words[2])
+                reactions[lastrxn].kr.b = num(words[3])
+                reactions[lastrxn].kr.E = num(words[4])
+
+            else if words[1] == "LOW" or words[1] == "HIGH"
+                let AbE[] as Real = num(words[2:4])
+                reactions[lastrxn].Other = RateConst(AbE[0], AbE[1], AbE[2])
+
+            else if words[1] == "TROE"
+                let nums[] as Real = num(words[2:end])
+                reactions[lastrxn].Troe = TroeCoeffs(nums)
+
+            else if words[1] == "SRI"
+                reactions[lastrxn].SRI = num(words[2:end])
+                if len(words) == 4
+                    push(&reactions[lastrxn].SRI, 1.0)
+                    push(&reactions[lastrxn].SRI, 0.0)
+                else if len(words) == 6
+                    -- already OK
+                else
+                    error("SRI coefficients not fully specified:\n\t$line")
+                end if
+
+            else if has(words[1], prefix="DUP")
+                -- what to do here?
+
+            else if words[1] == "FORD"
+
+            else if words[1] == "RORD"
+
+            else if len(words) % 2 == 0 -- this should be last resort
+                reactions[lastrxn].M = ThirdBody(words2coeffs(words, invert=yes))
+            else
+                error("Don't know what to do with line:\n$line")
+            end if
+            skip
+        end if
+
+        if len(words) != 5
+            print("-- items not equal to 5")
+            print(words)
+            skip
+        end if
+
+        rxs = split(words[1], at="+", keep=no)
+        pxs = split(words[2], at="+", keep=no)
+        let A, b, E = num(words[3:5])
+
+        let r[String] as Real = {}
+        let r[String] as Real = {}
+        for rx = rxs
+            coeff, spec = coeffspec(rx)
+            r[spec] = coeff + get(r, spec, 0) --if it already exists, add to the coefficient
+        end for
+        for px = pxs
+            coeff, spec = coeffspec(px)
+            p[spec] = coeff + get(p, spec, 0)
+        end for
+
+        let reaction = Reaction(yes, mode == "rev", p, r, RateConst(A, b, E))
+        units.scale(&reaction)
+        ir += 1
+        reactions["$ir"] = reaction
+        lastrxn = "$ir"
+    end while
+end function
+
+function readThermo(&f as File)
+    while yes
+        let line = readline(f)
+        let words = split(line)
+        let nWords = len(words)
+
+        if nWords == 3
+            Trange = num(words)
+            skip
+        end if
+
+        if nWords == 0 then skip
+        if nWords == 1 and words[1] == "END" then break
+
+        var elemComp = ScalarDict()
+        --thermo = janafThermoDict()
+
+        let sub[] as String = split(line[1:24])
+        let name as String = sub[1]
+
+        if not has(species, key=name)
+            for i = 1:3 do io.skipline(&f)
+            skip
+        end if
+
+        for i = 25:5:40
+            let k as String = strip(line[i:i+2])
+            if k == "" then skip
+            elemComp[k] = num(strip(line[i+3:i+4]))
+        end for
+        species[name] = Species(elemComp)
+
+        let Tl as Real = num(line[49:57])
+        let Th as Real = num(line[58:66])
+        let Tc as Real = num(line[67:75]) or Trange[3]
+
+        let l2 as String = readline(&f)
+        let l3 as String = readline(&f)
+        let l4 as String = readline(&f)
+        -- also provide readline(&file, line=...) to read nth line
+
+        let arrL[] as Real =
+            num([l2[ 1:15], l2[16:30], l2[31:45], l2[46:60],
+                 l2[61:75], l3[ 1:15], l3[16:30]])
+
+        let arrH[] as Real =
+            num([l3[31:45], l3[46:60], l3[61:75], l4[ 1:15],
+                 l4[16:30], l4[31:45], l4[46:60]])
+
+        thermos[name] = Janaf(tl=Tl, th=Th, tc=Tc, lowT=arrL, highT=arrH)
+    end while
+end function
+
+----
+function readThermoFile(file as String = "therm.dat", dir as String=".")
+    var f = io.open(os.path.join(dir, file))
+    -- variants for mutable variables
+    -- var x = 0
+    -- let x := 0
+    -- let mut x = 0
+    -- problem is user develops muscle memory for whatever you choose
+    -- need to keep it simple in any case
+    while not io.eof(f)
+        let words = split(readline(&f))
+        if len(words) == 0 then skip
+        if has(words[1], prefix="THERM") then readThermo(&f)
+    end while
+end function
+
+import units
+function readFile(file as String = "chem.inp", dir as String = ".")
+    var f = io.open(os.path.join(dir, file)) -- will auto close
+    -- f might be left open if there is a crash in inner funcs.
+    -- for this, F+ should keep a runtime dict of open files
+    -- and upon crash detection or unhandled exception should
+    -- close them before quitting.
+    while not io.eof(f)
+        let words = split(readline(&f))
+        if len(words) == 0 then skip
+        if has(words[1], prefix="SPEC")
+            readSpecies(&f)
+            readThermoFile(dir)
+        else if has(words[1], prefix="THERM")
+            readThermo(&f)
+        else if has(words[1], prefix="REAC")
+            if len(words)>1 then units.set(words[2])
+            readReactions(&f)
+        else if has(words[1], prefix="ELEM")
+            readElements(&f)
+        end if
+        # match words[1]
+        # case `^ *SPEC`
+        #     readSpecies(&f)
+        #     readThermoFile(dir=dir)
+        # case `^ *THERM`
+        #     readThermo(&f)
+        # case `^ *REAC`
+        #     if len(words)>1 then units.set(words[2])
+        #     readReactions(&f)
+        # case `^ *ELEM`
+        #     readElements(&f)
+        # end match
+    end while
+end function

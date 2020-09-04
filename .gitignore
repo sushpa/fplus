@@ -4,3 +4,8 @@
 *.zip
 a.out
 aout.c
+*.out
+*.fpr
+*.gcov
+*.gcno
+*.gcda
