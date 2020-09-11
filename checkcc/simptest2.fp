@@ -4,7 +4,7 @@ declare function print(wf as Number)
 declare function print(ws as Strings, filter as Number)
 declare function random(wr as Range)
 
-function start(args as Strings) result (x as Number)
+function start(args as Text[]) result (x as Number)
     x = 6
     var arr as Number[] = [1, 2, 3, 4, 5]
     print(arr[3])
@@ -18,7 +18,7 @@ function start(args as Strings) result (x as Number)
     # internally rand float is obtained by getting a random int
     # over entire range and dividing it by max int
 
-    if print(args, filter = 5) + random(1:2) == 1
+    if print(args, filter=5) + random(1:2) == 1
         mx[mx<=2] = 12 # btw cgen will treat unchanged vars as const
         mx[3:5] += 36 # btw cgen will treat unchanged vars as const
         mx[3] = 36 # btw cgen will treat unchanged vars as const
@@ -28,7 +28,7 @@ function start(args as Strings) result (x as Number)
         gh = mx[3] # btw cgen will treat unchanged vars as const
         gh = mx["3"] # btw cgen will treat unchanged vars as const
     else
-        if print(args, filter = 2) == 5
+        if print(args, filter=2) == 5
             mx = 5
             # print(args, filter = ["first" = "not", "second" = "and"])
         else

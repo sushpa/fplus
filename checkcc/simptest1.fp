@@ -73,7 +73,7 @@ function Point(x as Number)
     return p
 end function
 
-function main(args as Strings) result Number
+function main(args as Strings) as Number
     var po = Point()
     var pcx = Point(78)
     var mg = args
@@ -201,11 +201,11 @@ function main(args as Strings) result Number
 
     # -- Collection API
     # -- 1. mutators.
-    # function insert(anItem as Type, into[] as Type, after as Type) result (ret[] as Type)
-    # function insert(anItem as Type, into[] as Type, before as Type) result (ret[] as Type)
-    # function insert(anItem as Type, into[] as Type, at as Integer) result (ret[] as Type)
-    # function push(item as Type, onto[] as Type) result (ret[] as Type)
-    # function pop(list as Type) result (ret[] as Type)
+    # function insert(anItem as Type, into[] as Type, after as Type) as (ret[] as Type)
+    # function insert(anItem as Type, into[] as Type, before as Type) as (ret[] as Type)
+    # function insert(anItem as Type, into[] as Type, at as Integer) as (ret[] as Type)
+    # function push(item as Type, onto[] as Type) as (ret[] as Type)
+    # function pop(list as Type) as (ret[] as Type)
 
     # insert(3, into = &list, after = 4) or skip c
 
@@ -253,9 +253,9 @@ function main(args as Strings) result Number
     # --| because the called function has dependencies on the input or
     # --| the target variable is used later in the caller, the *caller*
     # --| should have sent a clone of the object.
-    # function clear(list[] as Type) result (ret[] as Type)
-    # function resize(list[] as Type) result (ret[] as Type)
-    # function shuffle(list[] as Type) result (ret[] as Type)
+    # function clear(list[] as Type) as (ret[] as Type)
+    # function resize(list[] as Type) as (ret[] as Type)
+    # function shuffle(list[] as Type) as (ret[] as Type)
 
     # var dso = HTML(read('dso.html'))
 
@@ -331,20 +331,20 @@ function joyce()
     var nam2 = "Bhabru"
     var x = fxfunc(3 + 5i + 4)
     describe(x)
-    describe(x+5)
+    describe(x+5+x)
     var point = Point()
     var joyce = 55.3
     joyce += 5
 
-    if x == 3
+    if x == 332
         print(x)
     else if x == 5
         print(x+4)
     end if
 
-    if x == 3
+    if x != 3
         print(x)
-    else
+    else # if x == 5
         print(x+4)
     end if
 

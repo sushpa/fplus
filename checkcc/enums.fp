@@ -4,9 +4,9 @@ enum MyEnum
     elem2 = "Second one"
 end enum
 
-var en as MyEnum = .elem1
-print(en) # prints ".elem1" (or "MyEnum.elem1"?)
-print(MyEnum[en]) # prints "First element"
+# let en as MyEnum = .elem1
+# print(en) # prints ".elem1" (or "MyEnum.elem1"?)
+# print(MyEnum[en]) # prints "First element"
 
 # each enum is also an apparent dict of some type of values indexed by that enum
 # the values must be const exprs and are read only

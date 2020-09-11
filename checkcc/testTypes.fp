@@ -5,29 +5,28 @@ type DiskItem
     check(fileName != "")
 end type
 
-type DateTime
-    base DiskItem
+type DateTime extends DiskItem
     var hour = 0
     var minute = 0
     var second = 0
     var day = 1
     var month = 1
     var year = 1970
-    check(0 <= hour < 24)
-    check(0 <= minute < 60)
-    check(0 <= second < 60)
-    check(1 <= day <= 31)
-    check(1 <= month <= 12)
-    check(1 <= year <= 5000)
+    always 0 <= hour < 24
+    always 0 <= minute < 60
+    always 0 <= second < 60
+    always 1 <= day <= 31
+    always 1 <= month <= 12
+    always 1 <= year <= 5000
 end type
 
 function ASTExpr.gen()
 end function
 
-function start(a as String[])
+function start(a as String[] or None)
     var currentTime = DateTime()
     var currentFolder as String = os.pwd()
-    var ss as Int = sys.stackSize()
+    var ss as Number = sys.stackSize()
 
     print(d.year)
     # if(d)

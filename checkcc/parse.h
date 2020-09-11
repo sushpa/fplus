@@ -97,10 +97,12 @@ static ASTExpr* parseExpr(Parser* self)
             // tkArrayOpen is a unary op.
             if ((p and p->kind == tkArrayOpen)
                 and (fp_PtrArray_empty(&ops)
-                    or fp_PtrArray_topAs(ASTExpr*, &ops)->kind != tkSubscript)
+                    or (fp_PtrArray_top(&rpn)
+                        and fp_PtrArray_topAs(ASTExpr*, &ops)->kind != tkSubscript))
                 // don't do this if its part of a subscript
                 and (fp_PtrArray_empty(&rpn)
-                    or fp_PtrArray_topAs(ASTExpr*, &rpn)->kind != tkOpColon))
+                    or (fp_PtrArray_top(&rpn)
+                        and fp_PtrArray_topAs(ASTExpr*, &rpn)->kind != tkOpColon)))
                 // or aa range. range exprs are handled separately. by
                 // themselves they don't need a surrounding [], but for
                 // grouping like 2+[8:66] they do.
@@ -270,7 +272,7 @@ error:
 
     while (self->token.pos < self->end
         and (self->token.kind != tkNewline
-            and self->token.kind != tkLineComment))
+            and self->token.kind != tkLineComment  and self->token.kind != tkNullChar))
         Token_advance(&self->token);
 
     if (ops.used) {
@@ -700,7 +702,10 @@ static ASTFunc* parseStmtFunc(Parser* self)
     func->returnSpec->name = "";
 
     ASTExpr* ret = exprFromCurrentToken(self);
-    assert(ret->kind == tkColEq);
+
+    // if you have toplevel code (eg func call) it tends to reach here
+    if (ret->kind != tkColEq) return NULL;
+
     ret->kind = tkKeyword_return;
     ret->unary = true;
 
@@ -991,7 +996,8 @@ static fp_PtrList* parseModule(Parser* self)
         default:
             Parser_errorUnexpectedToken(self);
             while (self->token.kind != tkNewline
-                and self->token.kind != tkLineComment)
+                and self->token.kind != tkLineComment
+                   and self->token.kind != tkNullChar)
                 Token_advance(&self->token);
         }
     }

@@ -30,7 +30,7 @@
 declare type Strings
 declare function print(t as Number)
 
-function main(a as Strings) result Number
+function main(a as Strings) as Number
     var x as Number = fx(34 + 4 * 3)
     # var fi = FolderItem()
     # var fn as String = fi.fileName
@@ -38,12 +38,12 @@ function main(a as Strings) result Number
     # print("Hello, World %d!\n", x)
 end function
 
-function fx(a as Number) result Number
+function fx(a as Number) as Number
     var m as Number = gx(5 - 4 + 2 / 5)
     return m
 end function
 
-function gx(a as Number) result Number
+function gx(a as Number) as Number
     var m as Number = mx(2 + 4 ^ 5)
     return m
 end function
@@ -55,13 +55,13 @@ end function
     # var ss = duplicate(sys.stackSize(), times = 4)
 # end function
 
-function mx(a as Number) result Number
+function mx(a as Number) as Number
     var m as Number = fx(5 * 2.0)
     # var f as Range = m[1:3, g:sin(g)+x]
     return m
 end function
 
-function final(a as Number) result Number
+function final(a as Number) as Number
     var m = 3
     # var cx = Strings.linesFromFile("~/basics.txt")
     # if missing(cx) then break

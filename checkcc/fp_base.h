@@ -43,8 +43,9 @@ static int fp_globals__strlenCount = 0;
 typedef char bool;
 #define true 1
 #define false 0
-typedef int Int;
-typedef double Number;
+typedef int64_t Int;
+// typedef double Number;
+typedef double Real;
 typedef char** CStrings;
 
 // use self in switches to indicate explicit fallthrough

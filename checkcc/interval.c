@@ -7,17 +7,17 @@
 #include <float.h>
 
 #include "fp_base.h"
-MKSTAT(Intv)
-MKSTAT(FIntv)
+MKSTAT(IntRange)
+MKSTAT(RealRange)
 
-int64_t signed_saturated_add(int64_t x, int64_t y, int* didOverflow)
+Int signed_saturated_add(Int x, Int y, int* didOverflow)
 {
     // determine the lower or upper bound of the result
-    int64_t ret = (x < 0) ? INT64_MIN : INT64_MAX;
+    Int ret = (x < 0) ? INT64_MIN : INT64_MAX;
     // this is always well defined:
     // if x < 0 this adds a positive value to INT64_MIN
     // if x > 0 this subtracts a positive value from INT64_MAX
-    int64_t comp = ret - x;
+    Int comp = ret - x;
     // the condition is equivalent to
     // ((x < 0) && (y > comp)) || ((x >=0) && (y <= comp))
     if ((x < 0) == (y > comp))
@@ -26,21 +26,21 @@ int64_t signed_saturated_add(int64_t x, int64_t y, int* didOverflow)
         *didOverflow = 1;
     return ret;
 }
-int64_t signed_saturated_sub(int64_t x, int64_t y, int* didOverflow)
+Int signed_saturated_sub(Int x, Int y, int* didOverflow)
 {
     // CAREFUL: negating INT64_MAX overflows
     return signed_saturated_add(x, -y, didOverflow);
 }
 
-int64_t signed_saturated_mul(int64_t x, int64_t y, int* didOverflow)
+Int signed_saturated_mul(Int x, Int y, int* didOverflow)
 {
     // determine the lower or upper bound of the result
     bool oppsgn = x < 0 != y < 0;
-    int64_t ret = (oppsgn) ? INT64_MIN + 1 : INT64_MAX;
+    Int ret = (oppsgn) ? INT64_MIN + 1 : INT64_MAX;
     // printf("x = %lld\n", x);
     // printf("y = %lld\n", y);
     // printf("ret = %lld\n", ret);
-    int64_t comp = llabs(x ? ret / x : ret);
+    Int comp = llabs(x ? ret / x : ret);
     // printf("comp = %lld\n", comp);
 
     // if ((x < 0) == (y > comp))
@@ -51,7 +51,7 @@ int64_t signed_saturated_mul(int64_t x, int64_t y, int* didOverflow)
     return ret;
 }
 
-// static bool canoverflow_add(int64_t a, int64_t x)
+// static bool canoverflow_add(Int a, Int x)
 // {
 //     return ((x > 0) && (a > INT64_MAX - x))
 //         /* `a + x` would overflow */
@@ -59,7 +59,7 @@ int64_t signed_saturated_mul(int64_t x, int64_t y, int* didOverflow)
 //         /* `a + x` would underflow */;
 // }
 
-// static bool canoverflow_sub(int64_t a, int64_t x)
+// static bool canoverflow_sub(Int a, Int x)
 // {
 //     return ((x < 0) && (a > INT64_MAX + x))
 //         /* `a - x` would overflow */
@@ -67,7 +67,7 @@ int64_t signed_saturated_mul(int64_t x, int64_t y, int* didOverflow)
 //         /* `a - x` would underflow */;
 // }
 
-// static bool canoverflow_mul(int64_t a, int64_t x)
+// static bool canoverflow_mul(Int a, Int x)
 // { // There may be a need to check for -1 for two's complement machines.
 //     // If one number is -1 and another is INT_MIN, multiplying them we get
 //     // abs(INT_MIN) which is 1 higher than INT_MAX
@@ -83,190 +83,197 @@ int64_t signed_saturated_mul(int64_t x, int64_t y, int* didOverflow)
 // }
 
 // API:
-// I_del: delete
-// I_ins: insert
-// I_add: apply a + on the entire interval
-// I_sub: apply -
-// I_mul: apply *
-// I_div: apply /
-// I_pow: apply ^
-// I_mod: apply %
-// I_rcp: reciprocal
-// I_neg: negate
-// I_has: check value in range
+// IntRange_del: delete
+// IntRange_ins: insert
+// IntRange_add: apply a + on the entire interval
+// IntRange_sub: apply -
+// IntRange_mul: apply *
+// IntRange_div: apply /
+// IntRange_pow: apply ^
+// IntRange_mod: apply %
+// IntRange_rcp: reciprocal
+// IntRange_neg: negate
+// IntRange_has: check value in range
 
-typedef struct Intv {
-    int64_t lo, hi;
-    struct Intv* next;
-} Intv;
+typedef struct IntRange {
+    Int lo, hi;
+    struct IntRange* next;
+} IntRange;
 
-typedef struct FIntv {
-    double lo, hi;
-    struct FIntv* next;
-} FIntv;
-// typedef PtrIist Intv;
+typedef struct RealRange {
+    Real lo, hi;
+    struct RealRange* next;
+} RealRange;
+// typedef PtrIist IntRange;
 
-static int64_t max1(int64_t a, int64_t b) { return a > b ? a : b; }
+static Int max1(Int a, Int b) { return a > b ? a : b; }
 
-static int64_t min1(int64_t a, int64_t b) { return a < b ? a : b; }
+static Int min1(Int a, Int b) { return a < b ? a : b; }
 
-static double fmax1(double a, double b) { return a > b ? a : b; }
+static Real fmax1(Real a, Real b) { return a > b ? a : b; }
 
-static double fmin1(double a, double b) { return a < b ? a : b; }
+static Real fmin1(Real a, Real b) { return a < b ? a : b; }
 
-// static Intv Interval_add(Intv intv, Intv other)
+// static IntRange Interval_add(IntRange range, IntRange other)
 // {
-//     return (Intv) { .lo = intv.lo + other.lo, .hi = intv.hi + other.hi };
+//     return (IntRange) { .lo = range.lo + other.lo, .hi = range.hi + other.hi
+//     };
 // }
 
-#define I_desc(a)                                                              \
+#define IntRange_desc(a)                                                       \
     {                                                                          \
         printf("%s:%d: %s = ", __FILE__, __LINE__, #a);                        \
-        I_print(a);                                                            \
+        IntRange_print(a);                                                     \
     }
-#define F_desc(a)                                                              \
+#define RealRange_desc(a)                                                      \
     {                                                                          \
         printf("%s:%d: %s = ", __FILE__, __LINE__, #a);                        \
-        F_print(a);                                                            \
+        RealRange_print(a);                                                    \
     }
-static void I_print1(Intv* intv) { printf("%lld:%lld\n", intv->lo, intv->hi); }
-static void F_print1(FIntv* fintv) { printf("%g:%g\n", fintv->lo, fintv->hi); }
+static void IntRange_print1(IntRange* range)
+{
+    printf("%lld:%lld\n", range->lo, range->hi);
+}
+static void RealRange_print1(RealRange* range)
+{
+    printf("%g:%g\n", range->lo, range->hi);
+}
 
-static void I_print(Intv* intv)
+static void IntRange_print(IntRange* range)
 {
     putc('[', stdout);
-    while (intv) {
-        printf("%lld:%lld", intv->lo, intv->hi);
-        intv = intv->next;
-        if (intv) printf(", ");
+    while (range) {
+        printf("%lld:%lld", range->lo, range->hi);
+        range = range->next;
+        if (range) printf(", ");
     }
     puts("]");
 }
-static void F_print(FIntv* fintv)
+static void RealRange_print(RealRange* range)
 {
     putc('[', stdout);
-    while (fintv) {
-        printf("%g:%g", fintv->lo, fintv->hi);
-        fintv = fintv->next;
-        if (fintv) printf(", ");
+    while (range) {
+        printf("%g:%g", range->lo, range->hi);
+        range = range->next;
+        if (range) printf(", ");
     }
     puts("]");
 }
-static void I_jins(Intv* intv, Intv* other);
-static void F_jins(FIntv* fintv, FIntv* other);
-static void I_rev(Intv* intv)
+static void IntRange_jins(IntRange* range, IntRange* other);
+static void RealRange_jins(RealRange* range, RealRange* other);
+static void IntRange_rev(IntRange* range)
 {
     // printf("reversing ");
-    // I_print(intv);
-    Intv* orig = intv;
-    while (intv and intv->next) intv = intv->next;
-    Intv tmp = *intv;
-    intv = orig;
-    while (intv) {
-        // Intv* tmp = intv->next->next;
-        // intv->next->next = intv;
-        // intv->next = tmp;
-        I_jins(&tmp, intv);
-        intv = intv->next;
+    // IntRange_print(range);
+    IntRange* orig = range;
+    while (range and range->next) range = range->next;
+    IntRange tmp = *range;
+    range = orig;
+    while (range) {
+        // IntRange* tmp = range->next->next;
+        // range->next->next = range;
+        // range->next = tmp;
+        IntRange_jins(&tmp, range);
+        range = range->next;
     }
     *orig = tmp;
 }
-static void F_rev(FIntv* fintv)
+static void RealRange_rev(RealRange* range)
 {
     // printf("reversing ");
-    // I_print(intv);
-    FIntv* orig = fintv;
-    while (fintv and fintv->next) fintv = fintv->next;
-    FIntv tmp = *fintv;
-    fintv = orig;
-    while (fintv) {
-        // Intv* tmp = intv->next->next;
-        // intv->next->next = intv;
-        // intv->next = tmp;
-        F_jins(&tmp, fintv);
-        fintv = fintv->next;
+    // IntRange_print(range);
+    RealRange* orig = range;
+    while (range and range->next) range = range->next;
+    RealRange tmp = *range;
+    range = orig;
+    while (range) {
+        // IntRange* tmp = range->next->next;
+        // range->next->next = range;
+        // range->next = tmp;
+        RealRange_jins(&tmp, range);
+        range = range->next;
     }
     *orig = tmp;
 }
-static void I_snap(Intv* intv)
+static void IntRange_snap(IntRange* range)
 {
     // return;
     // printf("snapping ");
-    // I_print(intv);
-    while (intv) {
-        while (intv->next and intv->lo <= intv->next->lo
-            and intv->hi + 1 >= intv->next->lo) {
-            intv->hi = max1(intv->hi, intv->next->hi);
-            intv->lo = min1(intv->lo, intv->next->lo);
-            intv->next = intv->next->next;
+    // IntRange_print(range);
+    while (range) {
+        while (range->next and range->lo <= range->next->lo
+            and range->hi + 1 >= range->next->lo) {
+            range->hi = max1(range->hi, range->next->hi);
+            range->lo = min1(range->lo, range->next->lo);
+            range->next = range->next->next;
         }
-        intv = intv->next;
+        range = range->next;
     }
 }
 // if you had a func called nextnum like this:
 //     nextnum(num as Int) := num + 1
 //     nextnum(num as Real) := nextafter(num, DBL_MAX)
 // then you could have one snap function, and since it's probably the only
-// one that differs in Intv and FIntv, the whole thing could be templated.
-// actually it can be done straight in C++ and also with C macros.
-static void F_snap(FIntv* fintv)
+// one that differs in IntRange and RealRange, the whole thing could be
+// templated. actually it can be done straight in C++ and also with C macros.
+static void RealRange_snap(RealRange* range)
 {
     // return;
     // printf("snapping ");
-    // I_print(intv);
-    while (fintv) {
-        while (fintv->next and fintv->lo <= fintv->next->lo
-            and nextafter(fintv->hi, DBL_MAX) >= fintv->next->lo) {
-            fintv->hi = fmax1(fintv->hi, fintv->next->hi);
-            fintv->lo = fmin1(fintv->lo, fintv->next->lo);
-            fintv->next = fintv->next->next;
+    // IntRange_print(range);
+    while (range) {
+        while (range->next and range->lo <= range->next->lo
+            and nextafter(range->hi, DBL_MAX) >= range->next->lo) {
+            range->hi = fmax1(range->hi, range->next->hi);
+            range->lo = fmin1(range->lo, range->next->lo);
+            range->next = range->next->next;
         }
-        fintv = fintv->next;
+        range = range->next;
     }
 }
-static void I_add(Intv* intv, Intv* other)
+static void IntRange_add(IntRange* range, IntRange* other)
 {
-    Intv* orig = intv;
-    while (intv) {
+    IntRange* orig = range;
+    while (range) {
         int* stat = (int[]) { 0 };
-        intv->lo = signed_saturated_add(intv->lo, other->lo, stat);
-        intv->hi = signed_saturated_add(intv->hi, other->hi, stat);
-        // intv->lo += other->lo;
-        // intv->hi += other->hi;
+        range->lo = signed_saturated_add(range->lo, other->lo, stat);
+        range->hi = signed_saturated_add(range->hi, other->hi, stat);
+        // range->lo += other->lo;
+        // range->hi += other->hi;
         if (*stat) printf("add overflowed\n");
-        intv = intv->next;
+        range = range->next;
     }
-    I_snap(orig);
+    IntRange_snap(orig);
     // do need to snap, since the added value can be large enough to cause hi to
     // reach over the next lo
 }
-static void F_add(FIntv* fintv, FIntv* other)
+static void RealRange_add(RealRange* range, RealRange* other)
 {
-    FIntv* orig = fintv;
-    while (fintv) {
-        fintv->lo += other->lo;
-        fintv->hi += other->hi;
+    RealRange* orig = range;
+    while (range) {
+        range->lo += other->lo;
+        range->hi += other->hi;
 
-        fintv = fintv->next;
+        range = range->next;
     }
-    F_snap(orig);
+    RealRange_snap(orig);
 }
 
-static void I_sub(Intv* intv, Intv* other)
+static void IntRange_sub(IntRange* range, IntRange* other)
 {
-    Intv flipped = { .lo = -other->hi, .hi = -other->lo };
-    I_add(intv, &flipped);
+    IntRange flipped = { .lo = -other->hi, .hi = -other->lo };
+    IntRange_add(range, &flipped);
 }
 
-static void F_sub(FIntv* fintv, FIntv* other)
+static void RealRange_sub(RealRange* range, RealRange* other)
 {
-    FIntv flipped = { .lo = -other->hi, .hi = -other->lo };
-    F_add(fintv, &flipped);
+    RealRange flipped = { .lo = -other->hi, .hi = -other->lo };
+    RealRange_add(range, &flipped);
 }
 
-static void minmax(int n, int64_t arr[], int64_t* min, int64_t* max)
+static void minmax(int n, Int arr[], Int* min, Int* max)
 {
-    int64_t mmin = INT64_MAX, mmax = INT64_MIN;
+    Int mmin = INT64_MAX, mmax = INT64_MIN;
     for (int i = 0; i < n; i++) {
         mmin = min1(mmin, arr[i]);
         mmax = max1(mmax, arr[i]);
@@ -275,9 +282,9 @@ static void minmax(int n, int64_t arr[], int64_t* min, int64_t* max)
     *max = mmax;
 }
 
-static void fminmax(int n, double arr[], double* min, double* max)
+static void fminmax(int n, Real arr[], Real* min, Real* max)
 {
-    double mmin = DBL_MAX, mmax = -DBL_MAX; // FIXME
+    Real mmin = DBL_MAX, mmax = -DBL_MAX; // FIXME
     for (int i = 0; i < n; i++) {
         mmin = fmin1(mmin, arr[i]);
         mmax = fmax1(mmax, arr[i]);
@@ -286,252 +293,262 @@ static void fminmax(int n, double arr[], double* min, double* max)
     *max = mmax;
 }
 
-static void I_mul(Intv* intv, Intv* other)
+static void IntRange_mul(IntRange* range, IntRange* other)
 {
-    Intv* orig = intv;
-    int64_t a, b, c, d; // minv, maxv;
-    while (intv) {
+    IntRange* orig = range;
+    Int a, b, c, d; // minv, maxv;
+    while (range) {
         int* stat = (int[]) { 0 };
         // TODO: if (stat)... at every step
-        a = signed_saturated_mul(intv->lo, other->lo, stat);
-        b = signed_saturated_mul(intv->hi, other->lo, stat);
-        c = signed_saturated_mul(intv->lo, other->hi, stat);
+        a = signed_saturated_mul(range->lo, other->lo, stat);
+        b = signed_saturated_mul(range->hi, other->lo, stat);
+        c = signed_saturated_mul(range->lo, other->hi, stat);
         //    if (stat) ...
-        d = signed_saturated_mul(intv->hi, other->hi, stat);
+        d = signed_saturated_mul(range->hi, other->hi, stat);
         if (*stat) printf("mul overflowed\n");
-        minmax(4, (int64_t[]) { a, b, c, d }, &(intv->lo), &(intv->hi));
+        minmax(4, (Int[]) { a, b, c, d }, &(range->lo), &(range->hi));
 
-        intv = intv->next;
+        range = range->next;
     }
     if (other->lo <= 0 == other->hi <= 0) {
         // reverse the list
-        I_rev(orig);
+        IntRange_rev(orig);
     }
-    I_snap(orig);
-    // intv->lo=minv,
+    IntRange_snap(orig);
+    // range->lo=minv,
 }
 
-static void F_mul(FIntv* fintv, FIntv* other)
+static void RealRange_mul(RealRange* range, RealRange* other)
 {
-    FIntv* orig = fintv;
-    double a, b, c, d;
-    // F_print1(fintv);
-    // F_print1(other);
-    while (fintv) {
-        a = fintv->lo * other->lo;
-        b = fintv->hi * other->lo;
-        c = fintv->lo * other->hi;
-        d = fintv->hi * other->hi;
+    RealRange* orig = range;
+    Real a, b, c, d;
+    // RealRange_print1(range);
+    // RealRange_print1(other);
+    while (range) {
+        a = range->lo * other->lo;
+        b = range->hi * other->lo;
+        c = range->lo * other->hi;
+        d = range->hi * other->hi;
         // printf("-- %g %g %g %g\n", a, b, c, d);
-        fminmax(4, (double[]) { a, b, c, d }, &(fintv->lo), &(fintv->hi));
-        // F_print1(fintv);
-        fintv = fintv->next;
+        fminmax(4, (Real[]) { a, b, c, d }, &(range->lo), &(range->hi));
+        // RealRange_print1(range);
+        range = range->next;
     }
 
-    if (other->lo <= 0 and other->hi <= 0) F_rev(orig);
-    F_snap(orig);
+    if (other->lo <= 0 and other->hi <= 0) RealRange_rev(orig);
+    RealRange_snap(orig);
 }
 
-// #define mapf(intv, other, func)                                                \
-//     while (intv) {                                                             \
-//         func(intv->item, other);                                               \
-//         intv = intv->next;                                                     \
+// #define mapf(range, other, func)                                                \
+//     while (range) {                                                             \
+//         func(range->item, other);                                               \
+//         range = range->next;                                                     \
 //     }
 
-// static int Interval_contains(  Intv*   intv,   int64_t value)
+// static int Interval_contains(  IntRange*   range,   Int value)
 // {
-//     return intv->lo <= value && value <= intv->hi;
+//     return range->lo <= value && value <= range->hi;
 // }
-// static void I_print(  Intv*   intv)
+// static void IntRange_print(  IntRange*   range)
 // {
-//     printf("%lld:%lld", intv->lo, intv->hi);
+//     printf("%lld:%lld", range->lo, range->hi);
 // }
 
 // returns the pointer to the IIST ITEM containing the value.
 // if you want the interval, you should use ->item of the returned ptr.
-static Intv* I_find(Intv* intv, int64_t value)
+static IntRange* IntRange_find(IntRange* range, Int value)
 {
     // if you can keep the list sorted, you can just check the extremities first
     // guess you must sort, its needed for coalescing if you want to avoid
     // O(N^2)
-    while (intv) {
-        if (intv->lo > value)
+    while (range) {
+        if (range->lo > value)
             return NULL;
-        else if (value <= intv->hi)
-            return intv;
-        intv = intv->next;
+        else if (value <= range->hi)
+            return range;
+        range = range->next;
     }
     return NULL;
 }
 
-static FIntv* F_find(FIntv* fintv, double value)
+static RealRange* RealRange_find(RealRange* range, Real value)
 {
     // if you can keep the list sorted, you can just check the extremities first
     // guess you must sort, its needed for coalescing if you want to avoid
     // O(N^2)
-    while (fintv) {
-        if (fintv->lo > value)
+    while (range) {
+        if (range->lo > value)
             return NULL;
-        else if (value <= fintv->hi)
-            return fintv;
-        fintv = fintv->next;
+        else if (value <= range->hi)
+            return range;
+        range = range->next;
     }
     return NULL;
 }
 
-static void I_ins1(Intv* intv, int64_t value)
+static void IntRange_ins1(IntRange* range, Int value)
 {
-    while (intv and intv->next and intv->next->lo < value) intv = intv->next;
-    I_print1(intv);
+    while (range and range->next and range->next->lo < value)
+        range = range->next;
+    IntRange_print1(range);
 
-    // intv->next = PtrIist_with_next(other, intv->next);
+    // range->next = PtrIist_with_next(other, range->next);
 }
 
-static Intv* I_new(int64_t lo, int64_t hi, Intv* next)
+static IntRange* IntRange_new(Int lo, Int hi, IntRange* next)
 {
-    Intv* I = fp_new(Intv);
+    IntRange* I = fp_new(IntRange);
     I->hi = hi;
     I->lo = lo;
     I->next = next;
     return I;
 }
 
-static FIntv* F_new(double lo, double hi, FIntv* next)
+static RealRange* RealRange_new(Real lo, Real hi, RealRange* next)
 {
-    FIntv* I = fp_new(FIntv);
-    I->hi = hi;
-    I->lo = lo;
-    I->next = next;
-    return I;
+    RealRange* range = fp_new(RealRange);
+    range->hi = hi;
+    range->lo = lo;
+    range->next = next;
+    return range;
 }
 
-static FIntv* F_new1(double value, FIntv* next)
+static RealRange* RealRange_new1(Real value, RealRange* next)
 {
-    return F_new(value, value, next);
+    return RealRange_new(value, value, next);
 }
 
-static FIntv* F_new0() { return F_new(0.0, 0.0, NULL); }
+static RealRange* RealRange_new0() { return RealRange_new(0.0, 0.0, NULL); }
 
-static FIntv* F_clone1(FIntv* other)
+static RealRange* RealRange_clone1(RealRange* other)
 {
-    return F_new(other->lo, other->hi, other->next);
+    return RealRange_new(other->lo, other->hi, other->next);
 }
 
-static Intv* I_new1(int64_t value, Intv* next)
+static IntRange* IntRange_new1(Int value, IntRange* next)
 {
-    return I_new(value, value, next);
+    return IntRange_new(value, value, next);
 }
 
-static Intv* I_new0() { return I_new(0, 0, NULL); }
+static IntRange* IntRange_new0() { return IntRange_new(0, 0, NULL); }
 
-static Intv* I_clone1(Intv* other)
+static IntRange* IntRange_clone1(IntRange* other)
 {
-    return I_new(other->lo, other->hi, other->next);
+    return IntRange_new(other->lo, other->hi, other->next);
 }
 
-static Intv* I_clone(Intv* other)
+static IntRange* IntRange_clone(IntRange* other)
 {
     // deep clone all items in chain
-    Intv* Io = I_clone1(other);
-    Intv* I = Io;
+    IntRange* Io = IntRange_clone1(other);
+    IntRange* I = Io;
     while (I->next) {
-        I->next = I_clone1(I->next);
+        I->next = IntRange_clone1(I->next);
         I = I->next;
     }
     return Io;
 }
+// function clone(other as IntRange) as IntRange
+//     clone = clone1(other)
+//     var i as IntRange = clone
+//     while i.next != nil
+//         i.next = clone1(i.next)
+//         i = i.next
+//     end while
+// end function
 
-static FIntv* F_clone(FIntv* other)
+static RealRange* RealRange_clone(RealRange* other)
 {
     // deep clone all items in chain
-    FIntv* Fo = F_clone1(other);
-    FIntv* F = Fo;
+    RealRange* Fo = RealRange_clone1(other);
+    RealRange* F = Fo;
     while (F->next) {
-        F->next = F_clone1(F->next);
+        F->next = RealRange_clone1(F->next);
         F = F->next;
     }
     return Fo;
 }
 
-static void I_jins(Intv* intv, Intv* other)
+static void IntRange_jins(IntRange* range, IntRange* other)
 {
     // you'll need to make a copy of other, since the next ptr is embeddded
     // if (not*intvp) {
-    //     *intvp = I_new(other->lo, other->hi, NULL);
+    //     *intvp = IntRange_new(other->lo, other->hi, NULL);
     //     // (*intvp)->lo = other->lo;
     //     // (*intvp)->hi = other->hi;
     //     return;
     // }
-    // Intv* intv = *intvp;
-    // I_desc(intv);
-    Intv* orig = intv;
-    while (intv and intv->next and intv->next->lo < other->lo)
-        intv = intv->next;
-    if (intv == orig and other->lo < intv->lo) {
-        intv->next = I_clone1(intv);
-        intv->lo = other->lo;
-        intv->hi = other->hi;
+    // IntRange* range = *intvp;
+    // IntRange_desc(range);
+    IntRange* orig = range;
+    while (range and range->next and range->next->lo < other->lo)
+        range = range->next;
+    if (range == orig and other->lo < range->lo) {
+        range->next = IntRange_clone1(range);
+        range->lo = other->lo;
+        range->hi = other->hi;
     } else
-        intv->next = I_new(other->lo, other->hi, intv->next);
-    // I_desc(intv);
-    // I_snap(intv);
-    // I_desc(intv);
+        range->next = IntRange_new(other->lo, other->hi, range->next);
+    // IntRange_desc(range);
+    // IntRange_snap(range);
+    // IntRange_desc(range);
 
-    // intv->next = PtrIist_with_next(other, intv->next);
+    // range->next = PtrIist_with_next(other, range->next);
 }
 
-static void F_jins(FIntv* fintv, FIntv* other)
+static void RealRange_jins(RealRange* range, RealRange* other)
 {
-    FIntv* orig = fintv;
-    while (fintv and fintv->next and fintv->next->lo < other->lo)
-        fintv = fintv->next;
-    if (fintv == orig and other->lo < fintv->lo) {
-        fintv->next = F_clone1(fintv);
-        fintv->lo = other->lo;
-        fintv->hi = other->hi;
+    RealRange* orig = range;
+    while (range and range->next and range->next->lo < other->lo)
+        range = range->next;
+    if (range == orig and other->lo < range->lo) {
+        range->next = RealRange_clone1(range);
+        range->lo = other->lo;
+        range->hi = other->hi;
     } else {
-        fintv->next = F_new(other->lo, other->hi, fintv->next);
+        range->next = RealRange_new(other->lo, other->hi, range->next);
     }
 }
 
-// TODO F_compl [7:8, 90:99]->[-inf:6, 9:89, 100:inf] same no of subranges
+// TODO RealRange_compl [7:8, 90:99]->[-inf:6, 9:89, 100:inf] same no of
+// subranges
 //     or 1 more.
 //     or 1 less modify in place and add ins
 //         / del 1 if needed.
 //           // lo0=-inf
 //           nhi
 //     = lo - 1 next nlo = hi
-//     + 1 TODO F_intersect
+//     + 1 TODO RealRange_intersect
 
 //           then you can tell exactly what range is problematic eg log on
 //       [-35:-20, -5:inf]
 //           ->err [-35:-20, -5 0] is problem region but you cann do it also by
-//               F_del the valid region.
+//               RealRange_del the valid region.
 
 // jins: "Just insert". Otherwise ins will call snap each time.
-static void I_ins(Intv* intv, Intv* other)
+static void IntRange_ins(IntRange* range, IntRange* other)
 {
-    I_ins(intv, other);
-    I_snap(intv);
+    IntRange_jins(range, other);
+    IntRange_snap(range);
 }
-static void F_ins(FIntv* fintv, FIntv* other)
+static void RealRange_ins(RealRange* range, RealRange* other)
 {
-    F_ins(fintv, other);
-    F_snap(fintv);
+    RealRange_jins(range, other);
+    RealRange_snap(range);
 }
 
-static void I_del1(Intv* intv, int64_t value)
+static void IntRange_del1(IntRange* range, Int value)
 {
     // Get the particular subinterval which contains value
     // printf("deleting %lld from ", value);
-    // I_print(intv);
+    // IntRange_print(range);
 
-    Intv* iv = I_find(intv, value);
+    IntRange* iv = IntRange_find(range, value);
     if (not iv) return; // value isn't in the list at all? get out
     if (iv->lo == value and iv->hi == value)
         // value is in a subinterval by itself
         *iv = *iv->next;
-    // the old Intv will go out of scope and should be freed
+    // the old IntRange will go out of scope and should be freed
     // TODO: dealloc(old iv)
     else if (iv->lo == value)
         iv->lo++; // value is the lower limit? increase it
@@ -539,28 +556,29 @@ static void I_del1(Intv* intv, int64_t value)
         iv->hi--; // value is the upper limit? decrease it
     else {
         // value is in betewen. You'll have to split this interval.
-        Intv* newI = I_new(value + 1, iv->hi, iv->next);
-        // NEW(Intv);
-        // *newI = (Intv) { .lo = value + 1, .hi = iv->hi, .next = iv->next };
+        IntRange* newI = IntRange_new(value + 1, iv->hi, iv->next);
+        // NEW(IntRange);
+        // *newI = (IntRange) { .lo = value + 1, .hi = iv->hi, .next = iv->next
+        // };
         iv->hi = value - 1;
         iv->next = newI; // PtrList_with_next(newI, iv->next);
     }
     // printf("after deletion ");
-    // I_print(intv);
+    // IntRange_print(range);
 }
 
-static void F_del1(FIntv* fintv, double value)
+static void RealRange_del1(RealRange* range, Real value)
 {
     // Get the particular subinterval which contains value
     // printf("deleting %lld from ", value);
-    // I_print(intv);
+    // IntRange_print(range);
 
-    FIntv* fiv = F_find(fintv, value);
+    RealRange* fiv = RealRange_find(range, value);
     if (not fiv) return; // value isn't in the list at all? get out
     if (fiv->lo == value and fiv->hi == value)
         // value is in a subinterval by itself
         *fiv = *fiv->next;
-    // the old Intv will go out of scope and should be freed
+    // the old IntRange will go out of scope and should be freed
     // TODO: dealloc(old iv)
     else if (fiv->lo == value)
         fiv->lo = nextafter(fiv->lo, DBL_MAX);
@@ -570,27 +588,29 @@ static void F_del1(FIntv* fintv, double value)
     // value is the upper limit? decrease it
     else {
         // value is in betewen. You'll have to split this interval.
-        FIntv* newF = F_new(nextafter(value, DBL_MAX), fiv->hi, fiv->next);
-        // NEW(Intv);
-        // *newI = (Intv) { .lo = value + 1, .hi = iv->hi, .next = iv->next };
+        RealRange* newF
+            = RealRange_new(nextafter(value, DBL_MAX), fiv->hi, fiv->next);
+        // NEW(IntRange);
+        // *newI = (IntRange) { .lo = value + 1, .hi = iv->hi, .next = iv->next
+        // };
         fiv->hi = nextafter(value, -DBL_MAX);
         fiv->next = newF; // PtrList_with_next(newI, iv->next);
     }
     // printf("after deletion ");
-    // I_print(intv);
+    // IntRange_print(range);
 }
 
-static void I_del(Intv* intv, Intv* other) {}
+static void IntRange_del(IntRange* range, IntRange* other) { }
 
-#define F_haz(F, v)                                                            \
-    printf("%s %s %g\n", #F, F_find(F, v) ? "has" : "doesn't have", v);
+#define RealRange_haz(F, v)                                                    \
+    printf("%s %s %g\n", #F, RealRange_find(F, v) ? "has" : "doesn't have", v);
 
-#define I_haz(I, v)                                                            \
-    printf("%s %s %d\n", #I, I_find(I, v) ? "has" : "doesn't have", v);
+#define IntRange_haz(I, v)                                                     \
+    printf("%s %s %d\n", #I, IntRange_find(I, v) ? "has" : "doesn't have", v);
 
-Intv* parse(const char* str)
+IntRange* parse(const char* str)
 {
-    Intv* intv = NULL;
+    IntRange* range = NULL;
     // const char* buf = "[-2:2, 5:6, 7:9, 8:10]";
     char* ptr = strchr(str, '[');
     if (not ptr) {
@@ -599,7 +619,7 @@ Intv* parse(const char* str)
     } else {
         ptr++;
     }
-    int64_t a, b;
+    Int a, b;
     while (ptr and *ptr) {
         a = strtoll(ptr, &ptr, 0);
         if (*ptr != ':') {
@@ -610,11 +630,11 @@ Intv* parse(const char* str)
         b = strtoll(ptr, &ptr, 0);
 
         // printf("found %lld:%lld\n", a, b);
-        if (not intv) {
-            intv = I_new(a, b, NULL);
+        if (not range) {
+            range = IntRange_new(a, b, NULL);
         } else {
-            Intv tmp = { .lo = a, .hi = b };
-            I_jins(intv, &tmp);
+            IntRange tmp = { .lo = a, .hi = b };
+            IntRange_jins(range, &tmp);
         }
 
         while (*ptr == ' ') ptr++;
@@ -627,15 +647,15 @@ Intv* parse(const char* str)
         }
     }
     // printf("parsed: ");
-    // I_print(intv);
+    // IntRange_print(range);
 
-    I_snap(intv);
+    IntRange_snap(range);
     // printf("snapped: ");
-    // I_print(intv);
-    return intv;
+    // IntRange_print(range);
+    return range;
 }
 
-char* convertBase(int64_t n, int k, char* a)
+char* convertBase(Int n, int k, char* a)
 {
     int j, i = 0, sign = 0;
     if (n == 0) a[i--] = '0';
@@ -661,7 +681,7 @@ char* convertBase(int64_t n, int k, char* a)
 int main()
 {
     // printf("%.55g ->\n  %.55g\n", 0.0, nextafter(10.0e213, DBL_MAX));
-    I_print(parse("[-2:2, 5:6, 7:9, 8:10]"));
+    IntRange_print(parse("[-2:2, 5:6, 7:9, 8:10]"));
     // char* smp = "Y2p0IJ32e8E7";
     // uint64_t smpul = strtoull(smp, NULL, 36);
     // printf("%llu %llu\n", smpul, UINT64_MAX - smpul);
@@ -672,45 +692,45 @@ int main()
     // printf("%p %p %p\n", p, buf, buf + 127);
     // printf("%s\n", p);
 
-    FIntv a[1] = { { .lo = 3.3, .hi = 5.1 } };
-    FIntv b[1] = { { .lo = -5.4, .hi = -3.1 } };
-    FIntv c[1] = { { .lo = -3.14, .hi = -3.04 } };
-    FIntv d[1] = { { .lo = 10.03, .hi = 11.1234 } };
-    FIntv e[1] = { { .lo = 19, .hi = 40.5 } };
-    FIntv f[1] = { { .lo = 7.5, .hi = 10.03 } };
-    FIntv* intv = F_new0();
+    RealRange a[1] = { { .lo = 3.3, .hi = 5.1 } };
+    RealRange b[1] = { { .lo = -5.4, .hi = -3.1 } };
+    RealRange c[1] = { { .lo = -3.14, .hi = -3.04 } };
+    RealRange d[1] = { { .lo = 10.03, .hi = 11.1234 } };
+    RealRange e[1] = { { .lo = 19, .hi = 40.5 } };
+    RealRange f[1] = { { .lo = 7.5, .hi = 10.03 } };
+    RealRange* range = RealRange_new0();
 
-    F_jins(intv, a);
-    F_jins(intv, b);
-    F_jins(intv, c);
-    F_jins(intv, d);
-    F_jins(intv, e);
-    F_jins(intv, f);
-    F_snap(intv); // TODO: probably move snap into ins or user will forget to
-                  // call it every time. but this is good for perf if you call
-                  // it after inserting all you want.
+    RealRange_jins(range, a);
+    RealRange_jins(range, b);
+    RealRange_jins(range, c);
+    RealRange_jins(range, d);
+    RealRange_jins(range, e);
+    RealRange_jins(range, f);
+    RealRange_snap(range); // TODO: probably move snap into ins or user will
+                           // forget to call it every time. but this is good for
+                           // perf if you call it after inserting all you want.
 
-    // I_haz(a, 6);
-    F_desc(intv);
-    F_haz(intv, 7.0);
+    // IntRange_haz(a, 6);
+    RealRange_desc(range);
+    RealRange_haz(range, 7.0);
 
-    F_del1(intv, 7);
-    F_desc(intv);
-    F_haz(intv, 7.0);
-    F_mul(intv, c);
-    F_desc(intv);
-    // I_add(intv, f);
-    // I_desc(intv);
-    // I_snap(intv);
-    // I_desc(intv);
+    RealRange_del1(range, 7);
+    RealRange_desc(range);
+    RealRange_haz(range, 7.0);
+    RealRange_mul(range, c);
+    RealRange_desc(range);
+    // IntRange_add(range, f);
+    // IntRange_desc(range);
+    // IntRange_snap(range);
+    // IntRange_desc(range);
 
-    // int64_t i = 1UL << 62, j = 1UL << 62;
+    // Int i = 1UL << 62, j = 1UL << 62;
     // printf("%d\n", canoverflow_add(i, j));
     // printf("%d\n", canoverflow_mul(i, j));
     // printf("%d\n", canoverflow_sub(i, j));
     // printf("%lld %lld %lld %lld\n", i, j, i + j, signed_saturated_add(i, j));
 
-    // for (int64_t i = 1; i < INT64_MAX; i *= 2) {
+    // for (Int i = 1; i < INT64_MAX; i *= 2) {
     //     printf("%lld %20lld %20lld %20lld\n", 512LL, i, i * 512,
     //         signed_saturated_mul(i, 512));
     //     if (canoverflow_mul(512, i)) {
@@ -719,8 +739,8 @@ int main()
     //         break;
     //     }
     // }
-    // printf("%d\n", not not I_which(intv, 12));
-    // printf("%d\n", not not I_which(intv, 7));
-    // printf("%d\n", not not I_which(intv, 3));
+    // printf("%d\n", not not IntRange_which(range, 12));
+    // printf("%d\n", not not IntRange_which(range, 7));
+    // printf("%d\n", not not IntRange_which(range, 3));
     return 0;
 }

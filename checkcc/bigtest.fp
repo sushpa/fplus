@@ -15,7 +15,7 @@ type Type2 extends Type1
     }
 end type
 
-function func1(arg1 as String) result (ret as Number)
+function func1(arg1 as String) as Number
     print(arg1)
     return 0
     var t1 = Type1()

@@ -536,6 +536,8 @@ static void Token_detect(Token* self)
 static void Token_advance(Token* self)
 {
     switch (self->kind) {
+    case tkNullChar:
+        return;
     case tkIdentifier:
     case tkString:
     case tkNumber:

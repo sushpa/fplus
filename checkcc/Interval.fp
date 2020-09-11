@@ -48,7 +48,7 @@ function _div(a as Range, b as Range) result (ret as Range)
 end function
 
 function log(a as Range) result (ret as Range)
-    -- range literals are just like array literals. How to disambiguate?
+    # range literals are just like array literals. How to disambiguate?
     # requires not a intersects [-inf:0]
     requires a.lo > 0
     ret = Range(lo = log(a.lo), hi = log(a.hi))
@@ -62,16 +62,25 @@ _log(a[] as Range) :=
 # function log(a[] as Range) result (ret[] as Range)
 function log(inp as List of Range)
     result ans as List of Range?
-    var symTable as Dict of String and List of ASTNode = {
+    var symTable as ASTNode[][Text]
+
+
+    var symTable as {Text -> [ASTNode]}
+    var symTable as {Text -> Number}
+    var symTable as {Text -> {Text -> [ASTNode]}}
+    var symList as [ASTNode]
+    var symSet as {Text}
+
+    var symTable as Dict of Text and List of ASTNode = {
         "map" = [ASTNode(kind = .tkOpColon)]
     }
-    var symTable as Dict of String of ASTNode = {
-        "map" = { .kind = .tkOpColon },
-        "third" = { .kind = .tkKeywordIf }
+    var symTable as Dict of Text of ASTNode = {
+        "map" -> { .kind = .tkOpColon },
+        "third" -> { .kind = .tkKeywordIf }
     }
-    var symTable as Dict of String and ASTNode = {
-        "map" = ASTNode(kind = .tkOpColon),
-        "third" = ASTNode(kind = .tkKeywordIf)
+    var symTable as Dict of Text and ASTNode = {
+        "map" -> ASTNode(kind = .tkOpColon),
+        "third" -> ASTNode(kind = .tkKeywordIf)
     }
 
     var d as Range = {
@@ -80,7 +89,7 @@ function log(inp as List of Range)
         .next = nil
     }
 
-    -- range literals are just like array literals. How to disambiguate?
+    # range literals are just like array literals. How to disambiguate?
     # resize(&ret, to = size(a))
     # requires a[0].lo > 0
     # requires not a intersects [-inf:0]
@@ -115,5 +124,5 @@ _negate(a as Range) :=
 _unite(a as Range, b as Range) := Range(lo = a.lo + b.lo, hi=a.hi+b.hi)
 
 _intersect(a as Range, b as Range) :=
-    Range(lo = max(a.lo, b.lo), hi = min(a.hi, b.hi)) or nil # might violate invariant
+    Range(lo = max(a.lo, b.lo), hi = min(a.hi, b.hi)) or None # might violate invariant
 

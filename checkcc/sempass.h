@@ -170,6 +170,7 @@ static void analyseExpr(
     case tkKeyword_else:
     case tkKeyword_if:
     case tkKeyword_for:
+    case tkKeyword_elif:
     case tkKeyword_while: {
         if (expr->left) analyseExpr(parser, expr->left, mod, false);
         fp_foreach(ASTExpr*, stmt, expr->body->stmts)

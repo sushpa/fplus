@@ -8,7 +8,14 @@ function Complex(re as Number, im as Number) as Complex
     c.re = re
     c.im = im
     return c
+    check conjugate(c) == 4
 end function
+
+test complexItem1
+    check Complex(re=3, im=4) == 3 + 4i
+    Complex(re=1, im=0) -> 1 + 0i
+    Complex(re=1, im=0) => 1 + 0i
+end test
 
 # function Complex(re Number, im Number) returns (out Complex)
 #     out = Complex()
@@ -32,10 +39,12 @@ end enum
 # main returns nothing, since the error handling mechanism will report
 # any issues to the caller of main.
 declare type Strings
-function main(args[:] as String) result Number
+function main(args[] as Text) as Number
     # constructor call must have all named args
-    var c = Complex() #re = 3, im = 5)
+    var c = Complex() # disallow this
+    var c2 = 4 + 3i # this should be used
     var d = [2, 3, 4, 5, 6, 7, 8]
+    var c3 as Complex = c2 + 4
     print(d[:])
     # describe(d)
     # print(args[9])
@@ -48,12 +57,16 @@ function main(args[:] as String) result Number
 end function
 
 # disallow func name used as arg or ret name
-function sum(x[] as Real) result (s as Real)
-    for elem = x[] do s += elem
+function sum(x[] as Number) as Number
+    for elem in x[:] do sum += elem
+end function
+
+function sum(x as Number[]) as Number
+    for elem in x do s += elem
 end function
 
 function doarr()
-    var arr[] as Integer = [3, 4, 5; 6, 7, 8; 9, 10, 11]
+    var arr[] = [3, 4, 5; 6, 7, 8; 9, 10, 11]
     print(arr)
     describe(arr)
     describe(sum(arr))

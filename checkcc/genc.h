@@ -249,7 +249,7 @@ static bool isComparatorExpr(ASTExpr* expr) { return false; }
 ///////////////////////////////////////////////////////////////////////////
 static void ASTScope_lowerElementalOps(ASTScope* scope)
 {
-    fp_foreachn(ASTExpr*, stmt, stmts, scope->stmts)
+    fp_foreach(ASTExpr*, stmt, scope->stmts)
     {
 
         if (isCtrlExpr(stmt) and stmt->body)
@@ -1256,13 +1256,10 @@ static void ASTModule_genc(ASTModule* module, int level)
     puts("");
 
     fp_foreach(ASTType*, type, module->types) ASTType_genh(type, level);
-
     fp_foreach(ASTFunc*, func, module->funcs) ASTFunc_genh(func, level);
 
     fp_foreach(ASTType*, type, module->types) ASTType_genc(type, level);
-
     fp_foreach(ASTFunc*, func, module->funcs) ASTFunc_genc(func, level);
-
     fp_foreach(ASTImport*, import, module->imports) ASTImport_undefc(import);
 
     puts(coverageFunc[genCoverage]);

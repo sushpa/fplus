@@ -4,6 +4,7 @@ declare function check()
 var d = 3
 
 # mc = MyClass()
+
 function binfo()
     var x = 7
     x[2,8] = x[2,9]
@@ -61,16 +62,23 @@ end type
 # function ec.change(x, y)
 #     print("hi")
 # end function
+thirty() := 30
+thirty() := 30
 
-# function basic(arg as String, n as String) returns MyClass
-function basic(arg[] as String, n[:,:] as String) returns MyClass
+# function basic(arg as Text, n as Text) as MyClass
+function basic(arg as Text[] or None, n as Text[:,:]) as MyClass or None
     var a = 0 #!
     var x = 5 + 1 * 3 + (5+6) * arg
     print("Hello, world!" + x)
     var c = 7
+
     let enc = JSON("{hyyp: 67}")
-    var ebc = JSON.download("hyyp.ch")
-    var ec = JSON.read("hyyp.json")
+
+    let encj = toJSON({"hyp" = 67}) # same thing
+    let arrj = toJSON([1, 2, 3, 4, 5, 6])
+
+    var ebc = getJSON("hyyp.ch")
+    var ec = readJSON("hyyp.json")
     # why separate YAML/JSON/TOML?
     # separate XML & HTML because behaviours are diff ok.
     # ec.change = ecChange
@@ -97,13 +105,13 @@ end function
 
 pang() := 7
 
-declare function func2(x as String) returns NoneType
+declare function func2(x as Text) as Text or None
 declare function xyz()
 declare function JSON.download()
 declare function JSON()
 declare function JSON.read()
 
-function func(m as String)
+function func(m as Text)
 end function
 
 declare function print()

@@ -727,7 +727,7 @@ static Parser* Parser_fromFile(char* filename, bool skipws)
         ret->mode = PMGenC; // parse args to set this
         ret->errCount = 0;
         ret->warnCount = 0;
-        ret->errLimit = 20;
+        ret->errLimit = 50;
     } else {
         eputs("Source files larger than 16MB are not allowed.\n");
     }
@@ -874,7 +874,7 @@ static void Parser_genc_close(Parser* parser)
     printf("#endif // HAVE_%s\n", parser->capsMangledName);
 }
 
-static void alloc_stat() {}
+static void alloc_stat() { }
 
 #pragma mark - main
 int main(int argc, char* argv[])
