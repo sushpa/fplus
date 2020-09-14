@@ -924,6 +924,7 @@ int main(int argc, char* argv[])
         } break;
 
         case PMGenC: {
+            // TODO: if (monolithic) printf("#define STATIC static\n");
             printf("#include \"fp_runtime.h\"\n");
             Parser_genc_open(parser);
             fp_foreach(ASTModule*, mod, modules) ASTModule_genc(mod, 0);

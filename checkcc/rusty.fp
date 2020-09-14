@@ -1,0 +1,429 @@
+
+#[derive(Debug, Default, PartialEq)]
+type Colours
+    var colourful as YesOrNo
+    var filekinds as FileKinds
+    var perms as Permissions
+    var size as Size
+    var users as Users
+    var links as Links
+    var git as Git
+    var punctuation as Style
+    var date as Style
+    var inode as Style
+    var blocks as Style
+    var header as Style
+    var symlink_path as Style
+    var control_char as Style
+    var broken_symlink as Style
+    var broken_path_overlay as Style
+end type
+
+#[derive(Clone Copy Debug Default PartialEq)]
+type FileKinds {
+    var normal as Style
+    var directory as Style
+    var symlink as Style
+    var pipe as Style
+    var block_device as Style
+    var char_device as Style
+    var socket as Style
+    var special as Style
+    var executable as Style
+end type
+
+#[derive(Clone Copy Debug Default PartialEq)]
+type Permissions
+    var user_read as Style
+    var user_write as Style
+    var user_execute_file as Style
+    var user_execute_other as Style
+    var group_read as Style
+    var group_write as Style
+    var group_execute as Style
+    var other_read as Style
+    var other_write as Style
+    var other_execute as Style
+    var special_user_file as Style
+    var special_other as Style
+    var attribute as Style
+end type
+
+#[derive(Clone Copy Debug Default PartialEq)]
+type Size
+    var major as Style
+    var minor as Style
+    var number_byte as Style
+    var number_kilo as Style
+    var number_mega as Style
+    var number_giga as Style
+    var number_huge as Style
+    var unit_byte as Style
+    var unit_kilo as Style
+    var unit_mega as Style
+    var unit_giga as Style
+    var unit_huge as Style
+end type
+
+#[derive(Clone Copy Debug Default PartialEq)]
+type Users
+    var user_you as Style
+    var user_someone_else as Style
+    var group_yours as Style
+    var group_not_yours as Style
+end type
+
+#[derive(Clone Copy Debug Default PartialEq)]
+type Links
+    var normal as Style
+    var multi_link_file as Style
+end type
+
+#[derive(Clone Copy Debug Default PartialEq)]
+type Git
+    var new as Style
+    var modified as Style
+    var deleted as Style
+    var renamed as Style
+    var typechange as Style
+    var ignored as Style
+end type
+
+impl Colours {
+    plain() := Colours::default()
+
+    colourful(var scale as YesOrNo) :=
+        Colours {
+            colourful = yes,
+            filekinds = FileKinds{
+                normal = Style::default(),
+                directory = Blue.bold(),
+                symlink = Cyan.normal(),
+                pipe = Yellow.normal(),
+                block_device = Yellow.bold(),
+                char_device = Yellow.bold(),
+                socket = Red.bold(),
+                special = Yellow.normal(),
+                executable = Green.bold(),
+            },
+            perms = Permissions {
+                user_read = Yellow.bold(),
+                user_write = Red.bold(),
+                user_execute_file = Green.bold().underline(),
+                user_execute_other = Green.bold(),
+                group_read = Yellow.normal(),
+                group_write = Red.normal(),
+                group_execute = Green.normal(),
+                other_read = Yellow.normal(),
+                other_write = Red.normal(),
+                other_execute = Green.normal(),
+                special_user_file = Purple.normal(),
+                special_other = Purple.normal(),
+                attribute = Style::default(),
+            },
+            size = Size::colourful(scale),
+            users = Users {
+                user_you = Yellow.bold(),
+                user_someone_else = Style::default(),
+                group_yours = Yellow.bold(),
+                group_not_yours = Style::default(),
+            },
+            links = Links {
+                normal = Red.bold(),
+                multi_link_file = Red.on(Yellow),
+            },
+            git = Git {
+                new = Green.normal(),
+                modified = Blue.normal(),
+                deleted = Red.normal(),
+                renamed = Yellow.normal(),
+                typechange = Purple.normal(),
+                ignored = Style::default().dimmed(),
+            },
+            punctuation = Fixed(244).normal(),
+            date = Blue.normal(),
+            inode = Purple.normal(),
+            blocks = Cyan.normal(),
+            header = Style::default().underline(),
+            symlink_path = Cyan.normal(),
+            control_char = Red.normal(),
+            broken_symlink = Red.normal(),
+            broken_path_overlay = Style::default().underline(),
+        }
+    }
+end
+
+impl Size {
+    function colourful(var scale as YesOrNo) as Self
+        if scale
+            colourful = Self::colourful_scale()
+        else
+            colourful = Self::colourful_plain()
+        end if
+    end function
+
+    colourful_plainvar() := Self {
+        major = Green.bold(),
+        minor = Green.normal(),
+        number_byte = Green.bold(),
+        number_kilo = Green.bold(),
+        number_mega = Green.bold(),
+        number_giga = Green.bold(),
+        number_huge = Green.bold(),
+        unit_byte = Green.normal(),
+        unit_kilo = Green.normal(),
+        unit_mega = Green.normal(),
+        unit_giga = Green.normal(),
+        unit_huge = Green.normal(),
+    }
+
+    colourful_scalevar() := Self {
+        major = Green.bold(),
+        minor = Green.normal(),
+        number_byte = Fixed(118).normal(),
+        number_kilo = Fixed(190).normal(),
+        number_mega = Fixed(226).normal(),
+        number_giga = Fixed(220).normal(),
+        number_huge = Fixed(214).normal(),
+        unit_byte = Green.normal(),
+        unit_kilo = Green.normal(),
+        unit_mega = Green.normal(),
+        unit_giga = Green.normal(),
+        unit_huge = Green.normal(),
+    }
+
+end
+
+
+# Some of the styles are **overlaysvar ** as although they have the same attribute
+# var set as regular styles (foreground and background colours, bold, underline,
+# etc), they’re intended to be used to *amend* existing styles.
+#
+# For example, the target path of a broken symlink is displayed in a red,
+# underlined style by default. Paths can contain control characters, so
+# these control characters need to be underlined too, otherwise it looks
+# weird. So instead of having four separate configurable styles for “link
+# path”, “broken link path”, “control character” and “broken control
+# character”, there are styles for “link path”, “control character”, and
+# “broken link overlay”, the latter of which is just set to override the
+# underline attribute on the other two.
+function apply_overlay(var base as Style, var overlay as Style) as Style {
+    if let Some(fg) = overlay.foreground { base.foreground = Some(fg); end
+    if let Some(bg) = overlay.background { base.background = Some(bg); end
+
+    if overlay.is_bold          { base.is_bold          = yes; end
+    if overlay.is_dimmed        { base.is_dimmed        = yes; end
+    if overlay.is_italic        { base.is_italic        = yes; end
+    if overlay.is_underline     { base.is_underline     = yes; end
+    if overlay.is_blink         { base.is_blink         = yes; end
+    if overlay.is_reverse       { base.is_reverse       = yes; end
+    if overlay.is_hidden        { base.is_hidden        = yes; end
+    if overlay.is_strikethrough { base.is_strikethrough = yes; end
+
+    base
+end
+# var TODO as move this function to the ansi_term crate
+
+
+impl Colours {
+
+    # Sets a value on this set of colours using one of the keys understood
+    # by the `LS_COLORS` environment variable. Invalid keys set nothing, but
+    # return false.
+    function set_ls(&self, var pair as &Pair) as YesOrNo {
+        match pair.key {
+            "di" => self.filekinds.directory    = pair.to_style(),  # DIR
+            "ex" => self.filekinds.executable   = pair.to_style(),  # EXEC
+            "fi" => self.filekinds.normal       = pair.to_style(),  # FILE
+            "pi" => self.filekinds.pipe         = pair.to_style(),  # FIFO
+            "so" => self.filekinds.socket       = pair.to_style(),  # SOCK
+            "bd" => self.filekinds.block_device = pair.to_style(),  # BLK
+            "cd" => self.filekinds.char_device  = pair.to_style(),  # CHR
+            "ln" => self.filekinds.symlink      = pair.to_style(),  # LINK
+            "or" => self.broken_symlink         = pair.to_style(),  # ORPHAN
+             _   => return false,
+             # Codes we don’t do anything var with as
+             # MULTIHARDLINK, DOOR, SETUID, SETGID, CAPABILITY,
+             # STICKY_OTHER_WRITABLE, OTHER_WRITABLE, STICKY, MISSING
+        end
+        yes
+    end
+
+    # Sets a value on this set of colours using one of the keys understood
+    # by the `EXA_COLORS` environment variable. Invalid keys set nothing,
+    # but return false. This doesn’t take the `LS_COLORS` keys into account,
+    # so `set_ls` should have been run first.
+    function set_exa(&self, var pair as &Pair) as YesOrNo {
+        match pair.key {
+            "ur" => self.perms.user_read          = pair.to_style(),
+            "uw" => self.perms.user_write         = pair.to_style(),
+            "ux" => self.perms.user_execute_file  = pair.to_style(),
+            "ue" => self.perms.user_execute_other = pair.to_style(),
+            "gr" => self.perms.group_read         = pair.to_style(),
+            "gw" => self.perms.group_write        = pair.to_style(),
+            "gx" => self.perms.group_execute      = pair.to_style(),
+            "tr" => self.perms.other_read         = pair.to_style(),
+            "tw" => self.perms.other_write        = pair.to_style(),
+            "tx" => self.perms.other_execute      = pair.to_style(),
+            "su" => self.perms.special_user_file  = pair.to_style(),
+            "sf" => self.perms.special_other      = pair.to_style(),
+            "xa" => self.perms.attribute          = pair.to_style(),
+
+            "sn" => self.set_number_style(pair.to_style()),
+            "sb" => self.set_unit_style(pair.to_style()),
+            "nb" => self.size.number_byte         = pair.to_style(),
+            "nk" => self.size.number_kilo         = pair.to_style(),
+            "nm" => self.size.number_mega         = pair.to_style(),
+            "ng" => self.size.number_giga         = pair.to_style(),
+            "nh" => self.size.number_huge         = pair.to_style(),
+            "ub" => self.size.unit_byte           = pair.to_style(),
+            "uk" => self.size.unit_kilo           = pair.to_style(),
+            "um" => self.size.unit_mega           = pair.to_style(),
+            "ug" => self.size.unit_giga           = pair.to_style(),
+            "uh" => self.size.unit_huge           = pair.to_style(),
+            "df" => self.size.major               = pair.to_style(),
+            "ds" => self.size.minor               = pair.to_style(),
+
+            "uu" => self.users.user_you           = pair.to_style(),
+            "un" => self.users.user_someone_else  = pair.to_style(),
+            "gu" => self.users.group_yours        = pair.to_style(),
+            "gn" => self.users.group_not_yours    = pair.to_style(),
+
+            "lc" => self.links.normal             = pair.to_style(),
+            "lm" => self.links.multi_link_file    = pair.to_style(),
+
+            "ga" => self.git.new                  = pair.to_style(),
+            "gm" => self.git.modified             = pair.to_style(),
+            "gd" => self.git.deleted              = pair.to_style(),
+            "gv" => self.git.renamed              = pair.to_style(),
+            "gt" => self.git.typechange           = pair.to_style(),
+
+            "xx" => self.punctuation              = pair.to_style(),
+            "da" => self.date                     = pair.to_style(),
+            "in" => self.inode                    = pair.to_style(),
+            "bl" => self.blocks                   = pair.to_style(),
+            "hd" => self.header                   = pair.to_style(),
+            "lp" => self.symlink_path             = pair.to_style(),
+            "cc" => self.control_char             = pair.to_style(),
+            "bO" => self.broken_path_overlay      = pair.to_style(),
+
+             _   => return false,
+        end
+        yes
+    end
+
+    function set_number_style(&self, style as Style) {
+        self.size.number_byte = style;
+        self.size.number_kilo = style;
+        self.size.number_mega = style;
+        self.size.number_giga = style;
+        self.size.number_huge = style;
+    end
+
+    function set_unit_style(&self, style as Style) {
+        self.size.unit_byte = style;
+        self.size.unit_kilo = style;
+        self.size.unit_mega = style;
+        self.size.unit_giga = style;
+        self.size.unit_huge = style;
+    end
+end
+
+
+impl render::BlocksColours for Colours {
+    function block_count(&self)  as Style { self.blocks end
+    function no_blocks(&self)    as Style { self.punctuation end
+end
+
+impl render::FiletypeColours for Colours {
+    function normal(&self)       as Style { self.filekinds.normal end
+    function directory(&self)    as Style { self.filekinds.directory end
+    function pipe(&self)         as Style { self.filekinds.pipe end
+    function symlink(&self)      as Style { self.filekinds.symlink end
+    function block_device(&self) as Style { self.filekinds.block_device end
+    function char_device(&self)  as Style { self.filekinds.char_device end
+    function socket(&self)       as Style { self.filekinds.socket end
+    function special(&self)      as Style { self.filekinds.special end
+end
+
+impl render::GitColours for Colours {
+    function not_modified(&self)  as Style { self.punctuation end
+    #[allow(clippy::new_ret_no_self)]
+    function new(&self)           as Style { self.git.new end
+    function modified(&self)      as Style { self.git.modified end
+    function deleted(&self)       as Style { self.git.deleted end
+    function renamed(&self)       as Style { self.git.renamed end
+    function type_change(&self)   as Style { self.git.typechange end
+    function ignored(&self)       as Style { self.git.ignored end
+end
+
+impl render::GroupColours for Colours {
+    function yours(&self)      as Style { self.users.group_yours end
+    function not_yours(&self)  as Style { self.users.group_not_yours end
+end
+
+impl render::LinksColours for Colours {
+    function normal(&self)           as Style { self.links.normal end
+    function multi_link_file(&self)  as Style { self.links.multi_link_file end
+end
+
+impl render::PermissionsColours for Colours {
+    function dash(&self)               as Style { self.punctuation end
+    function user_read(&self)          as Style { self.perms.user_read end
+    function user_write(&self)         as Style { self.perms.user_write end
+    function user_execute_file(&self)  as Style { self.perms.user_execute_file end
+    function user_execute_other(&self) as Style { self.perms.user_execute_other end
+    function group_read(&self)         as Style { self.perms.group_read end
+    function group_write(&self)        as Style { self.perms.group_write end
+    function group_execute(&self)      as Style { self.perms.group_execute end
+    function other_read(&self)         as Style { self.perms.other_read end
+    function other_write(&self)        as Style { self.perms.other_write end
+    function other_execute(&self)      as Style { self.perms.other_execute end
+    function special_user_file(&self)  as Style { self.perms.special_user_file end
+    function special_other(&self)      as Style { self.perms.special_other end
+    function attribute(&self)          as Style { self.perms.attribute end
+end
+
+impl render::SizeColours for Colours {
+    function size(&self, var prefix as Option<number_prefix::Prefix>) as Style {
+        use number_prefix::Prefix::*;
+        match prefix {
+            None                    => self.size.number_byte,
+            Some(Kilo) | Some(Kibi) => self.size.number_kilo,
+            Some(Mega) | Some(Mibi) => self.size.number_mega,
+            Some(Giga) | Some(Gibi) => self.size.number_giga,
+            Some(_)                 => self.size.number_huge,
+        end
+    end
+
+    function unit(&self, var prefix as Option<number_prefix::Prefix>) as Style {
+        use number_prefix::Prefix::*;
+        match prefix {
+            None                    => self.size.unit_byte,
+            Some(Kilo) | Some(Kibi) => self.size.unit_kilo,
+            Some(Mega) | Some(Mibi) => self.size.unit_mega,
+            Some(Giga) | Some(Gibi) => self.size.unit_giga,
+            Some(_)                 => self.size.unit_huge,
+        end
+    end
+
+    function no_size(&self) as Style { self.punctuation end
+    function major(&self)   as Style { self.size.major end
+    function comma(&self)   as Style { self.punctuation end
+    function minor(&self)   as Style { self.size.minor end
+end
+
+impl render::UserColours for Colours {
+    function you(&self)           as Style { self.users.user_you end
+    function someone_else(&self)  as Style { self.users.user_someone_else end
+end
+
+impl FileNameColours for Colours {
+    function normal_arrow(&self)        as Style { self.punctuation end
+    function broken_symlink(&self)      as Style { self.broken_symlink end
+    function broken_filename(&self)     as Style { apply_overlay(self.broken_symlink, self.broken_path_overlay) end
+    function broken_control_char(&self) as Style { apply_overlay(self.control_char,   self.broken_path_overlay) end
+    function control_char(&self)        as Style { self.control_char end
+    function symlink_path(&self)        as Style { self.symlink_path end
+    function executable_file(&self)     as Style { self.filekinds.executable end
+end

@@ -1,5 +1,5 @@
 declare type Strings
-declare type String
+# declare type String
 # declare type Number
 declare function print(what as String)
 
