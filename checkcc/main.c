@@ -12,6 +12,7 @@
 
 #include "cycle.h"
 #include "fp_base.h"
+#include "fp_sys_time.h"
 
 #define STEP 4
 
@@ -250,6 +251,21 @@ typedef struct ASTModule {
     List(ASTEnum) * enums;
     char* moduleName;
 } ASTModule;
+
+// better keep a set or map instead and add as you encounter in code
+// or best do nothing and let user write 'import formats' etc
+// typedef struct {
+//     int need_BitVector : 1, need_Colour : 1, need_Currency : 1,
+//         need_DateTime : 1, need_DiskItem : 1, need_Duration : 1,
+//         need_Number : 1, need_Range : 1, need_Rational : 1, need_Regex : 1,
+//         need_Size : 1, need_String : 1, need_YesOrNo : 1, need_Array : 1,
+//         need_ArrayND : 1, need_Dict : 1, need_Filter : 1, need_List : 1,
+//         need_Selection : 1, need_Sequence : 1, need_SequenceND : 1,
+//         need_Slice : 1, need_SliceND : 1, need_FML : 1, need_HTML : 1,
+//         need_JSON : 1, need_XML : 1, need_YAML : 1, need_FTP : 1, need_HTTP :
+//         1, need_IMAP : 1, need_POP3 : 1, need_SMTP : 1, need_SSH : 1,
+//         need_Pool : 1;
+// } FPNeedBuiltins;
 
 #pragma mark - AST IMPORT IMPL.
 
@@ -885,8 +901,8 @@ int main(int argc, char* argv[])
     }
     bool printDiagnostics = (argc > 2 && *argv[2] == 'd') or false;
 
-    ticks t0 = getticks();
-
+    // ticks t0 = getticks();
+    fp_sys_time_Time t0 = fp_sys_time_getTime();
     List(ASTModule) * modules;
     Parser* parser;
 
@@ -928,7 +944,9 @@ int main(int argc, char* argv[])
         }
     }
 
-    if (printDiagnostics) printstats(parser, elapsed(getticks(), t0) / 1e6);
+    // if (printDiagnostics) printstats(parser, elapsed(getticks(), t0) / 1e6);
+    if (printDiagnostics)
+        printstats(parser, fp_sys_time_clockSpanMicro(t0) / 1.0e3);
 
     if (parser->errCount)
         eprintf(

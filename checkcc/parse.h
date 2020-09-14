@@ -98,11 +98,13 @@ static ASTExpr* parseExpr(Parser* self)
             if ((p and p->kind == tkArrayOpen)
                 and (fp_PtrArray_empty(&ops)
                     or (fp_PtrArray_top(&rpn)
-                        and fp_PtrArray_topAs(ASTExpr*, &ops)->kind != tkSubscript))
+                        and fp_PtrArray_topAs(ASTExpr*, &ops)->kind
+                            != tkSubscript))
                 // don't do this if its part of a subscript
                 and (fp_PtrArray_empty(&rpn)
                     or (fp_PtrArray_top(&rpn)
-                        and fp_PtrArray_topAs(ASTExpr*, &rpn)->kind != tkOpColon)))
+                        and fp_PtrArray_topAs(ASTExpr*, &rpn)->kind
+                            != tkOpColon)))
                 // or aa range. range exprs are handled separately. by
                 // themselves they don't need a surrounding [], but for
                 // grouping like 2+[8:66] they do.
@@ -271,8 +273,8 @@ exitloop:
 error:
 
     while (self->token.pos < self->end
-        and (self->token.kind != tkNewline
-            and self->token.kind != tkLineComment  and self->token.kind != tkNullChar))
+        and (self->token.kind != tkNewline and self->token.kind != tkLineComment
+            and self->token.kind != tkNullChar))
         Token_advance(&self->token);
 
     if (ops.used) {
@@ -660,8 +662,7 @@ static ASTFunc* parseFunc(Parser* self, bool shouldParseBody)
     func->args = parseArgs(self);
     func->argCount = fp_PtrList_count(func->args);
 
-    if (Parser_ignore(self, tkOneSpace)
-        and Parser_ignore(self, tkKeyword_result)) {
+    if (Parser_ignore(self, tkOneSpace) and Parser_ignore(self, tkKeyword_as)) {
         discard(self, tkOneSpace);
         func->returnSpec = parseTypeSpec(self);
     }
@@ -997,7 +998,7 @@ static fp_PtrList* parseModule(Parser* self)
             Parser_errorUnexpectedToken(self);
             while (self->token.kind != tkNewline
                 and self->token.kind != tkLineComment
-                   and self->token.kind != tkNullChar)
+                and self->token.kind != tkNullChar)
                 Token_advance(&self->token);
         }
     }
