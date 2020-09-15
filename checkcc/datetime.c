@@ -1,28 +1,23 @@
 #include <stdio.h>
 #include <time.h>
 
-// typedef struct {
-//     int y, tz;
-//     unsigned int M, d, h, m, s, wd, dst,
-//     _reserved_;
-// } DateTime;
+ typedef struct {
+     int y;
+     unsigned char tz, M, d, h, m, s, wd, dst;
+ } DateTime;
 
 typedef struct {
     int y, M, d, h, m, s;
 } Duration;
 
-typedef struct {
-    int y : 26, tz : 6;
-    unsigned int M : 4, d : 5, h : 5, m : 6, s : 6, wd : 3, dst : 2,
-        _reserved_ : 1;
-} DateTime;
+//typedef struct {
+//    int y : 26, tz : 6;
+//    unsigned int M : 4, d : 5, h : 5, m : 6, s : 6, wd : 3, dst : 2,
+//        _reserved_ : 1;
+//} DateTime;
 
 // This works only for the 8B DateTime structure
-int DateTime_equal(DateTime a, DateTime b)
-{
-    int64_t *aa = &a, *bb = &b;
-    return *aa == *bb;
-}
+
 
 // typedef struct {
 //     int y;
@@ -84,7 +79,7 @@ int monthdays(int M, int y)
     case 0:
         return 31;
     }
-    return 0;
+    return 1000000;
 }
 
 // Duration mkDuration(int y, int M, int d, int h, int m,
@@ -100,13 +95,9 @@ static const char* const tzLabels_[] = { "-1200", "-1130", "-1100", "-1030",
 static const char* const* const tzLabels = tzLabels_ + 24;
 // you can index this with [-24 .. +24]
 
-void printDate(DateTime base)
+struct tm DateTime_toTM(DateTime base)
 {
-    printf("DateTime %s %04d-%02d-%02d %02d:%02d:%02d %s\n",
-        weekDayName[base.wd], base.y, base.M, base.d, base.h, base.m, base.s,
-        tzLabels[base.tz]);
-
-    struct tm t = {
+    struct tm tmret = {
         .tm_year = base.y - 1900,
         .tm_mon = base.M - 1,
         .tm_mday = base.d,
@@ -117,30 +108,107 @@ void printDate(DateTime base)
         .tm_wday = base.wd,
         .tm_gmtoff = base.tz * 1800 // 30-min intervals
     };
-    char buf[64];
-    buf[63] = 0;
-    strftime(buf, 63, "%c (Z%z: %Z)", &t);
+    return tmret; // mktime(&tmret);
+}
+
+DateTime DateTime_fromTM(struct tm* tmret)
+{
+    // tmret->tm_isdst = -1;
+    // mktime(tmret);
+    return (DateTime) {
+        .y = tmret->tm_year + 1900,
+        .M = tmret->tm_mon + 1,
+        .d = tmret->tm_mday,
+        .h = tmret->tm_hour,
+        .m = tmret->tm_min,
+        .s = tmret->tm_sec,
+        .dst = tmret->tm_isdst ? (tmret->tm_isdst > 0 ? 1 : -1) : 0,
+        .wd = tmret->tm_wday,
+        .tz = tmret->tm_gmtoff / 1800 // 30-min intervals
+    };
+}
+
+time_t DateTime_toUnix(DateTime base)
+{
+    struct tm t = DateTime_toTM(base);
+    return mktime(&t);
+}
+
+DateTime DateTime_fromUnix(time_t t)
+{
+    struct tm* tmret = gmtime(&t);
+    return DateTime_fromTM(tmret);
+}
+
+int DateTime_equal(DateTime a, DateTime b)
+{
+    // int64_t *aa = &a, *bb = &b;
+    // return *aa == *bb;
+
+    time_t ta = DateTime_toUnix(a);//+a.tz*1800;
+    time_t tb = DateTime_toUnix(b);//+b.tz*1800;
+    return ta==tb;
+//    return a.y == b.y && a.M == b.M && a.d == b.d && a.h == b.h && a.m == b.m
+//    && a.s == b.s; //&& a.tz == b.tz;
+}
+
+void DateTime_print(DateTime base)
+{
+    printf("DateTime %s %04d-%02d-%02d %02d:%02d:%02d %s\n",
+        weekDayName[base.wd], base.y, base.M, base.d, base.h, base.m, base.s,
+        tzLabels[base.tz]);
+
+    // struct tm t = DateTime_toTM(base);
+    // // {
+    // //     .tm_year = base.y - 1900,
+    // //     .tm_mon = base.M - 1,
+    // //     .tm_mday = base.d,
+    // //     .tm_hour = base.h,
+    // //     .tm_min = base.m,
+    // //     .tm_sec = base.s,
+    // //     .tm_isdst = base.dst,
+    // //     .tm_wday = base.wd,
+    // //     .tm_gmtoff = base.tz * 1800 // 30-min intervals
+    // // };
+    // char buf[64];
+    // buf[63] = 0;
+    // strftime(buf, 63, "%c (%Z)\n", &t);
     // printf("%s", buf);
 }
 
-void printDuration(Duration dur)
+void Duration_print(Duration dur)
 {
-    printf("Duration %dy %dm %dd %dh %dm %ds\n", dur.y, dur.M, dur.d, dur.h,
+    printf("Duration %dy %dM %dd %dh %dm %ds\n", dur.y, dur.M, dur.d, dur.h,
         dur.m, dur.s);
 }
 
-DateTime dateAddN(DateTime base, Duration diff)
+
+Duration Duration_new(
+    int years, int months, int days, int hours, int minutes, int seconds)
 {
-    long long sec = //
-        diff.s
-        + 60
-            * (diff.m
-                + 60
-                    * (diff.h + 24 * (diff.d + 365 * (diff.y) + (diff.y / 4))));
-    for (int i = 0; i < diff.M; i++) {
-    }
+    Duration diff = { .y = years,
+        .M = months,
+        .d = days,
+        .h = hours,
+        .m = minutes,
+        .s = seconds };
+    // if (diff.s >= 60) {
+    diff.m += diff.s / 60;
+    diff.s %= 60;
+    // }
+    // if (diff.m >= 60) {
+    diff.h += diff.m / 60;
+    diff.m %= 60;
+    // }
+    // if (diff.h >= 24) {
+    diff.d += diff.h / 24;
+    diff.h %= 24;
+    // }
+
+    return diff;
 }
 
+/*
 DateTime dateAdd(DateTime base, Duration diff)
 {
     if (diff.s >= 60) {
@@ -156,6 +224,20 @@ DateTime dateAdd(DateTime base, Duration diff)
         diff.h %= 24;
     }
 
+    const int daysIn4Years = 365 * 4 + 1;
+    if (diff.d >= daysIn4Years) {
+        diff.y += 4 * (diff.d / daysIn4Years);
+        diff.d -= daysIn4Years;
+    }
+
+    int ytmp = base.y;
+    int daysIn1Year = 365 + !(ytmp % 4);
+    while (diff.d >= daysIn1Year) {
+        diff.y += 1;
+        diff.d -= daysIn1Year;
+        daysIn1Year = 365 + !(ytmp % 4);
+    }
+
     int mdays = monthdays(base.M + diff.M, base.y + diff.y);
     while (diff.d >= mdays) {
         diff.M += 1;
@@ -167,7 +249,7 @@ DateTime dateAdd(DateTime base, Duration diff)
         diff.y += diff.M / 12;
         diff.M %= 12;
     }
-    // printDuration(diff);
+    // Duration_print(diff);
 
     int s = base.s + diff.s;
 
@@ -214,98 +296,270 @@ DateTime dateAdd(DateTime base, Duration diff)
 
     return ret;
 }
+*/
 
-DateTime now()
+DateTime DateTime_new(int year, int month, int day)
 {
-    time_t tmt[] = { time(NULL) };
-    struct tm* tmnow = localtime(tmt);
-    int s = sizeof(struct tm);
+    time_t tt = 0;
+    struct tm tmt[1] = { {} };
+    gmtime_r(&tt, tmt); // use gmtime to not care about timezones
+
+    char buf[64];
+    buf[63] = 0;
+    // strftime(buf, 63, "%c (%Z)\n", tmt);
+    // printf(".  %s", buf);
+
+    tmt->tm_year = year - 1900;
+    tmt->tm_mon = month - 1;
+    tmt->tm_mday = day;
+    tmt->tm_hour = tmt->tm_min = tmt->tm_sec = 0;
+    tmt->tm_isdst = 0;
+
+    tt = mktime(tmt);
+    // strftime(buf, 63, "%c (%Z)\n", tmt);
+    // printf(".. %s", buf);
+
+    return DateTime_fromTM(tmt);
+}
+
+DateTime DateTime_newWithTime(
+    int year, int month, int day, int hour, int minute, int second)
+{
+    DateTime t = DateTime_new(year, month, day);
+    t.h = hour;
+    t.m = minute;
+    t.s = second;
+    return t;
+}
+
+
+DateTime DateTime_add(DateTime base, Duration diff)
+{
+
+    // save orig base here
+    DateTime orig = base;
+
+    diff.y += diff.M / 12;
+    diff.M %= 12;
+
+    base.y += diff.y;
+    base.M += diff.M;
+    if (base.M > 12) {
+        base.y += 1;
+        base.M -= 12;
+    }
+
+    int mdays = monthdays(base.M, base.y);
+    if (base.d > mdays) base.d = mdays;
+
+    time_t dsec = //
+    diff.s
+    + 60
+    * (diff.m
+       + 60
+       * (diff.h
+          + 24 * (diff.d /*+ 365 * (diff.y) + (diff.y / 4)*/)));
+
+    // int yy = base.y + diff.y;
+    // int mm = base.M + diff.M;
+    // if (mm > 12) {
+    //     diff.y++;
+    //     mm -= 12;
+    // }
+    // if (diff.y)
+    //     dsec += 60 * 60 * 24
+    //         * (base.y % 4 == 0 || (base.y % 4 + diff.y % 4 >= 4));
+    // int month = base.M, year = base.y;
+    // for (int i = 0; i < diff.M; i++) {
+    //     int mdays = monthdays(month, year);
+    //     dsec += mdays * 24 * 60 * 60;
+    //     // year += !(++month % 12);
+    //     month += 1;
+    //     if (month > 12) {
+    //         month -= 12;
+    //         year += 1;
+    //     }
+    // }
+
+    // struct tm t = DateTime_toTM(base);
+
+    // time_t baset = mktime(&t);
+    // // printf("  %15ld\n+ %15ld\n= %15ld\n", baset, dsec, baset + dsec);
+    // time_t tmtret = baset + dsec;
+    // struct tm* tmret = gmtime(&tmtret);
+
+    time_t ttorig =DateTime_toUnix(orig)+orig.tz*1800;
+    time_t ttbase =DateTime_toUnix(base)+base.tz*1800;
+    time_t ttret = ttbase + dsec ;
+
+
+    DateTime ret = DateTime_fromUnix(ttret);
+    //    ret.tz = base.tz;
+    //    ret.dst = base.dst;
+
+    //    ret.h += ret.tz / 2;
+    //    ret.m += (ret.tz % 2) * 30;
+    //    ret.d += ret.h / 24;
+    //    ret.h %= 24;
+    // ret.M += diff.M; // this is a special treatment
+    // ret.M = mm;
+    // ret.y = yy;
+if (0&&diff.d>1){
+    time_t ttleap=0;
+   for (int yy = orig.y - (orig.y%4);yy<=ret.y;yy+=4) {
+        time_t feb29 = DateTime_toUnix(DateTime_new(yy,2,29));
+        if (feb29>=ttorig && feb29<=ttret) ttleap+=24*60*60;
+    }
+
+    ttret +=ttleap;
+     ret = DateTime_fromUnix(ttret);
+}
+    ret.tz = base.tz;
+    ret.dst = base.dst;
+
+    // TODO: correction for leap days: go over all leap days starting from 29/2
+    // in orig.year and check if it falls within the interval [ orig ... new ].
+    // if so add a day (check overflow, also for months if > 30 days added...)
+
+    // snap
+    // int mdays = monthdays(ret.M, ret.y);
+    // if (ret.d > mdays) ret.d = mdays;
+
+    return ret;
+}
+
+DateTime DateTime_now()
+{
+    // time_t tmt[] = { time(NULL) };
+    // struct tm* tmnow = gmtime(tmt);
+    // int s = sizeof(struct tm);
     // printf("%s %ld\n", tmnow->tm_zone, tmnow->tm_gmtoff);
     // long tz = tmnow->tm_gmtoff / 1800;
 
-    // struct tm is anyway static inernal storage in localtime() which will be
+    // struct tm is anyway static inernal storage in gmtime() which will be
     // overwritten, so it is not a bad idea to have our own (much smaller)
     // struct instead of just wrapping a struct tm
-    return (DateTime) {
-        .y = tmnow->tm_year + 1900,
-        .M = tmnow->tm_mon + 1,
-        .d = tmnow->tm_mday,
-        .h = tmnow->tm_hour,
-        .m = tmnow->tm_min,
-        .s = tmnow->tm_sec,
-        .dst = tmnow->tm_isdst ? (tmnow->tm_isdst > 0 ? 1 : -1) : 0,
-        .wd = tmnow->tm_wday,
-        .tz = tmnow->tm_gmtoff / 1800 // 30-min intervals
-    };
+    return DateTime_fromUnix(time(NULL));
+    // {
+    //     .y = tmnow->tm_year + 1900,
+    //     .M = tmnow->tm_mon + 1,
+    //     .d = tmnow->tm_mday,
+    //     .h = tmnow->tm_hour,
+    //     .m = tmnow->tm_min,
+    //     .s = tmnow->tm_sec,
+    //     .dst = tmnow->tm_isdst ? (tmnow->tm_isdst > 0 ? 1 : -1) : 0,
+    //     .wd = tmnow->tm_wday,
+    //     .tz = tmnow->tm_gmtoff / 1800 // 30-min intervals
+    // };
 
     // return strftime
 }
 
-#define TEST_DATEADD(durn, exp)                                                \
-    dur = durn;                                                                \
-    result = dateAdd(base, dur);                                               \
-    expected = exp;                                                            \
-    if (!DateTime_equal(result, expected)) {                                   \
-        printf("\n--- assertion failed:\n");                                   \
-        printf("base ");                                                       \
-        printDate(base);                                                       \
-        printf("dur  ");                                                       \
-        printDuration(dur);                                                    \
-        printf("need ");                                                       \
-        printDate(expected);                                                   \
-        printf("got  ");                                                       \
-        printDate(result);                                                     \
-    }
+// #define TEST_DATEADD(durn, exp)                                                \
+//     dur = durn;                                                                \
+//     result = dateAdd(base, dur);                                               \
+//     expected = exp;                                                            \
+//     if (!DateTime_equal(result, expected)) {                                   \
+//         printf("\n--- assertion failed:\n");                                   \
+//         printf("base ");                                                       \
+//         DateTime_print(base);                                                       \
+//         printf("dur  ");                                                       \
+//         Duration_print(dur);                                                    \
+//         printf("need ");                                                       \
+//         DateTime_print(expected);                                                   \
+//         printf("got  ");                                                       \
+//         DateTime_print(result);                                                     \
+//     }
 
+#define TEST_ADD(by, bm, bd, dy, dM, dd, ey, em, ed)                           \
+    TEST_ADDT(by, bm, bd, dy, dM, dd, 0, 0, 0, ey, em, ed)
+
+#define TEST_ADDT(by, bm, bd, dy, dM, dd, dh, dm, ds, ey, em, ed)              \
+    lineno = __LINE__;                                                         \
+    ntot++;                                                                    \
+    dur = Duration_new(dy, dM, dd, dh, dm, ds);                                \
+    base = DateTime_new(by, bm, bd);                                           \
+    result = DateTime_add(base, dur);                                          \
+    expected = DateTime_new(ey, em, ed);                                       \
+    if (!DateTime_equal(result, expected)) {                                   \
+        printf("\n--- test #%d failed at ./%s:%d:\n", ntot, __FILE__, lineno); \
+        printf("dur  ");                                                       \
+        Duration_print(dur);                                                   \
+        printf("base ");                                                       \
+        DateTime_print(base);                                                  \
+        printf("need ");                                                       \
+        DateTime_print(expected);                                              \
+        printf("got  ");                                                       \
+        DateTime_print(result);                                                \
+        nfail++;                                                               \
+    }
 int main()
 {
-    DateTime base = { //
-        .y = 2016,
-        .M = 5,
-        .d = 27,
-        .h = 12,
-        .m = 15,
-        .s = 40
-    };
+    DateTime base; // = { //
+    //     .y = 2016,
+    //     .M = 5,
+    //     .d = 27,
+    //     .h = 12,
+    //     .m = 15,
+    //     .s = 40
+    // };
+    int lineno, ntot = 0, nfail = 0;
+    Duration dur; //= { .y = 4, .h = 48, .d = 363 };
+    // Duration_print(dur);
+    // DateTime next = DateTime_add(base, dur);
 
-    Duration dur = { .y = 4, .h = 48, .d = 363 };
-    // printDuration(dur);
-    DateTime next = dateAdd(base, dur);
-
-    // printDate(base);
-    // printDate(next);
-    printDate(now());
+    // DateTime_print(base);
+    // DateTime_print(next);
+    printf("now:  ");
+    DateTime_print(DateTime_now());
     DateTime result, expected;
 
-    base = (DateTime) { .y = 2020, .M = 1, .d = 1 };
-    TEST_DATEADD(
-        ((Duration) { .y = 1 }), ((DateTime) { .y = 2021, .M = 1, .d = 1 }))
-    TEST_DATEADD(
-        ((Duration) { .M = 1 }), ((DateTime) { .y = 2020, .M = 2, .d = 1 }))
-    TEST_DATEADD(
-        ((Duration) { .d = 1 }), ((DateTime) { .y = 2020, .M = 1, .d = 2 }))
-    TEST_DATEADD(((Duration) { .h = 1 }),
-        ((DateTime) { .y = 2020, .M = 1, .d = 1, .h = 1 }))
-    TEST_DATEADD(((Duration) { .m = 1 }),
-        ((DateTime) { .y = 2020, .M = 1, .d = 1, .m = 1 }))
-    TEST_DATEADD(((Duration) { .s = 1 }),
-        ((DateTime) { .y = 2020, .M = 1, .d = 1, .s = 1 }))
+    // base = (DateTime) { .y = 2020, .M = 1, .d = 1 };
+    TEST_ADD(2020, 1, 1, 1, 0, 0, 2021, 1, 1)
+    TEST_ADD(2021, 1, 1, 1, 0, 0, 2022, 1, 1)
+    TEST_ADD(2020, 1, 1, 0, 1, 0, 2020, 2, 1)
+    TEST_ADD(2020, 1, 1, 0, 0, 1, 2020, 1, 2)
 
-    base = (DateTime) { .y = 2020, .M = 2, .d = 28 };
-    TEST_DATEADD(
-        ((Duration) { .d = 1 }), ((DateTime) { .y = 2020, .M = 2, .d = 29 }))
-    TEST_DATEADD(
-        ((Duration) { .M = 1 }), ((DateTime) { .y = 2020, .M = 3, .d = 28 }))
+    TEST_ADD(2020, 2, 28, 0, 0, 1, 2020, 2, 29)
+    TEST_ADD(2021, 2, 28, 0, 0, 1, 2021, 3, 1)
 
-    base = (DateTime) { .y = 2020, .M = 1, .d = 30 };
-    TEST_DATEADD(
-        ((Duration) { .M = 1 }), ((DateTime) { .y = 2020, .M = 2, .d = 29 }))
+    TEST_ADD(2020, 2, 28, 0, 1, 0, 2020, 3, 28)
+    TEST_ADD(2021, 2, 28, 0, 1, 0, 2021, 3, 28)
 
-    base = (DateTime) { .y = 2020, .M = 1, .d = 30 };
-    TEST_DATEADD(((Duration) { .M = 1, .d = 5 }),
-        ((DateTime) { .y = 2020, .M = 3, .d = 1 }))
+    TEST_ADD(2020, 1, 30, 0, 1, 0, 2020, 2, 29)
+    TEST_ADD(2020, 1, 30, 0, 1, 5, 2020, 3, 5)
+    TEST_ADD(2020, 3, 30, 0, 1, 5, 2020, 5, 5)
+    TEST_ADD(2020, 4, 30, 0, 1, 5, 2020, 6, 4)
 
-    base = (DateTime) { .y = 2020, .M = 5, .d = 31 };
-    TEST_DATEADD(
-        ((Duration) { .M = 1 }), ((DateTime) { .y = 2020, .M = 6, .d = 30 }))
+    TEST_ADD(2020, 1, 30, 0, 2, 0, 2020, 3, 30)
+
+    TEST_ADD(2020, 5, 31, 0, 1, 0, 2020, 6, 30)
+
+    TEST_ADD(2020, 1, 1, 0, 0, 390, 2021, 1, 25)
+    TEST_ADD(2021, 1, 1, 0, 0, 390, 2022, 1, 26)
+
+    TEST_ADD(2020, 1, 1, 0, 32, 390, 2023, 9, 26)
+    TEST_ADD(2021, 1, 1, 0, 32, 390, 2024, 9, 25)
+
+    TEST_ADD(2020, 2, 29, 1, 0, 0, 2021, 2, 28)
+    TEST_ADDT(2020, 2, 29, 0, 0, 0, 0, 0, 365*24*60*60, 2021, 2, 28)
+
+    // base = (DateTime) { .y = 2020, .M = 2, .d = 28 };
+    // TEST_DATEADD(
+    //     ((Duration) { .d = 1 }), ((DateTime) { .y = 2020, .M = 2, .d = 29 }))
+    // TEST_DATEADD(
+    //     ((Duration) { .M = 1 }), ((DateTime) { .y = 2020, .M = 3, .d = 28 }))
+
+    // base = (DateTime) { .y = 2020, .M = 1, .d = 30 };
+    // TEST_DATEADD(
+    //     ((Duration) { .M = 1 }), ((DateTime) { .y = 2020, .M = 2, .d = 29 }))
+
+    // base = (DateTime) { .y = 2020, .M = 1, .d = 30 };
+    // TEST_DATEADD(((Duration) { .M = 1, .d = 5 }),
+    //     ((DateTime) { .y = 2020, .M = 3, .d = 1 }))
+
+    // base = (DateTime) { .y = 2020, .M = 5, .d = 31 };
+    // TEST_DATEADD(
+    //     ((Duration) { .M = 1 }), ((DateTime) { .y = 2020, .M = 6, .d = 30 }))
+    if (nfail) printf("\n--- %d of %d tests failed.\n", nfail, ntot);
 }
