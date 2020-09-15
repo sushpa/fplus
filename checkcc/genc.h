@@ -1198,7 +1198,7 @@ static void ASTExpr_genc(
         if (rightBr) putc(rpo, stdout);
         if (expr->right)
             ASTExpr_genc(expr->right, 0,
-                spacing and !rightBr and expr->kind != tkOpColon, inFuncArgs,
+                spacing and not rightBr and expr->kind != tkOpColon, inFuncArgs,
                 escStrings);
         if (rightBr) putc(rpc, stdout);
 
