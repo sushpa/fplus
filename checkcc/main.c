@@ -666,6 +666,13 @@ typedef struct Parser {
         warnUnusedVar : 1, warnUnusedFunc : 1, warnUnusedType : 1,
         warnUnusedArg : 1;
 
+    // set these whenever use is detected (e.g. during resolveTypes or parsing
+    // literals)
+    struct {
+        bool complex, json, yaml, xml, html, http, ftp, imap, pop3, smtp, frpc,
+            fml, fbin, rational, polynomial, regex, datetime, colour, range,
+            table, ui;
+    } requires;
 } Parser;
 
 #define STR(x) STR_(x)

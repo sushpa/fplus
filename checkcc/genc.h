@@ -468,7 +468,7 @@ static void ASTType_genJson(ASTType* type)
 }
 
 ///////////////////////////////////////////////////////////////////////////
-static void ASTType_genJsonReader(ASTType* type) {}
+static void ASTType_genJsonReader(ASTType* type) { }
 
 static const char* functionEntryStuff_UNESCAPED
     = "#ifndef NOSTACKCHECK\n"
@@ -706,7 +706,14 @@ static void ASTExpr_genc(
 
     printf("%.*s", level, spaces);
     switch (expr->kind) {
-    case tkNumber:
+    case tkNumber: {
+        int ls = strlen(expr->string);
+        if (expr->string[ls - 1] == 'i') {
+            printf("_Complex_I*");
+            expr->string[ls - 1] = 0;
+        }
+        printf("%s", expr->string);
+    } break;
     case tkMultiDotNumber:
     case tkIdentifier:
         printf("%s", expr->string);
