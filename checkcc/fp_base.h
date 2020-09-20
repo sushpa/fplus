@@ -1,4 +1,7 @@
 #include <assert.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
 
 #ifndef FPLUS_BASE_H
 #define FPLUS_BASE_H
@@ -420,14 +423,14 @@ STATIC void fp_PtrList_shift(fp_PtrList** selfp, void* item)
     (--(x), (x) |= (x) >> 1, (x) |= (x) >> 2, (x) |= (x) >> 4,                 \
         (x) |= (x) >> 8, (x) |= (x) >> 16, ++(x))
 
-STATIC char* pstrndup(char* str, size_t len)
+STATIC char* pstrndup(const char* str, size_t len)
 {
     char* ret = fp_Pool_alloc(fp_sPool, fp_roundm8(len + 1));
     memcpy(ret, str, len); // fp_sPool uses calloc, so no need to zero last
     return ret;
 }
 
-STATIC char* pstrdup(char* str)
+STATIC char* pstrdup(const char* str)
 {
     const size_t len = strlen(str);
     return pstrndup(str, len);
