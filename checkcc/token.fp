@@ -126,7 +126,7 @@ function doesKeywordMatch(s as String, l as Number)
     return no
 end
 
-type Token
+declare type Token
     var pos = ""
     var matchlen = 0
     var skipWhiteSpace = no
@@ -227,7 +227,7 @@ function getType(token as Token, offset as Int) as (ret as TokenKind)
         `^<=` = .opLE
         `^==` = .opEQ
     }
-    do i, k, v = map
+    do k, v = map
         if match(&token, regex=k) then ret = v
     end do
 
