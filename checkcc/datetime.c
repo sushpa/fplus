@@ -1,6 +1,7 @@
-#include <stdio.h>
+//#include <stdio.h>
 #include <time.h>
 #include <assert.h>
+#include "fp_base.h"
 
 typedef struct {
     int y;
@@ -1431,6 +1432,7 @@ int maisn()
             KnownColours__groupNames[kc]);
         Colour_print(KnownColours__values[kc]);
     }
+    return 0;
 }
 
 #include "regex.h"
@@ -1458,7 +1460,7 @@ _RegexProg Regex__compile(const char* str, int matchCase, int justMatch)
         ; // handle error
     return (_RegexProg) { .prog = reg };
 }
-static const long sz = sizeof(regex_t);
+static const long szs = sizeof(regex_t);
 static const long sza = sizeof(RegexMatch);
 static const long szv = sizeof(_RegexProg);
 static const long sze = sizeof(regmatch_t);
@@ -1537,16 +1539,17 @@ static size_t _regsub(
     return buf - origDest;
 }
 
+#define Text char*
 // be careful regsub does not allocate or check buffer size
 Text Regex_replace(RegexMatch match, char* source, char* replacement)
 {
     Text str = malloc(1 /* FIXME */);
     size_t written = _regsub(source, str, 1, match.sub, NREGEX_MAX_SUBMATCH);
 
-    ;
+    return "";
 }
 
-int main() { return 0; }
+int maisan() { return 0; }
 
 #include <complex.h>
 typedef double complex Complex;
@@ -1600,10 +1603,10 @@ static inline Complex4 Complex4_pow(Complex4 c, Complex4 p)
 static inline Complex4 Complex4_sqrt(Complex4 c) { return csqrtf(c); };
 static inline Complex4 Complex4_conj(Complex4 c) { return conjf(c); };
 static inline Complex4 Complex4_proj(Complex4 c) { return cprojf(c); };
-static inline Real4 Complex4_abs(Complex4 c) { return cabsf(c); };
-static inline Real4 Complex4_arg(Complex4 c) { return cargf(c); };
-static inline Real4 Complex4_imag(Complex4 c) { return cimagf(c); };
-static inline Real4 Complex4_real(Complex4 c) { return crealf(c); };
+static inline Real32 Complex4_abs(Complex4 c) { return cabsf(c); };
+static inline Real32 Complex4_arg(Complex4 c) { return cargf(c); };
+static inline Real32 Complex4_imag(Complex4 c) { return cimagf(c); };
+static inline Real32 Complex4_real(Complex4 c) { return crealf(c); };
 
 int psz()
 {
