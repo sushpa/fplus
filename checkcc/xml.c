@@ -1,4 +1,5 @@
 #include "fp_base.h"
+#include "fp_sys_time.h"
 
 typedef struct XMLAttr XMLAttr;
 typedef struct XMLNode XMLNode;
@@ -36,6 +37,14 @@ XMLNode* XMLNode_new(const char* tag)
     return ret;
 }
 
+XMLNode* XMLNode_newText(const char* text)
+{
+    XMLNode* ret = fp_new(XMLNode);
+    ret->tag = NULL;
+    ret->text=text;
+    return ret;
+}
+
 XMLAttr* XMLAttr_new(const char* key, const char* value)
 {
     XMLAttr* ret = fp_new(XMLAttr);
@@ -66,7 +75,7 @@ List(XMLAttr) * XMLParser_parseAttrs(XMLParser* parser)
     List(XMLAttr)* list = NULL;
     List(XMLAttr)** listp = &list;
 
-    while (*parser->pos and *parser->pos != '>' and *parser->pos != '/') {
+    while (*parser->pos and *parser->pos != '>' and *parser->pos != '/'and *parser->pos != '?') {
         const char* name = parser->pos;
         while (*parser->pos != '=') parser->pos++;
         *parser->pos++ = 0; // trample =
@@ -76,13 +85,13 @@ List(XMLAttr) * XMLParser_parseAttrs(XMLParser* parser)
             markers = (*parser->pos == '"') ? "\"" : "'";
             parser->pos++;
         } else {
-            markers = " >/\t\n";
+            markers = " >/?\t\n";
         }
 
         const char* value = parser->pos;
 
         while (not isAnyOf(*parser->pos, markers)) parser->pos++;
-        if (not isAnyOf(*parser->pos, "/>")) *parser->pos++ = 0; // trample the marker if " or ' or spaces
+        if (not isAnyOf(*parser->pos, "/?>")) *parser->pos++ = 0; // trample the marker if " or ' or spaces
         // ^ DON't trample the markers / or > here, because in the case of e.g.
         // <meta name=content-type content=utf8/>
         // it will trample the / not allowing the calling parseTags to
@@ -114,7 +123,7 @@ List(XMLNode) * XMLParser_parseTags(XMLParser* parser)
             parser->pos++;
             break;
         case '<': {
-            parser->pos++;
+            *parser->pos++=0;
 
             bool noChild = false;
 
@@ -134,7 +143,7 @@ List(XMLNode) * XMLParser_parseTags(XMLParser* parser)
                 while(*parser->pos==' ') parser->pos++;
 
                 switch (*parser->pos) {
-                case '/':
+                case '/':case '?':
                     *parser->pos++ = 0;
                     assert(*parser->pos == '>');
                     noChild = true;
@@ -173,8 +182,15 @@ List(XMLNode) * XMLParser_parseTags(XMLParser* parser)
         break;
 
         default:
-            printf("oops2: unexpected '%c' (\"%.16s...\")\n", *parser->pos, parser->pos);
-            parser->pos++;
+
+            {
+                char* text = parser->pos;
+                //printf("oops2: unexpected '%c' (\"%.16s...\")\n", *parser->pos, parser->pos);
+while(*parser->pos!='<' and parser->pos<parser->end)                parser->pos++;
+                // relying on the </ detector state to trample the <
+                XMLNode* textNode = XMLNode_newText(text);
+                listp=fp_PtrList_append(listp, textNode);
+            }
         }
     }
     if (parser->pos < parser->end) printf("error: data unparsed\n");
@@ -195,12 +211,17 @@ void XMLNodeList_print(List(XMLNode) * nodeList, int indent)
 const char* const spaces = "                                                 ";
 void XMLNode_print(XMLNode* node, int indent)
 {
-    printf("%.*s<%s%s", indent, spaces, node->tag,
-        node->attributes ? "" : node->children ? ">\n" : "/>\n");
-    fp_foreach(XMLAttr*, attr, node->attributes) XMLAttr_print(attr, indent);
-    if (node->attributes) printf("%s\n", node->children ? ">" : " />");
-    XMLNodeList_print(node->children, indent + 2);
-    if (node->children) printf("%.*s</%s>\n", indent, spaces, node->tag);
+    if (node->tag)
+    {
+        printf("%.*s<%s%s", indent, spaces, node->tag,
+            node->attributes ? "" : node->children ? ">\n" : "/>\n");
+        fp_foreach(XMLAttr*, attr, node->attributes) XMLAttr_print(attr, indent);
+        if (node->attributes) printf("%s\n", node->children ? ">" : " />");
+        XMLNodeList_print(node->children, indent + 2);
+        if (node->children) printf("%.*s</%s>\n", indent, spaces, node->tag);
+    } else {
+        printf("%.*s%s\n", indent, spaces, node->text);
+    }
 }
 
 int main()
@@ -216,10 +237,95 @@ int main()
                    "<foot>" //
                    "</foot>";
 //     xmlstr = "<meta name=content-type content=utf-8/><meta name=keywords content='rail,train,goods'/>";
-     xmlstr = "<a>";
+//     xmlstr = "<a>";
 //     xmlstr = "<a></a>";
+
+    xmlstr="<?xml version='1.0'?>"
+    "<Tests xmlns='http://www.adatum.com'>"
+    "<Test TestId='0001' TestType='CMD'>"
+    "<Name>Convert number to string</Name>"
+    "<CommandLine>Examp1.EXE</CommandLine>"
+    "<Input>1</Input>"
+    "<Output>One</Output>"
+    "</Test>"
+    "<Test TestId='0002' TestType='CMD'>"
+    "<Name>Find succeeding characters</Name>"
+    "<CommandLine>Examp2.EXE</CommandLine>"
+    "<Input>abc</Input>"
+    "<Output>def</Output>"
+    "</Test>"
+    "<Test TestId='0003' TestType='GUI'>"
+    "<Name>Convert multiple numbers to strings</Name>"
+    "<CommandLine>Examp2.EXE /Verbose</CommandLine>"
+    "<Input>123</Input>"
+    "<Output>One Two Three</Output>"
+    "</Test>"
+    "<Test TestId='0004' TestType='GUI'>"
+    "<Name>Find correlated key</Name>"
+    "<CommandLine>Examp3.EXE</CommandLine>"
+    "<Input>a1</Input>"
+    "<Output>b1</Output>"
+    "</Test>"
+    "<Test TestId='0005' TestType='GUI'>"
+    "<Name>Count characters</Name>"
+    "<CommandLine>FinalExamp.EXE</CommandLine>"
+    "<Input>This is a test</Input>"
+    "<Output>14</Output>"
+    "</Test>"
+    "<Test TestId='0006' TestType='GUI'>"
+    "<Name>Another Test</Name>"
+    "<CommandLine>Examp2.EXE</CommandLine>"
+    "<Input>Test Input</Input>"
+    "<Output>10</Output>"
+    "</Test>"
+    "</Tests>";
+
     XMLParser* par = XMLParser_new(xmlstr);
+    fp_sys_time_Time t0 = fp_sys_time_getTime();
     List(XMLNode)* parsed = XMLParser_parseTags(par);
     XMLNodeList_print(parsed, 0);
+
+    double tms = fp_sys_time_clockSpanMicro(t0) / 1.0e3;
+
+    eputs("-------------------------------------------------------"
+          "\n");
+    allocstat(XMLAttr);
+    allocstat(XMLParser);
+    allocstat(XMLNode);
+    eputs("-------------------------------------------------------"
+          "\n");
+    eprintf("*** Total size of nodes                     = %7d B\n",
+            fp_gPool->usedTotal);
+    eprintf("*** Space allocated for nodes               = %7d B\n",
+            fp_gPool->capTotal);
+    eprintf("*** Node space utilisation                  = %7.1f %%\n",
+            fp_gPool->usedTotal * 100.0 / fp_gPool->capTotal);
+    eputs("-------------------------------------------------------"
+          "\n");
+    eprintf("*** File size                               = %7lu B\n",
+            par->end - par->data );
+    eprintf("*** Node size to file size ratio            = %7.1f x\n",
+            fp_gPool->usedTotal * 1.0 / (par->end - par->data ));
+    eputs("-------------------------------------------------------"
+          "\n");
+    eprintf("*** Space used for strings                  = %7u B\n",
+            fp_sPool->usedTotal);
+    eprintf("*** Allocated for strings                   = %7u B\n",
+            fp_sPool->capTotal);
+    eprintf("*** Space utilisation                       = %7.1f %%\n",
+            fp_sPool->usedTotal * 100.0 / fp_sPool->capTotal);
+    eputs("-------------------------------------------------------"
+          "\n");
+    eputs("\e[1mMemory-related calls\e[0m\n");
+    eprintf("  calloc: %-7d | malloc: %-7d | realloc: %-7d\n",
+            fp_globals__callocCount, fp_globals__mallocCount,
+            fp_globals__reallocCount);
+    eprintf("  strlen: %-7d | strdup: %-7d |\n", fp_globals__strlenCount,
+            fp_globals__strdupCount);
+
+
+    eprintf("\e[1mTime elapsed:\e[0m %.1f ms (%.1f ms / 32kB)\n", tms,
+            tms * 32768.0 / (par->end - par->data )); // sw.print();
+
     return 0;
 }
