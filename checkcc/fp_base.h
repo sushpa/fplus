@@ -16,6 +16,7 @@
 #define min(a, b) ((a) < (b)) ? (a) : (b)
 #define max(a, b) ((a) > (b)) ? (a) : (b)
 #define KB *1024UL
+#define MB *1024UL * 1024UL
 
 #define eprintf(fmt, ...) fprintf(stderr, fmt, __VA_ARGS__)
 #define eputs(str) fputs(str, stderr)
@@ -269,7 +270,8 @@ STATIC void* fp_Pool_alloc(fp_Pool* self, size_t reqd)
     // depending on how much is already there) all at one time.
     if (self->used + reqd > self->cap) {
         if (self->ref) fp_Array_push(Ptr)(&self->ptrs, self->ref);
-        self->cap = (self->cap > 64 KB ? 512 KB : 8 KB);
+        self->cap
+            = (self->cap ? (self->cap > 1 MB ? 1 MB : self->cap * 2) : 4 KB);
         self->capTotal += self->cap;
         self->ref = calloc(1, self->cap);
         assert(self->ref != NULL);

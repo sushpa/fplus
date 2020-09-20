@@ -356,12 +356,18 @@ int main(int argc, char* argv[])
         printf("usage: %s <filename>\n", argv[0]);
         exit(1);
     }
-    XMLParser* par = XMLParser_fromFile(argv[1]);
-    fp_sys_time_Time t0 = fp_sys_time_getTime();
-    List(XMLNode)* parsed = XMLParser_parseTags(par);
-    XMLNodeList_print(parsed, 0);
 
+    fp_sys_time_Time t0 = fp_sys_time_getTime();
+    XMLParser* par = XMLParser_fromFile(argv[1]);
     double tms = fp_sys_time_clockSpanMicro(t0) / 1.0e3;
+    eprintf("\e[1mread time:\e[0m %.1f ms (%.2f GB/s)\n", tms,
+        1 / ((tms / 1e3) * 1e9 / (par->end - par->data))); // sw.print();
+
+    t0 = fp_sys_time_getTime();
+    List(XMLNode)* parsed = XMLParser_parseTags(par);
+    if (argc > 2 && *argv[2] == 'd') XMLNodeList_print(parsed, 0);
+
+    tms = fp_sys_time_clockSpanMicro(t0) / 1.0e3;
 
     eputs("-------------------------------------------------------"
           "\n");
@@ -400,8 +406,8 @@ int main(int argc, char* argv[])
     eprintf("  strlen: %-7d | strdup: %-7d |\n", fp_globals__strlenCount,
         fp_globals__strdupCount);
 
-    eprintf("\e[1mTime elapsed:\e[0m %.1f ms (%.1f ms / 32kB)\n", tms,
-        tms * 32768.0 / (par->end - par->data)); // sw.print();
+    eprintf("\e[1mTime elapsed:\e[0m %.1f ms (%.2f GB/s)\n", tms,
+        1 / ((tms / 1e3) * 1e9 / (par->end - par->data))); // sw.print();
 
     return 0;
 }
