@@ -1,9 +1,4 @@
 
-#define allocstat(T)                                                           \
-    if (T##_allocTotal)                                                        \
-        eprintf("*** %-24s %4ld B x %5d = %7ld B\n", #T, sizeof(T),            \
-            T##_allocTotal, T##_allocTotal * sizeof(T));
-
 static void expralloc_stat()
 {
     int iexpr, sum = 0, thres = 0;
