@@ -1,24 +1,115 @@
 
+value type Point
+    var x = 0
+    var y = 0
+    var z = 0
+end type
+
+type Outer
+    var point as Point
+    var inner as Inner
+end type
+
+# // generated binary writer func
+# // currpos will be passed recursively, 0 (or size of file header) + sizeof(roottype) for root object
+define FP_PTR2OFF(member) out.member = (void*) *currpos; *currpos += sizeof(*member);
+void Outer_writefbin(Outer* self, FILE* file, size_t* currpos)
+{
+static Outer out;
+out = *self; # // make a copy. can be static to avoid blowing stack, ok if its clobbered by inner calls since the object will have been written out and not used later.
+    *currpos += sizeof(out);
+# // currpos is not the currpos to write the file at, but tracks how many btytes were written cumulatively so far
+# loop over members and change pointers to offsets
+# // skip over Point since it is a value type
+# out.inner = (void*)currpos; # // C will take care of void* -> type*
+# currpos += sizeof(*out.inner);
+FP_PTR2OFF(inner);
+# // similarly for all members
+# // now write the current object
+fwrite(&out, sizeof(out),1,file);
+# // now write out all the reference types. note that the current type is fully written
+# // so output is not nested. so you can read partial files.
+# basically if you write them out in the same order, the offsets you predicted
+# // before will match.
+Inner_writefbin(out.inner, file, &currpos);
+}
+
+Inner_writefbin(Inner* self, FILE* file, size_t *currpos) {
+    static Inner out;
+    out = *self;
+    *currpos += sizeof(out);
+    FP_PTR2OFF(state);
+FP_PTR2OFF(counts);
+
+fwrite(&out, sizeof(out),1,file);
+
+Text_writefbin(out.state, file, &currpos);
+Integer_Array_writefbin(out.counts, file, &currpos);
+
+ }
+
+Text_writefbin(Text* self, FILE* file, size_t* currpos) {
+    fwrite(self->ref, self->len, 1, file);
+    char c = 0;
+    fwrite(&c, 1, 1, file);
+    *currpos += self->len+1;
+    # // remember while reading, self->alloc must be clipped down to the actual len
+    # // no children
+}
+
+// NOPE! you will read whole file in 1 shot to a bunch of bytes (or mmap it)
+// then you walk the bytes. so 1 shot memory alloc. but cant extract inner & free outer
+Inner* Inner_readfbin( FILE* file) {
+    Inner* self = new(Inner);
+    self->state = Text_readfbin
+}
+
+Text* Text_readfbin( FILE*file, size_t baseoffset) {
+    Text*self = new(Text);
+    fread(self,sizeof(Text), 1,file);
+self->ref += baseoffset;
+    self->ref[self->len]=0;
+    fread(self->ref,self->len, 1,file);
+}
+Integer_Array* Integer_Array_readfbin(FILE*file) {
+    Integer_Array*self = new(Integer_Array);
+    self->ref = palloc(self->len*sizeof(Integer));
+    fread(self->ref,self->len, sizeof(Integer), file);
+}
+
+Integer_Array_writefbin(Integer_Array* self, FILE* file, size_t* currpos) {
+    fwrite(self->ref, self->len, sizeof(Integer), file);
+    *currpos += self->len*sizeof(Integer);
+    # // remember while reading, self->alloc must be clipped down to the actual len
+    # // no children
+}
+
+
+type Inner
+    var state as Text = ""
+    var counts[] as Integer
+end type
+
 type Field3D
-    var values::Number[:]
-    var mesh::Mesh3D
+    var values[:] as Number
+    var mesh as Mesh3D
 end type
 
 type VectorField3D
-    var values::Number[:,:]
-    var mesh::Mesh3D
+    var values[:,:] as Number
+    var mesh as Mesh3D
 end type
 
-function mean(field::Field3D) :: Number
+function mean(field as Field3D) result (ans as Number)
     # volume weighted average of the scalar field's values on the mesh
-    mean = sum(field.mesh.volumes * field.values) ...
+    ans = sum(field.mesh.volumes * field.values) ...
          / sum(field.mesh.volumes)
 end function
 
-function map(source::Field3D, dest::Mesh3D) :: Field3D
+function map(source as Field3D, dest as Mesh3D) as Field3D
     map = Field3D(mesh=dest)
     map.values[:] = interp(source, atPoints=map.mesh.points[:])
 end function
 
-map(source::Field3D, dest::Mesh3D) :=
+map(source as Field3D, dest as Mesh3D) :=
     Field3D(values=interp(source, atPoints=ans.mesh.points), mesh=dest)
