@@ -8,4 +8,4 @@ before_script:
 build_job:
   stage: build
   script:
-  - "cd checkcc && make"
+  - "make"
