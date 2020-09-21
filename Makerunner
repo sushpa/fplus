@@ -5,14 +5,14 @@ CFLOPT=-O3 -Wall -Wno-unused-function -Wno-unused-label
 CFLDBG=-O0 -g -Werror -DDEBUG
 CFLFAST=-O3 -march=native -ffast-math -funroll-loops -DNOSTACKCHECK -DNONULLCHECK -DNOBOUNDSCHECK
 
-%.bin: %.fp *.[ch]
-	./comp $< $(DIAG) > $@.c && cc $(CFLOPT) $@.c -o $@
+%.bin: %.jet *.[ch]
+	make -j -s -r checkc.bin && ./checkc.bin $< $(DIAG) > $@.c && cc $(CFLOPT) $@.c -o $@
 #	rm $@.c
 
-%-d.bin: %.fp *.[ch]
-	./comp $< $(DIAG) > $@.c && cc $(CFLDBG) $@.c -o $@
+%-d.bin: %.jet *.[ch]
+	make -j -s -r checkc.bin && ./checkc.bin $< $(DIAG) > $@.c && cc $(CFLDBG) $@.c -o $@
 #	rm $@.c
 
-%-f.bin: %.fp *.[ch]
-	./comp $< $(DIAG) > $@.c && cc $(CFLFAST) $@.c -o $@
+%-f.bin: %.jet *.[ch]
+	make -j -s -r checkc.bin && ./checkc.bin $< $(DIAG) > $@.c && cc $(CFLFAST) $@.c -o $@
 #	rm $@.c
