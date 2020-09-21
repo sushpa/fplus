@@ -614,8 +614,8 @@ static ASTScope* parseEnumBody(Parser* self)
             expr = parseExpr(self);
             if (expr->kind != tkIdentifier and expr->kind != tkOpAssign) {
                 Parser_errorInvalidTypeMember(self);
-                expr = NULL;
                 unreachable("%s\n", TokenKind_str[expr->kind]);
+                expr = NULL;
             }
             if (not expr) break;
             jet_PtrList_append(&scope->stmts, expr);

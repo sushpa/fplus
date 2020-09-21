@@ -555,7 +555,7 @@ static void hashExpr(
                 UInt32 hash[2];
             } str = { .h64 = 0 }; //.buf = {1,1,1,1,1,1,1,1,1,1,1,1,0} };
 
-            UInt32 kind = expr->kind;
+//            UInt32 kind = expr->kind;
             str.hash[0] = UInt32_hash(expr->kind);
 
             hashExpr(parser, expr->right, cseDict);

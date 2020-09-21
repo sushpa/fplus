@@ -707,7 +707,7 @@ static void ASTExpr_genc(
     printf("%.*s", level, spaces);
     switch (expr->kind) {
     case tkNumber: {
-        int ls = strlen(expr->string);
+        size_t ls = strlen(expr->string);
         if (expr->string[ls - 1] == 'i') {
             printf("_Complex_I*");
             expr->string[ls - 1] = 0;
