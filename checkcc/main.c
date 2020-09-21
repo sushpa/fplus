@@ -692,8 +692,8 @@ static Parser* Parser_fromFile(char* filename, bool skipws)
     size_t flen = strlen(filename);
 
     // Error: the file might not end in .ch
-    if (not str_endswith(filename, flen, ".fp", 3)) {
-        eprintf("F+: file '%s' invalid: name must end in '.fp'.\n", filename);
+    if (not str_endswith(filename, flen, ".jet", 4)) {
+        eprintf("jet: file '%s' invalid: name must end in '.jet'.\n", filename);
         return NULL;
     }
 
@@ -701,15 +701,15 @@ static Parser* Parser_fromFile(char* filename, bool skipws)
 
     // Error: the file might not exist
     if (stat(filename, &sb) != 0) {
-        eprintf("F+: file '%s' not found.\n", filename);
+        eprintf("jet: file '%s' not found.\n", filename);
         return NULL;
     } else if (S_ISDIR(sb.st_mode)) {
         // Error: the "file" might really be a folder
-        eprintf("F+: '%s' is a folder; only files are accepted.\n", filename);
+        eprintf("jet: '%s' is a folder; only files are accepted.\n", filename);
         return NULL;
     } else if (access(filename, R_OK) == -1) {
         // Error: the user might not have read permissions for the file
-        eprintf("F+: no permission to read file '%s'.\n", filename);
+        eprintf("jet: no permission to read file '%s'.\n", filename);
         return NULL;
     }
 
