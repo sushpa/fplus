@@ -1,7 +1,7 @@
 //#include <stdio.h>
 #include <time.h>
 #include <assert.h>
-#include "fp_base.h"
+#include "jet_base.h"
 
 typedef struct {
     int y;
@@ -1281,7 +1281,7 @@ static const char* const KnownColours__groupNames[]
           [KnownColours_darkSlateGray] = "Greys",
           [KnownColours_black] = "Greys" };
 
-#define countof(x) (sizeof(x) / sizeof(x[0]))
+#define jet_countof(x) (sizeof(x) / sizeof(x[0]))
 int power2(int a) { return a * a; }
 
 #include <math.h>
@@ -1392,7 +1392,7 @@ enum KnownColours closestKnown(Colour col)
     //    unsigned long long dsq = UINT64_MAX;
     double dsq = 1e100;
     int ret = -1;
-    for (int i = 0; i < countof(KnownColours__names); i++) {
+    for (int i = 0; i < jet_countof(KnownColours__names); i++) {
         Colour kc = KnownColours__values[i];
         //        unsigned long long dsqi = 0;
         // may need to promote to wider int before subtracting
@@ -1421,7 +1421,7 @@ enum KnownColours closestKnown(Colour col)
 int maisn()
 {
     unsigned int kcols[] = { 0x08653e, 0xfedcba, 0x128E9A, 0x586264 };
-    for (int i = 0; i < countof(kcols); i++) {
+    for (int i = 0; i < jet_countof(kcols); i++) {
         puts("----");
         Colour c = Colour_new(kcols[i]);
         rgb2lab(c);

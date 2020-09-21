@@ -6,7 +6,7 @@
 #include "limits.h"
 #include <float.h>
 
-#include "fp_base.h"
+#include "jet_base.h"
 MKSTAT(IntRange)
 MKSTAT(RealRange)
 
@@ -397,7 +397,7 @@ static void IntRange_ins1(IntRange* range, Int value)
 
 static IntRange* IntRange_new(Int lo, Int hi, IntRange* next)
 {
-    IntRange* I = fp_new(IntRange);
+    IntRange* I = jet_new(IntRange);
     I->hi = hi;
     I->lo = lo;
     I->next = next;
@@ -406,7 +406,7 @@ static IntRange* IntRange_new(Int lo, Int hi, IntRange* next)
 
 static RealRange* RealRange_new(Real lo, Real hi, RealRange* next)
 {
-    RealRange* range = fp_new(RealRange);
+    RealRange* range = jet_new(RealRange);
     range->hi = hi;
     range->lo = lo;
     range->next = next;

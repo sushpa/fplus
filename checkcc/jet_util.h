@@ -22,16 +22,16 @@
  * Avoid fseek()'s 2GiB barrier with MSVC, macOS, *BSD, MinGW
  ***************************************************************/
 #if defined(_MSC_VER) && (_MSC_VER >= 1400)
-#define fp_util_fseek _fseeki64
+#define jet_util_fseek _fseeki64
 #elif !defined(__64BIT__)                                                      \
     && (PLATFORM_POSIX_VERSION                                                 \
         >= 200112L) /* No point defining Large file for 64 bit */
-#define fp_util_fseek fseeko
+#define jet_util_fseek fseeko
 #elif defined(__MINGW32__) && defined(__MSVCRT__) && !defined(__STRICT_ANSI__) \
     && !defined(__NO_MINGW_LFS)
-#define fp_util_fseek fseeko64
+#define jet_util_fseek fseeko64
 #else
-#define fp_util_fseek fseek
+#define jet_util_fseek fseek
 #endif
 
 /*-*************************************************
@@ -41,14 +41,14 @@
 #include <windows.h>
 #define SET_REALTIME_PRIORITY                                                  \
     SetPriorityClass(GetCurrentProcess(), REALTIME_PRIORITY_CLASS)
-#define fp_util_sleep(s) Sleep(1000 * s)
-#define fp_util_sleepMilli(milli) Sleep(milli)
+#define jet_util_sleep(s) Sleep(1000 * s)
+#define jet_util_sleepMilli(milli) Sleep(milli)
 
 #elif PLATFORM_POSIX_VERSION > 0 /* Unix-like operating system */
 #include <unistd.h> /* sleep */
-#define fp_util_sleep(s) sleep(s)
+#define jet_util_sleep(s) sleep(s)
 #if ZSTD_NANOSLEEP_SUPPORT /* necessarily defined in platform.h */
-#define fp_util_sleepMilli(milli)                                              \
+#define jet_util_sleepMilli(milli)                                             \
     {                                                                          \
         struct timespec t;                                                     \
         t.tv_sec = 0;                                                          \
@@ -56,7 +56,7 @@
         nanosleep(&t, NULL);                                                   \
     }
 #else
-#define fp_util_sleepMilli(milli) /* disabled */
+#define jet_util_sleepMilli(milli) /* disabled */
 #endif
 #if ZSTD_SETPRIORITY_SUPPORT
 #include <sys/resource.h> /* setpriority */
@@ -66,8 +66,8 @@
 #endif
 
 #else /* unknown non-unix operating systen */
-#define fp_util_sleep(s) /* disabled */
-#define fp_util_sleepMilli(milli) /* disabled */
+#define jet_util_sleep(s) /* disabled */
+#define jet_util_sleepMilli(milli) /* disabled */
 #define SET_REALTIME_PRIORITY /* disabled */
 #endif
 
@@ -77,17 +77,17 @@
 #if defined(__INTEL_COMPILER)
 #pragma warning(                                                               \
     disable : 177) /* disable: message #177: function was declared but never   \
-                      referenced, useful with fp_util_STATIC */
+                      referenced, useful with jet_util_STATIC */
 #endif
 #if defined(__GNUC__)
-#define fp_util_STATIC static __attribute__((unused))
+#define jet_util_STATIC static __attribute__((unused))
 #elif defined(__cplusplus)                                                     \
     || (defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) /* C99 */)
-#define fp_util_STATIC static inline
+#define jet_util_STATIC static inline
 #elif defined(_MSC_VER)
-#define fp_util_STATIC static __inline
+#define jet_util_STATIC static __inline
 #else
-#define fp_util_STATIC                                                         \
+#define jet_util_STATIC                                                        \
     static /* this version may generate warnings for unused static functions;  \
               disable the relevant warning */
 #endif
@@ -148,7 +148,7 @@ typedef struct stat stat_t;
  *  Functions
  ***************************************/
 
-int fp_util_stat(const char* filename, stat_t* statbuf)
+int jet_util_stat(const char* filename, stat_t* statbuf)
 {
 #if defined(_MSC_VER)
     return !_stat64(filename, statbuf);
@@ -159,14 +159,14 @@ int fp_util_stat(const char* filename, stat_t* statbuf)
 #endif
 }
 
-int fp_util_isRegularFile(const char* infilename)
+int jet_util_isRegularFile(const char* infilename)
 {
     stat_t statbuf;
-    return fp_util_stat(infilename, &statbuf)
-        && fp_util_isRegularFileStat(&statbuf);
+    return jet_util_stat(infilename, &statbuf)
+        && jet_util_isRegularFileStat(&statbuf);
 }
 
-int fp_util_isRegularFileStat(const stat_t* statbuf)
+int jet_util_isRegularFileStat(const stat_t* statbuf)
 {
 #if defined(_MSC_VER)
     return (statbuf->st_mode & S_IFREG) != 0;
@@ -176,26 +176,26 @@ int fp_util_isRegularFileStat(const stat_t* statbuf)
 }
 
 /* like chmod, but avoid changing permission of /dev/null */
-int fp_util_chmod(
+int jet_util_chmod(
     char const* filename, const stat_t* statbuf, mode_t permissions)
 {
     stat_t localStatBuf;
     if (statbuf == NULL) {
-        if (!fp_util_stat(filename, &localStatBuf)) return 0;
+        if (!jet_util_stat(filename, &localStatBuf)) return 0;
         statbuf = &localStatBuf;
     }
-    if (!fp_util_isRegularFileStat(statbuf))
+    if (!jet_util_isRegularFileStat(statbuf))
         return 0; /* pretend success, but don't change anything */
     return chmod(filename, permissions);
 }
 
-int fp_util_setFileStat(const char* filename, const stat_t* statbuf)
+int jet_util_setFileStat(const char* filename, const stat_t* statbuf)
 {
     int res = 0;
 
     stat_t curStatBuf;
-    if (!fp_util_stat(filename, &curStatBuf)
-        || !fp_util_isRegularFileStat(&curStatBuf))
+    if (!jet_util_stat(filename, &curStatBuf)
+        || !jet_util_isRegularFileStat(&curStatBuf))
         return -1;
 
         /* set access and modification times */
@@ -224,21 +224,21 @@ int fp_util_setFileStat(const char* filename, const stat_t* statbuf)
         filename, statbuf->st_uid, statbuf->st_gid); /* Copy ownership */
 #endif
 
-    res += fp_util_chmod(filename, &curStatBuf,
+    res += jet_util_chmod(filename, &curStatBuf,
         statbuf->st_mode & 07777); /* Copy file permissions */
 
     errno = 0;
     return -res; /* number of errors is returned */
 }
 
-int fp_util_isDirectory(const char* infilename)
+int jet_util_isDirectory(const char* infilename)
 {
     stat_t statbuf;
-    return fp_util_stat(infilename, &statbuf)
-        && fp_util_isDirectoryStat(&statbuf);
+    return jet_util_stat(infilename, &statbuf)
+        && jet_util_isDirectoryStat(&statbuf);
 }
 
-int fp_util_isDirectoryStat(const stat_t* statbuf)
+int jet_util_isDirectoryStat(const stat_t* statbuf)
 {
 #if defined(_MSC_VER)
     return (statbuf->st_mode & _S_IFDIR) != 0;
@@ -247,7 +247,7 @@ int fp_util_isDirectoryStat(const stat_t* statbuf)
 #endif
 }
 
-int fp_util_isSameFile(const char* fName1, const char* fName2)
+int jet_util_isSameFile(const char* fName1, const char* fName2)
 {
     assert(fName1 != NULL);
     assert(fName2 != NULL);
@@ -262,29 +262,29 @@ int fp_util_isSameFile(const char* fName1, const char* fName2)
     {
         stat_t file1Stat;
         stat_t file2Stat;
-        return fp_util_stat(fName1, &file1Stat)
-            && fp_util_stat(fName2, &file2Stat)
+        return jet_util_stat(fName1, &file1Stat)
+            && jet_util_stat(fName2, &file2Stat)
             && (file1Stat.st_dev == file2Stat.st_dev)
             && (file1Stat.st_ino == file2Stat.st_ino);
     }
 #endif
 }
 
-/* fp_util_isFIFO : distinguish named pipes */
-int fp_util_isFIFO(const char* infilename)
+/* jet_util_isFIFO : distinguish named pipes */
+int jet_util_isFIFO(const char* infilename)
 {
 /* macro guards, as defined in : https://linux.die.net/man/2/lstat */
 #if PLATFORM_POSIX_VERSION >= 200112L
     stat_t statbuf;
-    if (fp_util_stat(infilename, &statbuf) && fp_util_isFIFOStat(&statbuf))
+    if (jet_util_stat(infilename, &statbuf) && jet_util_isFIFOStat(&statbuf))
         return 1;
 #endif
     (void)infilename;
     return 0;
 }
 
-/* fp_util_isFIFO : distinguish named pipes */
-int fp_util_isFIFOStat(const stat_t* statbuf)
+/* jet_util_isFIFO : distinguish named pipes */
+int jet_util_isFIFOStat(const stat_t* statbuf)
 {
 /* macro guards, as defined in : https://linux.die.net/man/2/lstat */
 #if PLATFORM_POSIX_VERSION >= 200112L
@@ -294,7 +294,7 @@ int fp_util_isFIFOStat(const stat_t* statbuf)
     return 0;
 }
 
-int fp_util_isLink(const char* infilename)
+int jet_util_isLink(const char* infilename)
 {
 /* macro guards, as defined in : https://linux.die.net/man/2/lstat */
 #if PLATFORM_POSIX_VERSION >= 200112L
@@ -306,22 +306,22 @@ int fp_util_isLink(const char* infilename)
     return 0;
 }
 
-U64 fp_util_getFileSize(const char* infilename)
+U64 jet_util_getFileSize(const char* infilename)
 {
     stat_t statbuf;
-    if (!fp_util_stat(infilename, &statbuf)) return fp_util_FILESIZE_UNKNOWN;
-    return fp_util_getFileSizeStat(&statbuf);
+    if (!jet_util_stat(infilename, &statbuf)) return jet_util_FILESIZE_UNKNOWN;
+    return jet_util_getFileSizeStat(&statbuf);
 }
 
-U64 fp_util_getFileSizeStat(const stat_t* statbuf)
+U64 jet_util_getFileSizeStat(const stat_t* statbuf)
 {
-    if (!fp_util_isRegularFileStat(statbuf)) return fp_util_FILESIZE_UNKNOWN;
+    if (!jet_util_isRegularFileStat(statbuf)) return jet_util_FILESIZE_UNKNOWN;
 #if defined(_MSC_VER)
-    if (!(statbuf->st_mode & S_IFREG)) return fp_util_FILESIZE_UNKNOWN;
+    if (!(statbuf->st_mode & S_IFREG)) return jet_util_FILESIZE_UNKNOWN;
 #elif defined(__MINGW32__) && defined(__MSVCRT__)
-    if (!(statbuf->st_mode & S_IFREG)) return fp_util_FILESIZE_UNKNOWN;
+    if (!(statbuf->st_mode & S_IFREG)) return jet_util_FILESIZE_UNKNOWN;
 #else
-    if (!S_ISREG(statbuf->st_mode)) return fp_util_FILESIZE_UNKNOWN;
+    if (!S_ISREG(statbuf->st_mode)) return jet_util_FILESIZE_UNKNOWN;
 #endif
     return (U64)statbuf->st_size;
 }
@@ -380,7 +380,7 @@ static int readLinesFromFile(
 }
 
 /*Utility function to get file extension from file */
-const char* fp_util_getFileExtension(const char* infilename)
+const char* jet_util_getFileExtension(const char* infilename)
 {
     const char* extension = strrchr(infilename, '.');
     if (!extension || extension == infilename) return "";
@@ -391,13 +391,13 @@ const char* fp_util_getFileExtension(const char* infilename)
 static mode_t getDirMode(const char* dirName)
 {
     stat_t st;
-    if (!fp_util_stat(dirName, &st)) {
-        fp_util_DISPLAY(
+    if (!jet_util_stat(dirName, &st)) {
+        jet_util_DISPLAY(
             "zstd: failed to get DIR stats %s: %s\n", dirName, strerror(errno));
         return DIR_DEFAULT_MODE;
     }
-    if (!fp_util_isDirectoryStat(&st)) {
-        fp_util_DISPLAY("zstd: expected directory: %s\n", dirName);
+    if (!jet_util_isDirectoryStat(&st)) {
+        jet_util_DISPLAY("zstd: expected directory: %s\n", dirName);
         return DIR_DEFAULT_MODE;
     }
     return st.st_mode;
@@ -413,7 +413,7 @@ static int makeDir(const char* dir, mode_t mode)
 #endif
     if (ret != 0) {
         if (errno == EEXIST) return 0;
-        fp_util_DISPLAY(
+        jet_util_DISPLAY(
             "zstd: failed to create DIR %s: %s\n", dir, strerror(errno));
     }
     return ret;
@@ -429,7 +429,7 @@ static int makeDir(const char* dir, mode_t mode)
 
 typedef BOOL(WINAPI* LPFN_GLPI)(PSYSTEM_LOGICAL_PROCESSOR_INFORMATION, PDWORD);
 
-int fp_util_countPhysicalCores(void)
+int jet_util_countPhysicalCores(void)
 {
     static int numPhysicalCores = 0;
     if (numPhysicalCores != 0) return numPhysicalCores;
@@ -451,9 +451,7 @@ int fp_util_countPhysicalCores(void)
             GetModuleHandle(TEXT("kernel32")),
             "GetLogicalProcessorInformation");
 
-        if (glpi == NULL) {
-            goto failed;
-        }
+        if (glpi == NULL) { goto failed; }
 
         while (!done) {
             DWORD rc = glpi(buffer, &returnLength);
@@ -511,7 +509,7 @@ failed:
 
 /* Use apple-provided syscall
  * see: man 3 sysctl */
-int fp_util_countPhysicalCores(void)
+int jet_util_countPhysicalCores(void)
 {
     static int32_t numPhysicalCores = 0; /* apple specifies int32_t */
     if (numPhysicalCores != 0) return numPhysicalCores;
@@ -539,7 +537,7 @@ int fp_util_countPhysicalCores(void)
 /* parse /proc/cpuinfo
  * siblings / cpu cores should give hyperthreading ratio
  * otherwise fall back on sysconf */
-int fp_util_countPhysicalCores(void)
+int jet_util_countPhysicalCores(void)
 {
     static int numPhysicalCores = 0;
 
@@ -593,9 +591,7 @@ int fp_util_countPhysicalCores(void)
                 goto failed;
             }
         }
-        if (siblings && cpu_cores) {
-            ratio = siblings / cpu_cores;
-        }
+        if (siblings && cpu_cores) { ratio = siblings / cpu_cores; }
     failed:
         fclose(cpuinfo);
         return numPhysicalCores = numPhysicalCores / ratio;
@@ -609,7 +605,7 @@ int fp_util_countPhysicalCores(void)
 
 /* Use physical core sysctl when available
  * see: man 4 smp, man 3 sysctl */
-int fp_util_countPhysicalCores(void)
+int jet_util_countPhysicalCores(void)
 {
     static int numPhysicalCores = 0; /* freebsd sysctl is native int sized */
     if (numPhysicalCores != 0) return numPhysicalCores;
@@ -641,7 +637,7 @@ int fp_util_countPhysicalCores(void)
 
 /* Use POSIX sysconf
  * see: man 3 sysconf */
-int fp_util_countPhysicalCores(void)
+int jet_util_countPhysicalCores(void)
 {
     static int numPhysicalCores = 0;
 
@@ -657,7 +653,7 @@ int fp_util_countPhysicalCores(void)
 
 #else
 
-int fp_util_countPhysicalCores(void)
+int jet_util_countPhysicalCores(void)
 {
     /* assume 1 */
     return 1;

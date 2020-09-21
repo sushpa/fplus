@@ -13,11 +13,11 @@
 #define FPLUS_BASE_H
 
 #if __GNUC__ >= 3
-#define fp_likely(x) __builtin_expect(!!(x), 1)
-#define fp_unlikely(x) __builtin_expect(!!(x), 0)
+#define jet_likely(x) __builtin_expect(!!(x), 1)
+#define jet_unlikely(x) __builtin_expect(!!(x), 0)
 #else
-#define fp_likely(x) (x)
-#define fp_unlikely(x) (x)
+#define jet_likely(x) (x)
+#define jet_unlikely(x) (x)
 #endif
 
 #define and &&
@@ -32,7 +32,7 @@
 #define eprintf(fmt, ...) fprintf(stderr, fmt, __VA_ARGS__)
 #define eputs(str) fputs(str, stderr)
 
-#define countof(x) (sizeof(x) / sizeof(x[0]))
+#define jet_countof(x) (sizeof(x) / sizeof(x[0]))
 
 #ifndef STATIC
 #define STATIC
@@ -40,26 +40,26 @@
 
 #pragma mark - Heap allocation stuff
 
-STATIC int fp_globals__callocCount = 0;
+STATIC int jet_globals__callocCount = 0;
 #define calloc(n, s)                                                           \
     calloc(n, s);                                                              \
-    fp_globals__callocCount++;
-STATIC int fp_globals__mallocCount = 0;
+    jet_globals__callocCount++;
+STATIC int jet_globals__mallocCount = 0;
 #define malloc(s)                                                              \
     malloc(s);                                                                 \
-    fp_globals__mallocCount++;
-STATIC int fp_globals__strdupCount = 0;
+    jet_globals__mallocCount++;
+STATIC int jet_globals__strdupCount = 0;
 #define strdup(s)                                                              \
     strdup(s);                                                                 \
-    fp_globals__strdupCount++;
-STATIC int fp_globals__reallocCount = 0;
+    jet_globals__strdupCount++;
+STATIC int jet_globals__reallocCount = 0;
 #define realloc(ptr, s)                                                        \
     realloc(ptr, s);                                                           \
-    fp_globals__reallocCount++;
-STATIC int fp_globals__strlenCount = 0;
+    jet_globals__reallocCount++;
+STATIC int jet_globals__strlenCount = 0;
 #define strlen(s)                                                              \
     strlen(s);                                                                 \
-    fp_globals__strlenCount++;
+    jet_globals__strlenCount++;
 
 #pragma mark - Custom types
 typedef char bool;
@@ -86,7 +86,7 @@ union Value {
 #define SArray(T) T*
 
 #define mkarr(A, sz) A
-#define fp_Array_get_Number(A, i) A[(i)-1]
+#define jet_Array_get_Number(A, i) A[(i)-1]
 #define unreachable(fmt, ...)                                                  \
     {                                                                          \
         eprintf("\n\e[31m*** COMPILER INTERNAL ERROR\e[0m at ./%s:%d\n"        \
@@ -97,7 +97,7 @@ union Value {
     }
 //    exit(12);
 
-#pragma mark - fp_Array
+#pragma mark - jet_Array
 
 //#define DEFAULT0(T) DEFAULT0_##T
 //#define DEFAULT0_double 0.0
@@ -118,44 +118,44 @@ typedef const char* CString;
 typedef float Real32;
 typedef double Real64;
 
-#define fp_Array(T) fp_Array_##T
-#define fp_Array_free(T) fp_Array_free_##T
-#define fp_Array_get(T) fp_Array_get_##T
-#define fp_Array_growTo(T) fp_Array_growTo_##T
-#define fp_Array_concatCArray(T) fp_Array_concatCArray_##T
-#define fp_Array_concatArray(T) fp_Array_concatArray_##T
-#define fp_Array_grow(T) fp_Array_grow_##T
-#define fp_Array_push(T) fp_Array_push_##T
-#define fp_Array_justPush(T) fp_Array_justPush_##T
-#define fp_Array_clear(T) fp_Array_clear_##T
-#define fp_Array_initWithCArray(T) fp_Array_initWithCArray_##T
-#define fp_Array_pop(T) fp_Array_pop_##T
-#define fp_Array_top(T) fp_Array_top_##T
-#define fp_Array_empty(T) fp_Array_empty_##T
+#define jet_Array(T) jet_Array_##T
+#define jet_Array_free(T) jet_Array_free_##T
+#define jet_Array_get(T) jet_Array_get_##T
+#define jet_Array_growTo(T) jet_Array_growTo_##T
+#define jet_Array_concatCArray(T) jet_Array_concatCArray_##T
+#define jet_Array_concatArray(T) jet_Array_concatArray_##T
+#define jet_Array_grow(T) jet_Array_grow_##T
+#define jet_Array_push(T) jet_Array_push_##T
+#define jet_Array_justPush(T) jet_Array_justPush_##T
+#define jet_Array_clear(T) jet_Array_clear_##T
+#define jet_Array_initWithCArray(T) jet_Array_initWithCArray_##T
+#define jet_Array_pop(T) jet_Array_pop_##T
+#define jet_Array_top(T) jet_Array_top_##T
+#define jet_Array_empty(T) jet_Array_empty_##T
 
 // convenience for manual writing
-#define fp_PtrArray fp_Array(Ptr)
-// #define fp_PtrArray_free fp_Array_free(Ptr)
-// #define fp_PtrArray_growTo fp_Array_growTo(Ptr)
-// #define fp_PtrArray_concatCArray fp_Array_concatCArray(Ptr)
-// #define fp_PtrArray_concatArray fp_Array_concatArray(Ptr)
-// #define fp_PtrArray_grow fp_Array_grow(Ptr)
-#define fp_PtrArray_push fp_Array_push(Ptr)
-// #define fp_PtrArray_clear fp_Array_clear(Ptr)
-// #define fp_PtrArray_initWithCArray fp_Array_initWithCArray(Ptr)
-// #define fp_PtrArray_justPush fp_Array_justPush(Ptr)
-#define fp_PtrArray_pop fp_Array_pop(Ptr)
-#define fp_PtrArray_top fp_Array_top(Ptr)
-#define fp_PtrArray_empty fp_Array_empty(Ptr)
-#define fp_PtrArray_topAs(T, self) ((T)fp_PtrArray_top(self))
+#define jet_PtrArray jet_Array(Ptr)
+// #define jet_PtrArray_free jet_Array_free(Ptr)
+// #define jet_PtrArray_growTo jet_Array_growTo(Ptr)
+// #define jet_PtrArray_concatCArray jet_Array_concatCArray(Ptr)
+// #define jet_PtrArray_concatArray jet_Array_concatArray(Ptr)
+// #define jet_PtrArray_grow jet_Array_grow(Ptr)
+#define jet_PtrArray_push jet_Array_push(Ptr)
+// #define jet_PtrArray_clear jet_Array_clear(Ptr)
+// #define jet_PtrArray_initWithCArray jet_Array_initWithCArray(Ptr)
+// #define jet_PtrArray_justPush jet_Array_justPush(Ptr)
+#define jet_PtrArray_pop jet_Array_pop(Ptr)
+#define jet_PtrArray_top jet_Array_top(Ptr)
+#define jet_PtrArray_empty jet_Array_empty(Ptr)
+#define jet_PtrArray_topAs(T, self) ((T)jet_PtrArray_top(self))
 
-// #define fp_PtrArray_topAs(T, self) fp_Array_topAs(T, self)
+// #define jet_PtrArray_topAs(T, self) jet_Array_topAs(T, self)
 
 #define roundUp32(x)                                                           \
     (--(x), (x) |= (x) >> 1, (x) |= (x) >> 2, (x) |= (x) >> 4,                 \
         (x) |= (x) >> 8, (x) |= (x) >> 16, ++(x))
 
-// dont get smart and try to do fp_Array(fp_Array(fp_Array(whatever)))
+// dont get smart and try to do jet_Array(jet_Array(jet_Array(whatever)))
 
 // Should be using adhoc to generate these.
 
@@ -165,73 +165,73 @@ typedef double Real64;
 // compilation time YES "COMPILATION" MEANS TO BINARY NOT TO C, that
 // should be < 20ms for a typical project.
 #define MAKE_Array(T)                                                          \
-    typedef struct fp_Array(T)                                                 \
+    typedef struct jet_Array(T)                                                \
     {                                                                          \
         T* ref;                                                                \
         UInt32 used;                                                           \
         UInt32 cap;                                                            \
     }                                                                          \
-    fp_Array(T);                                                               \
-    STATIC void fp_Array_free(T)(fp_Array(T) * self)                           \
+    jet_Array(T);                                                              \
+    STATIC void jet_Array_free(T)(jet_Array(T) * self)                         \
     {                                                                          \
         if (self->cap) free(self->ref);                                        \
     }                                                                          \
-    STATIC void fp_Array_growTo(T)(fp_Array(T) * self, UInt32 size)            \
+    STATIC void jet_Array_growTo(T)(jet_Array(T) * self, UInt32 size)          \
     {                                                                          \
         self->cap = roundUp32(size);                                           \
         self->ref = realloc(self->ref, sizeof(T) * self->cap);                 \
         memset(                                                                \
             self->ref + self->used, 0, sizeof(T) * (self->cap - self->used));  \
     }                                                                          \
-    STATIC T fp_Array_get(T)(fp_Array(T) * self, UInt32 index)                 \
+    STATIC T jet_Array_get(T)(jet_Array(T) * self, UInt32 index)               \
     {                                                                          \
         return self->ref[index];                                               \
     }                                                                          \
-    STATIC void fp_Array_concatCArray(T)(                                      \
-        fp_Array(T) * self, T * cArray, int count)                             \
+    STATIC void jet_Array_concatCArray(T)(                                     \
+        jet_Array(T) * self, T * cArray, int count)                            \
     {                                                                          \
         const UInt32 reqd = self->used + count;                                \
-        if (reqd >= self->cap) fp_Array_growTo(T)(self, reqd);                 \
+        if (reqd >= self->cap) jet_Array_growTo(T)(self, reqd);                \
         memcpy(self->ref + self->used, cArray, count * sizeof(T));             \
     }                                                                          \
-    STATIC void fp_Array_concatArray(T)(                                       \
-        fp_Array(T) * self, fp_Array(T) * other)                               \
+    STATIC void jet_Array_concatArray(T)(                                      \
+        jet_Array(T) * self, jet_Array(T) * other)                             \
     {                                                                          \
-        fp_Array_concatCArray(T)(self, other->ref, other->used);               \
+        jet_Array_concatCArray(T)(self, other->ref, other->used);              \
     }                                                                          \
-    STATIC void fp_Array_clear(T)(fp_Array(T) * self) { self->used = 0; }      \
-    STATIC void fp_Array_initWithCArray(T)(                                    \
-        fp_Array(T) * self, T * cArray, int count)                             \
+    STATIC void jet_Array_clear(T)(jet_Array(T) * self) { self->used = 0; }    \
+    STATIC void jet_Array_initWithCArray(T)(                                   \
+        jet_Array(T) * self, T * cArray, int count)                            \
     {                                                                          \
-        fp_Array_clear(T)(self);                                               \
-        fp_Array_concatCArray(T)(self, cArray, count);                         \
+        jet_Array_clear(T)(self);                                              \
+        jet_Array_concatCArray(T)(self, cArray, count);                        \
     }                                                                          \
-    STATIC void fp_Array_grow(T)(fp_Array(T) * self)                           \
+    STATIC void jet_Array_grow(T)(jet_Array(T) * self)                         \
     { /* maybe self can be merged with growTo */                               \
         self->cap = self->cap ? 2 * self->cap : 8;                             \
         self->ref = realloc(self->ref, sizeof(T) * self->cap);                 \
         memset(                                                                \
             self->ref + self->used, 0, sizeof(T) * (self->cap - self->used));  \
     }                                                                          \
-    STATIC void fp_Array_justPush(T)(fp_Array(T) * self, T node)               \
+    STATIC void jet_Array_justPush(T)(jet_Array(T) * self, T node)             \
     { /* when you know that cap is enough */                                   \
         self->ref[self->used++] = node;                                        \
     }                                                                          \
-    STATIC void fp_Array_push(T)(fp_Array(T) * self, T node)                   \
+    STATIC void jet_Array_push(T)(jet_Array(T) * self, T node)                 \
     {                                                                          \
-        if (self->used >= self->cap) fp_Array_grow(T)(self);                   \
-        fp_Array_justPush(T)(self, node);                                      \
+        if (self->used >= self->cap) jet_Array_grow(T)(self);                  \
+        jet_Array_justPush(T)(self, node);                                     \
     }                                                                          \
-    STATIC T fp_Array_pop(T)(fp_Array(T) * self)                               \
+    STATIC T jet_Array_pop(T)(jet_Array(T) * self)                             \
     {                                                                          \
         assert(self->used > 0);                                                \
         return self->ref[--self->used];                                        \
     }                                                                          \
-    STATIC T fp_Array_top(T)(fp_Array(T) * self)                               \
+    STATIC T jet_Array_top(T)(jet_Array(T) * self)                             \
     {                                                                          \
         return self->used ? self->ref[self->used - 1] : 0;                     \
     }                                                                          \
-    STATIC bool fp_Array_empty(T)(fp_Array(T) * self)                          \
+    STATIC bool jet_Array_empty(T)(jet_Array(T) * self)                        \
     {                                                                          \
         return self->used == 0;                                                \
     }
@@ -245,8 +245,8 @@ MAKE_Array(Ptr);
 // MAKE_Array(float);
 // make array for strings etc later
 
-// fp_Array_top(T) is only defined for value types to keep the number
-// of instantiations (of the "template" fp_Array) down. So void* represents
+// jet_Array_top(T) is only defined for value types to keep the number
+// of instantiations (of the "template" jet_Array) down. So void* represents
 // object ptrs of all types. Cast them when you need to deref or do ->
 // etc. self is used to get a void* as a T (usually a SomeType*)
 
@@ -254,24 +254,24 @@ MAKE_Array(Ptr);
 // since self is not templated, it's your job to send items of the
 // right size, or face the music
 // ASSUMING SIZE IS 8. THAT MEANS NO FLOAT OR UINT32, only sizeof(void*)
-// #define fp_Array_concatCArray(T, fp_Array, arr, count) \
-//     fp_Array_concat_cfp_Array_(fp_Array, arr, count * sizeof(T))
+// #define jet_Array_concatCArray(T, jet_Array, arr, count) \
+//     jet_Array_concat_cjet_Array_(jet_Array, arr, count * sizeof(T))
 // TODO: the compiler should optimise away calls to concat if the
 // original arrays can be used one after the other. e.g. concat two
 // arrays then print it can be done by simply printing first then
 // second, no memcpy involved.
-// #define fp_Array_concatArray(T, s1, s2) \
-//     fp_Array_concatfp_Array_(s1, s2, sizeof(T))
+// #define jet_Array_concatArray(T, s1, s2) \
+//     jet_Array_concatjet_Array_(s1, s2, sizeof(T))
 #pragma mark - Pool
 
-typedef struct fp_Pool {
+typedef struct jet_Pool {
     void* ref;
     UInt32 cap, capTotal; // BYTES
-    fp_Array(Ptr) ptrs;
-    UInt32 used, usedTotal; // used BYTES, unlike in fp_Array!
-} fp_Pool;
+    jet_Array(Ptr) ptrs;
+    UInt32 used, usedTotal; // used BYTES, unlike in jet_Array!
+} jet_Pool;
 
-STATIC void* fp_Pool_alloc(fp_Pool* self, size_t reqd)
+STATIC void* jet_Pool_alloc(jet_Pool* self, size_t reqd)
 {
     void* ans = NULL;
     // printf("asked for %zu B\n", reqd);
@@ -280,7 +280,7 @@ STATIC void* fp_Pool_alloc(fp_Pool* self, size_t reqd)
     // dont ask for a big fat chunk larger than 16KB (or up to 256KB
     // depending on how much is already there) all at one time.
     if (self->used + reqd > self->cap) {
-        if (self->ref) fp_Array_push(Ptr)(&self->ptrs, self->ref);
+        if (self->ref) jet_Array_push(Ptr)(&self->ptrs, self->ref);
         self->cap
             = (self->cap ? (self->cap > 1 MB ? 1 MB : self->cap * 2) : 4 KB);
         self->capTotal += self->cap;
@@ -299,18 +299,18 @@ typedef union {
     struct {
         UInt32 id : 8, ptr : 24;
     };
-} fp_SmallPtr;
+} jet_SmallPtr;
 
-// returns a "fp_SmallPtr"
-STATIC fp_SmallPtr fp_Pool_allocs(fp_Pool* self, size_t reqd)
+// returns a "jet_SmallPtr"
+STATIC jet_SmallPtr jet_Pool_allocs(jet_Pool* self, size_t reqd)
 {
-    fp_SmallPtr ans = {};
+    jet_SmallPtr ans = {};
 
     // This is a pool for single objects, not arrays or large strings.
     // dont ask for a big fat chunk larger than 16KB (or up to 256KB
     // depending on how much is already there) all at one time.
     if (self->used + reqd > self->cap) {
-        if (self->ref) fp_Array_push(Ptr)(&self->ptrs, self->ref);
+        if (self->ref) jet_Array_push(Ptr)(&self->ptrs, self->ref);
         self->cap = (self->cap > 64 KB ? 256 KB : 4 KB);
         self->capTotal += self->cap;
         self->ref = calloc(1, self->cap);
@@ -326,23 +326,23 @@ STATIC fp_SmallPtr fp_Pool_allocs(fp_Pool* self, size_t reqd)
     return ans;
 }
 
-STATIC void* fp_Pool_deref(fp_Pool* self, fp_SmallPtr sptr)
+STATIC void* jet_Pool_deref(jet_Pool* self, jet_SmallPtr sptr)
 {
     return sptr.id ? self->ptrs.ref[sptr.id - 1] + sptr.ptr
                    : self->ref + sptr.ptr;
 }
 
-STATIC void fp_Pool_free(fp_Pool* self)
+STATIC void jet_Pool_free(jet_Pool* self)
 {
     // TODO: reset used here?
     if (self->cap) free(self->ref);
     for (int i = 0; i < self->ptrs.used; i++) free(self->ptrs.ref[i]);
 }
 
-fp_Pool fp_gPool[1] = {};
-fp_Pool fp_sPool[1] = {};
+jet_Pool jet_gPool[1] = {};
+jet_Pool jet_sPool[1] = {};
 
-#define fp_new(T) (T##_allocTotal++, fp_Pool_alloc(fp_gPool, sizeof(T)));
+#define jet_new(T) (T##_allocTotal++, jet_Pool_alloc(jet_gPool, sizeof(T)));
 
 // This macro should be invoked on each struct defined.
 #define MKSTAT(T) static int T##_allocTotal = 0;
@@ -352,37 +352,37 @@ fp_Pool fp_sPool[1] = {};
         eprintf("*** %-24s %4ld B x %5d = %7ld B\n", #T, sizeof(T),            \
             T##_allocTotal, T##_allocTotal * sizeof(T));
 
-#pragma mark - fp_PtrList
+#pragma mark - jet_PtrList
 
-MKSTAT(fp_PtrList)
+MKSTAT(jet_PtrList)
 
-#define List(T) fp_PtrList
-typedef struct fp_PtrList {
+#define List(T) jet_PtrList
+typedef struct jet_PtrList {
     void* item;
-    struct fp_PtrList* next;
-} fp_PtrList;
+    struct jet_PtrList* next;
+} jet_PtrList;
 
-STATIC fp_PtrList* fp_PtrList_with(void* item)
+STATIC jet_PtrList* jet_PtrList_with(void* item)
 {
     // TODO: how to get separate alloc counts of List_ASTType
     // List_ASTFunc etc.?
-    fp_PtrList* li = fp_new(fp_PtrList);
+    jet_PtrList* li = jet_new(jet_PtrList);
     li->item = item;
     return li;
 }
 
-STATIC fp_PtrList* fp_PtrList_withNext(void* item, void* next)
+STATIC jet_PtrList* jet_PtrList_withNext(void* item, void* next)
 {
     // TODO: how to get separate alloc counts of List_ASTType
     // List_ASTFunc etc.?
-    fp_PtrList* li = fp_new(fp_PtrList);
-    // printf("%d\n", fp_PtrList_allocTotal);
+    jet_PtrList* li = jet_new(jet_PtrList);
+    // printf("%d\n", jet_PtrList_allocTotal);
     li->item = item;
     li->next = next;
     return li;
 }
 
-STATIC int fp_PtrList_count(fp_PtrList* listPtr)
+STATIC int jet_PtrList_count(jet_PtrList* listPtr)
 {
     int i = 0;
     while (listPtr) {
@@ -394,27 +394,27 @@ STATIC int fp_PtrList_count(fp_PtrList* listPtr)
 
 // returns the a ref to the last listitem so you can use that for
 // repeated appends in O(1) and not O(N)
-STATIC fp_PtrList** fp_PtrList_append(fp_PtrList** selfp, void* item)
+STATIC jet_PtrList** jet_PtrList_append(jet_PtrList** selfp, void* item)
 {
     if (*selfp == NULL) { // first append call
-        *selfp = fp_PtrList_with(item);
+        *selfp = jet_PtrList_with(item);
         return selfp;
     } else {
-        fp_PtrList* self = *selfp;
+        jet_PtrList* self = *selfp;
         while (self->next) self = self->next;
-        self->next = fp_PtrList_with(item);
+        self->next = jet_PtrList_with(item);
         return &(self->next);
     }
 }
 
-STATIC void fp_PtrList_shift(fp_PtrList** selfp, void* item)
+STATIC void jet_PtrList_shift(jet_PtrList** selfp, void* item)
 {
-    *selfp = fp_PtrList_withNext(item, *selfp);
+    *selfp = jet_PtrList_withNext(item, *selfp);
 }
 
-#define fp_foreach(T, var, listSrc) fp_foreachn(T, var, _listp_, listSrc)
-#define fp_foreachn(T, var, listp, listSrc)                                    \
-    for (fp_PtrList* listp = listSrc; listp; listp = NULL)                     \
+#define jet_foreach(T, var, listSrc) jet_foreachn(T, var, _listp_, listSrc)
+#define jet_foreachn(T, var, listp, listSrc)                                   \
+    for (jet_PtrList* listp = listSrc; listp; listp = NULL)                    \
         for (T var = (T)listp->item; listp and (var = (T)listp->item);         \
              listp = listp->next)
 #endif
@@ -431,23 +431,23 @@ STATIC void fp_PtrList_shift(fp_PtrList** selfp, void* item)
 // DO NOT USE strdup,strndup,strcasecmp,strncasecmp: OK reimplemented
 // strcasecmp.
 
-#define fp_ispow2(num) (((num)-1) & (num))
+#define jet_ispow2(num) (((num)-1) & (num))
 
 // round n up to a multiple of a power-of-2 number b.
-#define fp_roundmpow2(n, b) ((n + (b)-1) & -(intptr_t)(b))
-#define fp_roundm8(n) fp_roundmpow2(n, 8)
-#define fp_roundm16(n) fp_roundmpow2(n, 16)
-#define fp_roundm32(n) fp_roundmpow2(n, 32)
+#define jet_roundmpow2(n, b) ((n + (b)-1) & -(intptr_t)(b))
+#define jet_roundm8(n) jet_roundmpow2(n, 8)
+#define jet_roundm16(n) jet_roundmpow2(n, 16)
+#define jet_roundm32(n) jet_roundmpow2(n, 32)
 
 // round a 32-bit number n upto the next power of 2.
-#define fp_roundup32(x)                                                        \
+#define jet_roundup32(x)                                                       \
     (--(x), (x) |= (x) >> 1, (x) |= (x) >> 2, (x) |= (x) >> 4,                 \
         (x) |= (x) >> 8, (x) |= (x) >> 16, ++(x))
 
 STATIC char* pstrndup(const char* str, size_t len)
 {
-    char* ret = fp_Pool_alloc(fp_sPool, fp_roundm8(len + 1));
-    memcpy(ret, str, len); // fp_sPool uses calloc, so no need to zero last
+    char* ret = jet_Pool_alloc(jet_sPool, jet_roundm8(len + 1));
+    memcpy(ret, str, len); // jet_sPool uses calloc, so no need to zero last
     return ret;
 }
 

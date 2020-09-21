@@ -34,8 +34,8 @@ typedef unsigned long long
 #if defined(_WIN32) /* Windows */
 
 #include <windows.h> /* LARGE_INTEGER */
-typedef LARGE_INTEGER fp_sys_time_Time;
-#define fp_sys_time_TIME_INITIALIZER                                           \
+typedef LARGE_INTEGER jet_sys_time_Time;
+#define jet_sys_time_TIME_INITIALIZER                                          \
     {                                                                          \
         {                                                                      \
             0, 0                                                               \
@@ -45,16 +45,16 @@ typedef LARGE_INTEGER fp_sys_time_Time;
 #elif defined(__APPLE__) && defined(__MACH__)
 
 #include <mach/mach_time.h>
-typedef PreciseTime fp_sys_time_Time;
-#define fp_sys_time_TIME_INITIALIZER 0
+typedef PreciseTime jet_sys_time_Time;
+#define jet_sys_time_TIME_INITIALIZER 0
 
 /* C11 requires timespec_get, but FreeBSD 11 lacks it, while still claiming C11
    compliance. Android also lacks it but does define TIME_UTC. */
 #elif (defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L) /* C11 */)   \
     && defined(TIME_UTC) && !defined(__ANDROID__)
 
-typedef struct timespec fp_sys_time_Time;
-#define fp_sys_time_TIME_INITIALIZER                                           \
+typedef struct timespec jet_sys_time_Time;
+#define jet_sys_time_TIME_INITIALIZER                                          \
     {                                                                          \
         0, 0                                                                   \
     }
@@ -62,22 +62,22 @@ typedef struct timespec fp_sys_time_Time;
 #else /* relies on standard C90 (note : clock_t measurements can be wrong when \
          using multi-threading) */
 
-typedef clock_t fp_sys_time_Time;
-#define fp_sys_time_TIME_INITIALIZER 0
+typedef clock_t jet_sys_time_Time;
+#define jet_sys_time_TIME_INITIALIZER 0
 
 #endif
 
-fp_sys_time_Time fp_sys_time_getTime(void);
-PreciseTime fp_sys_time_getSpanTimeMicro(
-    fp_sys_time_Time clockStart, fp_sys_time_Time clockEnd);
-PreciseTime fp_sys_time_getSpanTimeNano(
-    fp_sys_time_Time clockStart, fp_sys_time_Time clockEnd);
+jet_sys_time_Time jet_sys_time_getTime(void);
+PreciseTime jet_sys_time_getSpanTimeMicro(
+    jet_sys_time_Time clockStart, jet_sys_time_Time clockEnd);
+PreciseTime jet_sys_time_getSpanTimeNano(
+    jet_sys_time_Time clockStart, jet_sys_time_Time clockEnd);
 
 #define SEC_TO_MICRO ((PreciseTime)1000000)
-PreciseTime fp_sys_time_clockSpanMicro(fp_sys_time_Time clockStart);
-PreciseTime fp_sys_time_clockSpanNano(fp_sys_time_Time clockStart);
+PreciseTime jet_sys_time_clockSpanMicro(jet_sys_time_Time clockStart);
+PreciseTime jet_sys_time_clockSpanNano(jet_sys_time_Time clockStart);
 
-void fp_sys_time_waitForNextTick(void);
+void jet_sys_time_waitForNextTick(void);
 
 /*-****************************************
  *  Time functions
@@ -88,15 +88,15 @@ void fp_sys_time_waitForNextTick(void);
 #include <stdlib.h> /* abort */
 #include <stdio.h> /* perror */
 
-fp_sys_time_Time fp_sys_time_getTime(void)
+jet_sys_time_Time jet_sys_time_getTime(void)
 {
-    fp_sys_time_Time x;
+    jet_sys_time_Time x;
     QueryPerformanceCounter(&x);
     return x;
 }
 
-PreciseTime fp_sys_time_getSpanTimeMicro(
-    fp_sys_time_Time clockStart, fp_sys_time_Time clockEnd)
+PreciseTime jet_sys_time_getSpanTimeMicro(
+    jet_sys_time_Time clockStart, jet_sys_time_Time clockEnd)
 {
     static LARGE_INTEGER ticksPerSecond;
     static int init = 0;
@@ -111,8 +111,8 @@ PreciseTime fp_sys_time_getSpanTimeMicro(
         / ticksPerSecond.QuadPart;
 }
 
-PreciseTime fp_sys_time_getSpanTimeNano(
-    fp_sys_time_Time clockStart, fp_sys_time_Time clockEnd)
+PreciseTime jet_sys_time_getSpanTimeNano(
+    jet_sys_time_Time clockStart, jet_sys_time_Time clockEnd)
 {
     static LARGE_INTEGER ticksPerSecond;
     static int init = 0;
@@ -129,10 +129,10 @@ PreciseTime fp_sys_time_getSpanTimeNano(
 
 #elif defined(__APPLE__) && defined(__MACH__)
 
-fp_sys_time_Time fp_sys_time_getTime(void) { return mach_absolute_time(); }
+jet_sys_time_Time jet_sys_time_getTime(void) { return mach_absolute_time(); }
 
-PreciseTime fp_sys_time_getSpanTimeMicro(
-    fp_sys_time_Time clockStart, fp_sys_time_Time clockEnd)
+PreciseTime jet_sys_time_getSpanTimeMicro(
+    jet_sys_time_Time clockStart, jet_sys_time_Time clockEnd)
 {
     static mach_timebase_info_data_t rate;
     static int init = 0;
@@ -145,8 +145,8 @@ PreciseTime fp_sys_time_getSpanTimeMicro(
         / 1000ULL;
 }
 
-PreciseTime fp_sys_time_getSpanTimeNano(
-    fp_sys_time_Time clockStart, fp_sys_time_Time clockEnd)
+PreciseTime jet_sys_time_getSpanTimeNano(
+    jet_sys_time_Time clockStart, jet_sys_time_Time clockEnd)
 {
     static mach_timebase_info_data_t rate;
     static int init = 0;
@@ -166,11 +166,11 @@ PreciseTime fp_sys_time_getSpanTimeNano(
 #include <stdlib.h> /* abort */
 #include <stdio.h> /* perror */
 
-fp_sys_time_Time fp_sys_time_getTime(void)
+jet_sys_time_Time jet_sys_time_getTime(void)
 {
     /* time must be initialized, othersize it may fail msan test.
      * No good reason, likely a limitation of timespec_get() for some target */
-    fp_sys_time_Time time = fp_sys_time_TIME_INITIALIZER;
+    jet_sys_time_Time time = jet_sys_time_TIME_INITIALIZER;
     if (timespec_get(&time, TIME_UTC) != TIME_UTC) {
         perror("timefn::timespec_get");
         abort();
@@ -178,10 +178,10 @@ fp_sys_time_Time fp_sys_time_getTime(void)
     return time;
 }
 
-static fp_sys_time_Time fp_sys_time_getSpanTime(
-    fp_sys_time_Time begin, fp_sys_time_Time end)
+static jet_sys_time_Time jet_sys_time_getSpanTime(
+    jet_sys_time_Time begin, jet_sys_time_Time end)
 {
-    fp_sys_time_Time diff;
+    jet_sys_time_Time diff;
     if (end.tv_nsec < begin.tv_nsec) {
         diff.tv_sec = (end.tv_sec - 1) - begin.tv_sec;
         diff.tv_nsec = (end.tv_nsec + 1000000000ULL) - begin.tv_nsec;
@@ -192,20 +192,20 @@ static fp_sys_time_Time fp_sys_time_getSpanTime(
     return diff;
 }
 
-PreciseTime fp_sys_time_getSpanTimeMicro(
-    fp_sys_time_Time begin, fp_sys_time_Time end)
+PreciseTime jet_sys_time_getSpanTimeMicro(
+    jet_sys_time_Time begin, jet_sys_time_Time end)
 {
-    fp_sys_time_Time const diff = fp_sys_time_getSpanTime(begin, end);
+    jet_sys_time_Time const diff = jet_sys_time_getSpanTime(begin, end);
     PreciseTime micro = 0;
     micro += 1000000ULL * diff.tv_sec;
     micro += diff.tv_nsec / 1000ULL;
     return micro;
 }
 
-PreciseTime fp_sys_time_getSpanTimeNano(
-    fp_sys_time_Time begin, fp_sys_time_Time end)
+PreciseTime jet_sys_time_getSpanTimeNano(
+    jet_sys_time_Time begin, jet_sys_time_Time end)
 {
-    fp_sys_time_Time const diff = fp_sys_time_getSpanTime(begin, end);
+    jet_sys_time_Time const diff = jet_sys_time_getSpanTime(begin, end);
     PreciseTime nano = 0;
     nano += 1000000000ULL * diff.tv_sec;
     nano += diff.tv_nsec;
@@ -215,14 +215,14 @@ PreciseTime fp_sys_time_getSpanTimeNano(
 #else /* relies on standard C90 (note : clock_t measurements can be wrong when \
          using multi-threading) */
 
-fp_sys_time_Time fp_sys_time_getTime(void) { return clock(); }
-PreciseTime fp_sys_time_getSpanTimeMicro(
-    fp_sys_time_Time clockStart, fp_sys_time_Time clockEnd)
+jet_sys_time_Time jet_sys_time_getTime(void) { return clock(); }
+PreciseTime jet_sys_time_getSpanTimeMicro(
+    jet_sys_time_Time clockStart, jet_sys_time_Time clockEnd)
 {
     return 1000000ULL * (clockEnd - clockStart) / CLOCKS_PER_SEC;
 }
-PreciseTime fp_sys_time_getSpanTimeNano(
-    fp_sys_time_Time clockStart, fp_sys_time_Time clockEnd)
+PreciseTime jet_sys_time_getSpanTimeNano(
+    jet_sys_time_Time clockStart, jet_sys_time_Time clockEnd)
 {
     return 1000000000ULL * (clockEnd - clockStart) / CLOCKS_PER_SEC;
 }
@@ -230,24 +230,24 @@ PreciseTime fp_sys_time_getSpanTimeNano(
 #endif
 
 /* returns time span in microseconds */
-PreciseTime fp_sys_time_clockSpanMicro(fp_sys_time_Time clockStart)
+PreciseTime jet_sys_time_clockSpanMicro(jet_sys_time_Time clockStart)
 {
-    fp_sys_time_Time const clockEnd = fp_sys_time_getTime();
-    return fp_sys_time_getSpanTimeMicro(clockStart, clockEnd);
+    jet_sys_time_Time const clockEnd = jet_sys_time_getTime();
+    return jet_sys_time_getSpanTimeMicro(clockStart, clockEnd);
 }
 
 /* returns time span in microseconds */
-PreciseTime fp_sys_time_clockSpanNano(fp_sys_time_Time clockStart)
+PreciseTime jet_sys_time_clockSpanNano(jet_sys_time_Time clockStart)
 {
-    fp_sys_time_Time const clockEnd = fp_sys_time_getTime();
-    return fp_sys_time_getSpanTimeNano(clockStart, clockEnd);
+    jet_sys_time_Time const clockEnd = jet_sys_time_getTime();
+    return jet_sys_time_getSpanTimeNano(clockStart, clockEnd);
 }
 
-void fp_sys_time_waitForNextTick(void)
+void jet_sys_time_waitForNextTick(void)
 {
-    fp_sys_time_Time const clockStart = fp_sys_time_getTime();
-    fp_sys_time_Time clockEnd;
+    jet_sys_time_Time const clockStart = jet_sys_time_getTime();
+    jet_sys_time_Time clockEnd;
     do {
-        clockEnd = fp_sys_time_getTime();
-    } while (fp_sys_time_getSpanTimeNano(clockStart, clockEnd) == 0);
+        clockEnd = jet_sys_time_getTime();
+    } while (jet_sys_time_getSpanTimeNano(clockStart, clockEnd) == 0);
 }

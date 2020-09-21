@@ -72,9 +72,7 @@ double incbeta(double a, double b, double x)
         f *= cd;
 
         /*Check for stop.*/
-        if (fabs(1.0 - cd) < STOP) {
-            return front * (f - 1.0);
-        }
+        if (fabs(1.0 - cd) < STOP) { return front * (f - 1.0); }
     }
 
     return 1.0 / 0.0; /*Needed more loops, did not converge.*/
@@ -87,7 +85,7 @@ double incbeta(double a, double b, double x)
 #define NM 1001 // array size
 #define NP (PEAKDAY * (NX + 1)) // number of days + 1
 
-#define countof(x) (sizeof(x) / sizeof(x[0]))
+#define jet_countof(x) (sizeof(x) / sizeof(x[0]))
 #define foreach(idx, arr) for (int idx = 0; idx < NP; idx++)
 
 #define max(x, y) ((y > x) ? (y) : (x))
@@ -104,7 +102,7 @@ int main()
     foreach (i, x)
         x[i] *= (NP - 1);
 
-    for (int i = countof(y) - 1; i > 0; i--) y[i] -= y[i - 1];
+    for (int i = jet_countof(y) - 1; i > 0; i--) y[i] -= y[i - 1];
 
     // double maxy = 0.0;
     // foreach (i, y)

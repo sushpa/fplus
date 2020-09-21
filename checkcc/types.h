@@ -203,7 +203,7 @@ typedef enum CollectionTypes {
     CTYSortedSet,
     CTYTensor, // will need to store dims. includes vector/matrix/tensor
     CTYDataFrame,
-    CTYStackArray, // computed size from init. can get later using countof()
+    CTYStackArray, // computed size from init. can get later using jet_countof()
     CTYStackArray8, // these are NOT in BYTES, but sizeof(whatever), so
                     // careful with double/int arrays
     CTYStackArray16,

@@ -1,5 +1,5 @@
-#include "fp_base.h"
-#include "fp_sys_time.h"
+#include "jet_base.h"
+#include "jet_sys_time.h"
 
 typedef struct XMLAttr XMLAttr;
 typedef struct XMLNode XMLNode;
@@ -32,14 +32,14 @@ MKSTAT(XMLParser)
 
 static XMLNode* XMLNode_new(const char* tag)
 {
-    XMLNode* ret = fp_new(XMLNode);
+    XMLNode* ret = jet_new(XMLNode);
     ret->tag = tag;
     return ret;
 }
 
 static XMLNode* XMLNode_newText(const char* text)
 {
-    XMLNode* ret = fp_new(XMLNode);
+    XMLNode* ret = jet_new(XMLNode);
     ret->tag = NULL;
     ret->text = text;
     return ret;
@@ -47,7 +47,7 @@ static XMLNode* XMLNode_newText(const char* text)
 
 static XMLAttr* XMLAttr_new(const char* key, const char* value)
 {
-    XMLAttr* ret = fp_new(XMLAttr);
+    XMLAttr* ret = jet_new(XMLAttr);
     ret->key = key;
     ret->val = value;
     return ret;
@@ -55,7 +55,7 @@ static XMLAttr* XMLAttr_new(const char* key, const char* value)
 
 static XMLParser* XMLParser_fromStringClone(const char* str)
 {
-    XMLParser* par = fp_new(XMLParser);
+    XMLParser* par = jet_new(XMLParser);
     size_t len = strlen(str);
     par->data = pstrndup(str, len);
     par->pos = par->data;
@@ -82,7 +82,7 @@ static XMLParser* XMLParser_fromFile(char* filename)
     FILE* file = fopen(filename, "r");
     assert(file);
 
-    XMLParser* ret = fp_new(XMLParser);
+    XMLParser* ret = jet_new(XMLParser);
 
     ret->filename = filename;
     // ret->noext = str_noext(filename);
@@ -117,7 +117,7 @@ static const char* findchars_fast(
 {
     // *found = 0;
 #if __SSE4_2__
-    if (fp_likely(buf_end - buf >= 16)) {
+    if (jet_likely(buf_end - buf >= 16)) {
         __m128i chars16 = _mm_loadu_si128((const __m128i*)chars);
 
         size_t left = (buf_end - buf) & ~15;
@@ -126,14 +126,14 @@ static const char* findchars_fast(
             int r = _mm_cmpestri(chars16, chars_size, b16, 16,
                 _SIDD_LEAST_SIGNIFICANT | _SIDD_CMP_EQUAL_ANY
                     | _SIDD_UBYTE_OPS);
-            if (fp_unlikely(r != 16)) {
+            if (jet_unlikely(r != 16)) {
                 buf += r;
                 // *found = 1;
                 break;
             }
             buf += 16;
             left -= 16;
-        } while (fp_likely(left != 0));
+        } while (jet_likely(left != 0));
     }
     return buf;
 #else
@@ -174,7 +174,7 @@ static List(XMLAttr) * XMLParser_parseAttrs(XMLParser* parser)
             *parser->pos++ = 0; // skip and trample whitespace
 
         XMLAttr* attr = XMLAttr_new(name, value);
-        listp = fp_PtrList_append(listp, attr);
+        listp = jet_PtrList_append(listp, attr);
     }
     //    if (*parser->pos == '/') *parser->pos++ = 0;
     //    assert(*parser->pos == '>');
@@ -253,7 +253,7 @@ static List(XMLNode) * XMLParser_parseTags(XMLParser* parser)
                     break;
                 }
 
-                listp = fp_PtrList_append(listp, node);
+                listp = jet_PtrList_append(listp, node);
             }
         } break;
 
@@ -268,7 +268,7 @@ static List(XMLNode) * XMLParser_parseTags(XMLParser* parser)
             // parser->pos = findchars_fast(parser->pos, parser->end, "<", 1);
             // relying on the </ detector state to trample the <
             XMLNode* textNode = XMLNode_newText(text);
-            listp = fp_PtrList_append(listp, textNode);
+            listp = jet_PtrList_append(listp, textNode);
         }
         }
     }
@@ -284,7 +284,7 @@ static void XMLAttr_print(XMLAttr* attr, int indent)
 static void XMLNode_print(XMLNode* node, int indent);
 static void XMLNodeList_print(List(XMLNode) * nodeList, int indent)
 {
-    fp_foreach(XMLNode*, childNode, nodeList) XMLNode_print(childNode, indent);
+    jet_foreach(XMLNode*, childNode, nodeList) XMLNode_print(childNode, indent);
 }
 
 static const char* const spaces
@@ -294,7 +294,7 @@ static void XMLNode_print(XMLNode* node, int indent)
     if (node->tag) {
         printf("%.*s<%s%s", indent, spaces, node->tag,
             node->attributes ? "" : node->children ? ">\n" : "/>\n");
-        fp_foreach(XMLAttr*, attr, node->attributes)
+        jet_foreach(XMLAttr*, attr, node->attributes)
             XMLAttr_print(attr, indent);
         if (node->attributes) printf("%s\n", node->children ? ">" : " />");
         XMLNodeList_print(node->children, indent + 2);
@@ -365,54 +365,54 @@ int main(int argc, char* argv[])
         exit(1);
     }
 
-    fp_sys_time_Time t0; // = fp_sys_time_getTime();
+    jet_sys_time_Time t0; // = jet_sys_time_getTime();
     XMLParser* par = XMLParser_fromFile(argv[1]);
-    double tms; // = fp_sys_time_clockSpanMicro(t0) / 1.0e3;
+    double tms; // = jet_sys_time_clockSpanMicro(t0) / 1.0e3;
     // eprintf("\e[1mread time:\e[0m %.1f ms (%.2f GB/s)\n", tms,
     //     1 / ((tms / 1e3) * 1e9 / (par->end - par->data))); // sw.print();
 
-    t0 = fp_sys_time_getTime();
+    t0 = jet_sys_time_getTime();
     List(XMLNode)* parsed = XMLParser_parseTags(par);
     if (argc > 2 && *argv[2] == 'd') XMLNodeList_print(parsed, 0);
 
-    tms = fp_sys_time_clockSpanMicro(t0) / 1.0e3;
+    tms = jet_sys_time_clockSpanMicro(t0) / 1.0e3;
 
     eputs("-------------------------------------------------------"
           "\n");
     allocstat(XMLAttr);
     allocstat(XMLParser);
     allocstat(XMLNode);
-    allocstat(fp_PtrList);
+    allocstat(jet_PtrList);
     eputs("-------------------------------------------------------"
           "\n");
     eprintf("*** Total size of nodes                     = %7d B\n",
-        fp_gPool->usedTotal);
+        jet_gPool->usedTotal);
     eprintf("*** Space allocated for nodes               = %7d B\n",
-        fp_gPool->capTotal);
+        jet_gPool->capTotal);
     eprintf("*** Node space utilisation                  = %7.1f %%\n",
-        fp_gPool->usedTotal * 100.0 / fp_gPool->capTotal);
+        jet_gPool->usedTotal * 100.0 / jet_gPool->capTotal);
     eputs("-------------------------------------------------------"
           "\n");
     eprintf("*** File size                               = %7lu B\n",
         par->end - par->data);
     eprintf("*** Node size to file size ratio            = %7.1f x\n",
-        fp_gPool->usedTotal * 1.0 / (par->end - par->data));
+        jet_gPool->usedTotal * 1.0 / (par->end - par->data));
     eputs("-------------------------------------------------------"
           "\n");
     eprintf("*** Space used for strings                  = %7u B\n",
-        fp_sPool->usedTotal);
+        jet_sPool->usedTotal);
     eprintf("*** Allocated for strings                   = %7u B\n",
-        fp_sPool->capTotal);
+        jet_sPool->capTotal);
     eprintf("*** Space utilisation                       = %7.1f %%\n",
-        fp_sPool->usedTotal * 100.0 / fp_sPool->capTotal);
+        jet_sPool->usedTotal * 100.0 / jet_sPool->capTotal);
     eputs("-------------------------------------------------------"
           "\n");
     eputs("\e[1mMemory-related calls\e[0m\n");
     eprintf("  calloc: %-7d | malloc: %-7d | realloc: %-7d\n",
-        fp_globals__callocCount, fp_globals__mallocCount,
-        fp_globals__reallocCount);
-    eprintf("  strlen: %-7d | strdup: %-7d |\n", fp_globals__strlenCount,
-        fp_globals__strdupCount);
+        jet_globals__callocCount, jet_globals__mallocCount,
+        jet_globals__reallocCount);
+    eprintf("  strlen: %-7d | strdup: %-7d |\n", jet_globals__strlenCount,
+        jet_globals__strdupCount);
 
     eprintf("\e[1mTime elapsed:\e[0m %.1f ms (%.2f GB/s)\n", tms,
         1 / ((tms / 1e3) * 1e9 / (par->end - par->data))); // sw.print();

@@ -47,7 +47,7 @@ static void analyseExpr(
         expr->elemental = expr->elemental and expr->left->elemental;
         expr->throws = expr->left->throws or expr->func->throws;
         ASTExpr* currArg = expr->left;
-        fp_foreach(ASTVar*, arg, expr->func->args)
+        jet_foreach(ASTVar*, arg, expr->func->args)
         {
             ASTExpr* cArg
                 = (currArg->kind == tkOpComma) ? currArg->left : currArg;
@@ -92,7 +92,7 @@ static void analyseExpr(
             Parser_errorUnrecognizedFunc(parser, expr, buf);
 
             if (*buf != '<') // not invalid type
-                fp_foreach(ASTFunc*, func,
+                jet_foreach(ASTFunc*, func,
                     mod->funcs) if (not strcasecmp(expr->string, func->name))
                     eprintf("\e[;2m ./%s:%d: \e[;1;2m%s\e[0;2m with %d "
                             "arguments is not viable.\e[0m\n",
@@ -173,7 +173,7 @@ static void analyseExpr(
     case tkKeyword_elif:
     case tkKeyword_while: {
         if (expr->left) analyseExpr(parser, expr->left, mod, false);
-        fp_foreach(ASTExpr*, stmt, expr->body->stmts)
+        jet_foreach(ASTExpr*, stmt, expr->body->stmts)
             analyseExpr(parser, stmt, mod, inFuncArgs);
     } break;
 
@@ -365,7 +365,7 @@ static void analyseType(Parser* parser, ASTType* type, ASTModule* mod)
             Parser_errorTypeInheritsSelf(parser, type);
     }
     // TODO: this should be replaced by a dict query
-    fp_foreach(ASTType*, type2, mod->types)
+    jet_foreach(ASTType*, type2, mod->types)
     {
         if (type2 == type) break;
         if (not strcasecmp(type->name, type2->name))
@@ -385,7 +385,7 @@ static void analyseType(Parser* parser, ASTType* type, ASTModule* mod)
     type->analysed = true;
     // nothing to do for declared/empty types etc. with no body
     if (type->body) //
-        fp_foreach(ASTExpr*, stmt, type->body->stmts)
+        jet_foreach(ASTExpr*, stmt, type->body->stmts)
             analyseExpr(parser, stmt, mod, false);
 }
 static void ASTFunc_hashExprs(Parser* parser, ASTFunc* func);
@@ -400,7 +400,7 @@ static void analyseFunc(Parser* parser, ASTFunc* func, ASTModule* mod)
     bool isCtor = false;
     // Check if the function is a constructor call and identify the type.
     // TODO: this should be replaced by a dict query
-    fp_foreach(ASTType*, type, mod->types)
+    jet_foreach(ASTType*, type, mod->types)
     {
         if (not strcasecmp(func->name, type->name)) {
             if (func->returnSpec and not(func->isStmt or func->isDefCtor))
@@ -440,7 +440,7 @@ static void analyseFunc(Parser* parser, ASTFunc* func, ASTModule* mod)
 
     // Check for duplicate functions (same selectors) and report errors.
     // TODO: this should be replaced by a dict query
-    fp_foreach(ASTFunc*, func2, mod->funcs)
+    jet_foreach(ASTFunc*, func2, mod->funcs)
     {
         if (func == func2) break;
         if (not strcasecmp(func->selector, func2->selector))
@@ -455,7 +455,7 @@ static void analyseFunc(Parser* parser, ASTFunc* func, ASTModule* mod)
     func->analysed = true;
 
     // Run the statement-level semantic pass on the function body.
-    fp_foreach(ASTExpr*, stmt, func->body->stmts)
+    jet_foreach(ASTExpr*, stmt, func->body->stmts)
         analyseExpr(parser, stmt, mod, false);
 
     // Statement functions are written without an explicit return type.
@@ -485,7 +485,7 @@ static void analyseTest(Parser* parser, ASTTest* test, ASTModule* mod)
 
     // Check for duplicate test names and report errors.
     // TODO: this should be replaced by a dict query
-    fp_foreach(ASTTest*, test2, mod->tests)
+    jet_foreach(ASTTest*, test2, mod->tests)
     {
         if (test == test2) break;
         if (not strcasecmp(test->name, test2->name))
@@ -496,7 +496,7 @@ static void analyseTest(Parser* parser, ASTTest* test, ASTModule* mod)
     ASTTest_checkUnusedVars(parser, test);
 
     // Run the statement-level semantic pass on the function body.
-    fp_foreach(ASTExpr*, stmt, test->body->stmts)
+    jet_foreach(ASTExpr*, stmt, test->body->stmts)
         analyseExpr(parser, stmt, mod, false);
 
     // Do optimisations or ANY lowering only if there are no errors
@@ -509,7 +509,7 @@ static void analyseTest(Parser* parser, ASTTest* test, ASTModule* mod)
 #include "hash.h"
 
 static void hashExpr(
-    Parser* parser, ASTExpr* expr, fp_Dict(UInt32, Ptr) * cseDict)
+    Parser* parser, ASTExpr* expr, jet_Dict(UInt32, Ptr) * cseDict)
 {
     if (not expr) unreachable("%s", "expr is NULL");
     switch (expr->kind) {
@@ -586,8 +586,8 @@ static void hashExpr(
         // within the func. Also regexes. What we really want are binops, calls,
         // subscripts, etc.
         int status = 0;
-        UInt32 idx = fp_Dict_put(UInt32, Ptr)(cseDict, expr->hash, &status);
-        if (status == 1) fp_Dict_val(cseDict, idx) = expr;
+        UInt32 idx = jet_Dict_put(UInt32, Ptr)(cseDict, expr->hash, &status);
+        if (status == 1) jet_Dict_val(cseDict, idx) = expr;
     }
 }
 
@@ -595,13 +595,13 @@ static void hashExpr(
 // hashes have been generated in hashExpr (which is bottom-up, so checking
 // cannot happen inline).
 static void ASTExpr_checkHashes(
-    Parser* parser, ASTExpr* expr, fp_Dict(UInt32, Ptr) * cseDict)
+    Parser* parser, ASTExpr* expr, jet_Dict(UInt32, Ptr) * cseDict)
 {
 
-    UInt32 idx = fp_Dict_get(UInt32, Ptr)(cseDict, expr->hash);
+    UInt32 idx = jet_Dict_get(UInt32, Ptr)(cseDict, expr->hash);
 
-    if (idx < fp_Dict_end(cseDict)) {
-        ASTExpr* orig = fp_Dict_val(cseDict, idx);
+    if (idx < jet_Dict_end(cseDict)) {
+        ASTExpr* orig = jet_Dict_val(cseDict, idx);
         if (orig != expr
             and orig->kind == expr->kind) // unfortunately there ARE collisions,
                                           // so check again
@@ -639,11 +639,11 @@ static void ASTExpr_checkHashes(
 
 static void ASTFunc_hashExprs(Parser* parser, ASTFunc* func)
 {
-    static fp_Dict(UInt32, Ptr)* cseDict = NULL; // FIXME: will leak
-    if (not cseDict) cseDict = fp_Dict_init(UInt32, Ptr)();
-    fp_Dict_clear(UInt32, Ptr)(cseDict);
+    static jet_Dict(UInt32, Ptr)* cseDict = NULL; // FIXME: will leak
+    if (not cseDict) cseDict = jet_Dict_init(UInt32, Ptr)();
+    jet_Dict_clear(UInt32, Ptr)(cseDict);
 
-    fp_foreach(ASTExpr*, stmt, func->body->stmts)
+    jet_foreach(ASTExpr*, stmt, func->body->stmts)
     {
         hashExpr(parser, stmt, cseDict);
         ASTExpr_checkHashes(parser, stmt, cseDict);
@@ -663,7 +663,7 @@ static void ASTFunc_hashExprs(Parser* parser, ASTFunc* func)
         //            //        idx =
         //            Dict_val(cseDict, idx) = stmt;
     }
-    //    fp_foreach (ASTExpr*, stmt, func->body->stmts) {
+    //    jet_foreach (ASTExpr*, stmt, func->body->stmts) {
     //        int status = 0;
     //        UInt32 idx = Dict_put(UInt32, Ptr)(cseDict, stmt->hash, &status);
     //        // Dict_get(UInt32, Ptr)(cseDict, stmt->hash);

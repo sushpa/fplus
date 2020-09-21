@@ -34,7 +34,7 @@ static void printstats(Parser* const parser, double tms)
     allocstat(ASTTypeSpec);
     allocstat(ASTFunc);
     allocstat(ASTModule);
-    allocstat(fp_PtrList);
+    allocstat(jet_PtrList);
     allocstat(List_ASTExpr);
     allocstat(List_ASTVar);
     allocstat(List_ASTModule);
@@ -46,33 +46,33 @@ static void printstats(Parser* const parser, double tms)
     eputs("-------------------------------------------------------"
           "\n");
     eprintf("*** Total size of nodes                     = %7d B\n",
-        fp_gPool->usedTotal);
+        jet_gPool->usedTotal);
     eprintf("*** Space allocated for nodes               = %7d B\n",
-        fp_gPool->capTotal);
+        jet_gPool->capTotal);
     eprintf("*** Node space utilisation                  = %7.1f %%\n",
-        fp_gPool->usedTotal * 100.0 / fp_gPool->capTotal);
+        jet_gPool->usedTotal * 100.0 / jet_gPool->capTotal);
     eputs("-------------------------------------------------------"
           "\n");
     eprintf("*** File size                               = %7lu B\n",
         parser->end - parser->data - 2);
     eprintf("*** Node size to file size ratio            = %7.1f x\n",
-        fp_gPool->usedTotal * 1.0 / (parser->end - parser->data - 2));
+        jet_gPool->usedTotal * 1.0 / (parser->end - parser->data - 2));
     eputs("-------------------------------------------------------"
           "\n");
     eprintf("*** Space used for strings                  = %7u B\n",
-        fp_sPool->usedTotal);
+        jet_sPool->usedTotal);
     eprintf("*** Allocated for strings                   = %7u B\n",
-        fp_sPool->capTotal);
+        jet_sPool->capTotal);
     eprintf("*** Space utilisation                       = %7.1f %%\n",
-        fp_sPool->usedTotal * 100.0 / fp_sPool->capTotal);
+        jet_sPool->usedTotal * 100.0 / jet_sPool->capTotal);
     eputs("-------------------------------------------------------"
           "\n");
     eputs("\e[1mMemory-related calls\e[0m\n");
     eprintf("  calloc: %-7d | malloc: %-7d | realloc: %-7d\n",
-        fp_globals__callocCount, fp_globals__mallocCount,
-        fp_globals__reallocCount);
-    eprintf("  strlen: %-7d | strdup: %-7d |\n", fp_globals__strlenCount,
-        fp_globals__strdupCount);
+        jet_globals__callocCount, jet_globals__mallocCount,
+        jet_globals__reallocCount);
+    eprintf("  strlen: %-7d | strdup: %-7d |\n", jet_globals__strlenCount,
+        jet_globals__strdupCount);
     eputs("-------------------------------------------------------"
           "\n");
 
