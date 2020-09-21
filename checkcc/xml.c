@@ -30,14 +30,14 @@ MKSTAT(XMLNode)
 MKSTAT(XMLAttr)
 MKSTAT(XMLParser)
 
-XMLNode* XMLNode_new(const char* tag)
+static XMLNode* XMLNode_new(const char* tag)
 {
     XMLNode* ret = fp_new(XMLNode);
     ret->tag = tag;
     return ret;
 }
 
-XMLNode* XMLNode_newText(const char* text)
+static XMLNode* XMLNode_newText(const char* text)
 {
     XMLNode* ret = fp_new(XMLNode);
     ret->tag = NULL;
@@ -45,7 +45,7 @@ XMLNode* XMLNode_newText(const char* text)
     return ret;
 }
 
-XMLAttr* XMLAttr_new(const char* key, const char* value)
+static XMLAttr* XMLAttr_new(const char* key, const char* value)
 {
     XMLAttr* ret = fp_new(XMLAttr);
     ret->key = key;
@@ -53,7 +53,7 @@ XMLAttr* XMLAttr_new(const char* key, const char* value)
     return ret;
 }
 
-XMLParser* XMLParser_fromStringClone(const char* str)
+static XMLParser* XMLParser_fromStringClone(const char* str)
 {
     XMLParser* par = fp_new(XMLParser);
     size_t len = strlen(str);
@@ -63,7 +63,7 @@ XMLParser* XMLParser_fromStringClone(const char* str)
     return par;
 }
 
-XMLParser* XMLParser_fromFile(char* filename)
+static XMLParser* XMLParser_fromFile(char* filename)
 {
     size_t flen = strlen(filename);
 
@@ -131,14 +131,14 @@ XMLParser* XMLParser_fromFile(char* filename)
     return ret;
 }
 
-bool isAnyOf(char ch, char* chars)
+static bool isAnyOf(char ch, char* chars)
 {
     while (*chars)
         if (*chars++ == ch) return true;
     return false;
 }
 
-List(XMLAttr) * XMLParser_parseAttrs(XMLParser* parser)
+static List(XMLAttr) * XMLParser_parseAttrs(XMLParser* parser)
 {
     List(XMLAttr)* list = NULL;
     List(XMLAttr)** listp = &list;
@@ -180,7 +180,7 @@ List(XMLAttr) * XMLParser_parseAttrs(XMLParser* parser)
     return list;
 }
 
-List(XMLNode) * XMLParser_parseTags(XMLParser* parser)
+static List(XMLNode) * XMLParser_parseTags(XMLParser* parser)
 {
     List(XMLNode)* list = NULL;
     List(XMLNode)** listp = &list;
@@ -230,6 +230,7 @@ List(XMLNode) * XMLParser_parseTags(XMLParser* parser)
                             parser->pos++; // seek to end of closing tag
                         *parser->pos++ = 0;
 
+#ifndef FP_XML_SKIP_CLOSING_CHECKS // this is about 10% runtime for a large file
                         if (not *closingTag) {
                             printf("error: found end of file, expected </%s>\n",
                                 node->tag);
@@ -239,6 +240,7 @@ List(XMLNode) * XMLParser_parseTags(XMLParser* parser)
                                 closingTag, node->tag);
                             exit(1);
                         }
+#endif
                     }
                     break;
                 default:
@@ -269,19 +271,20 @@ List(XMLNode) * XMLParser_parseTags(XMLParser* parser)
     return list;
 }
 
-void XMLAttr_print(XMLAttr* attr, int indent)
+static void XMLAttr_print(XMLAttr* attr, int indent)
 {
     printf(" %s=\"%s\"", attr->key, attr->val);
 }
 
-void XMLNode_print(XMLNode* node, int indent);
-void XMLNodeList_print(List(XMLNode) * nodeList, int indent)
+static void XMLNode_print(XMLNode* node, int indent);
+static void XMLNodeList_print(List(XMLNode) * nodeList, int indent)
 {
     fp_foreach(XMLNode*, childNode, nodeList) XMLNode_print(childNode, indent);
 }
 
-const char* const spaces = "                                                 ";
-void XMLNode_print(XMLNode* node, int indent)
+static const char* const spaces
+    = "                                                 ";
+static void XMLNode_print(XMLNode* node, int indent)
 {
     if (node->tag) {
         printf("%.*s<%s%s", indent, spaces, node->tag,
@@ -357,11 +360,11 @@ int main(int argc, char* argv[])
         exit(1);
     }
 
-    fp_sys_time_Time t0 = fp_sys_time_getTime();
+    fp_sys_time_Time t0; // = fp_sys_time_getTime();
     XMLParser* par = XMLParser_fromFile(argv[1]);
-    double tms = fp_sys_time_clockSpanMicro(t0) / 1.0e3;
-    eprintf("\e[1mread time:\e[0m %.1f ms (%.2f GB/s)\n", tms,
-        1 / ((tms / 1e3) * 1e9 / (par->end - par->data))); // sw.print();
+    double tms; // = fp_sys_time_clockSpanMicro(t0) / 1.0e3;
+    // eprintf("\e[1mread time:\e[0m %.1f ms (%.2f GB/s)\n", tms,
+    //     1 / ((tms / 1e3) * 1e9 / (par->end - par->data))); // sw.print();
 
     t0 = fp_sys_time_getTime();
     List(XMLNode)* parsed = XMLParser_parseTags(par);
