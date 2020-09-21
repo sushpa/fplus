@@ -67,23 +67,14 @@ static XMLParser* XMLParser_fromFile(char* filename)
 {
     size_t flen = strlen(filename);
 
-    // Error: the file might not end in .ch
-    // if (not str_endswith(filename, flen, ".fp", 3)) {
-    //     eprintf("F+: file '%s' invalid: name must end in '.fp'.\n",
-    //     filename); return NULL;
-    // }
-
     struct stat sb;
-    // Error: the file might not exist
     if (stat(filename, &sb) != 0) {
         eprintf("F+: file '%s' not found.\n", filename);
         return NULL;
     } else if (S_ISDIR(sb.st_mode)) {
-        // Error: the "file" might really be a folder
         eprintf("F+: '%s' is a folder; only files are accepted.\n", filename);
         return NULL;
     } else if (access(filename, R_OK) == -1) {
-        // Error: the user might not have read permissions for the file
         eprintf("F+: no permission to read file '%s'.\n", filename);
         return NULL;
     }
@@ -107,25 +98,8 @@ static XMLParser* XMLParser_fromFile(char* filename)
         return NULL;
         // would leak if ret was malloc'd directly, but we have a pool
     }
-    // ret->data[size - 1] = 0;
-    // ret->data[size - 2] = 0;
-    // ret->moduleName = str_tr(ret->noext, '/', '.');
-    // ret->mangledName = str_tr(ret->noext, '/', '_');
-    // ret->capsMangledName = str_upper(ret->mangledName);
     ret->end = ret->data + size;
     ret->pos = ret->data;
-    // ret->token.skipWhiteSpace = skipws;
-    // ret->token.mergeArrayDims = false;
-    // ret->token.kind = tkUnknown;
-    // ret->token.line = 1;
-    // ret->token.col = 1;
-    // ret->mode = PMGenC; // parse args to set this
-    // ret->errCount = 0;
-    // ret->warnCount = 0;
-    // ret->errLimit = 50;
-    // } else {
-    //     eputs("Source files larger than 16MB are not allowed.\n");
-    // }
 
     fclose(file);
     return ret;
@@ -136,6 +110,35 @@ static bool isAnyOf(char ch, char* chars)
     while (*chars)
         if (*chars++ == ch) return true;
     return false;
+}
+
+static const char* findchars_fast(
+    const char* buf, const char* buf_end, const char* chars, size_t chars_size)
+{
+    // *found = 0;
+#if __SSE4_2__
+    if (fp_likely(buf_end - buf >= 16)) {
+        __m128i chars16 = _mm_loadu_si128((const __m128i*)chars);
+
+        size_t left = (buf_end - buf) & ~15;
+        do {
+            __m128i b16 = _mm_loadu_si128((void*)buf);
+            int r = _mm_cmpestri(chars16, chars_size, b16, 16,
+                _SIDD_LEAST_SIGNIFICANT | _SIDD_CMP_EQUAL_ANY
+                    | _SIDD_UBYTE_OPS);
+            if (fp_unlikely(r != 16)) {
+                buf += r;
+                // *found = 1;
+                break;
+            }
+            buf += 16;
+            left -= 16;
+        } while (fp_likely(left != 0));
+    }
+    return buf;
+#else
+    return buf + strcspn(buf, chars); // strpbrk(buf, chars);
+#endif
 }
 
 static List(XMLAttr) * XMLParser_parseAttrs(XMLParser* parser)
@@ -203,7 +206,8 @@ static List(XMLNode) * XMLParser_parseTags(XMLParser* parser)
             } else if (not strncasecmp(parser->pos, "[CDATA[", 6)) { // cdata
             } else { // opening tag
                 XMLNode* node = XMLNode_new(parser->pos);
-                while (not isAnyOf(*parser->pos, " />\n\t")) parser->pos++;
+                while (not isAnyOf(*parser->pos, " />\n\t"))
+                    parser->pos++; // SSE?
 
                 if (*parser->pos == ' ') {
                     *parser->pos++ = 0;
@@ -226,7 +230,7 @@ static List(XMLNode) * XMLParser_parseTags(XMLParser* parser)
                         node->children = XMLParser_parseTags(parser);
 
                         char* closingTag = parser->pos;
-                        while (*parser->pos != '>')
+                        while (*parser->pos != '>') // SSE?
                             parser->pos++; // seek to end of closing tag
                         *parser->pos++ = 0;
 
@@ -261,6 +265,7 @@ static List(XMLNode) * XMLParser_parseTags(XMLParser* parser)
             // parser->pos);
             while (*parser->pos != '<' and parser->pos < parser->end)
                 parser->pos++;
+            // parser->pos = findchars_fast(parser->pos, parser->end, "<", 1);
             // relying on the </ detector state to trample the <
             XMLNode* textNode = XMLNode_newText(text);
             listp = fp_PtrList_append(listp, textNode);

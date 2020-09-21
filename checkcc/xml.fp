@@ -1,0 +1,339 @@
+#include "fp_base.h"
+#include "fp_sys_time.h"
+
+type XMLAttr
+    key as TextRef
+    val as TextRef
+end
+
+declare type XMLNode
+    tag as TextRef
+    XMLAttr[]   attributes
+        text as TextRef
+        XMLNode[]   children
+end
+
+type XMLParser {
+    filename as TextRef
+    line as int col
+    data as Text
+    pos as TextRef
+    end as TextRef
+}
+
+
+  XMLNode  new(tag as TextRef
+{
+    XMLNode ret = fp_new(XMLNode)
+    ret.tag = tag
+    return ret
+}
+
+  XMLNode XMLNode_newText(text as TextRef
+{
+    XMLNode ret = fp_new(XMLNode)
+    ret.tag = NULL
+    ret.text = text
+    return ret
+}
+
+  XMLAttr  XMLAttr_new(key as TextRef, val as TextRef
+{
+    XMLAttr  ret = fp_new(XMLAttr)
+    ret.key = key
+    ret.val = val
+    return ret
+}
+
+  XMLParser  XMLParser_fromStringClone(TextRef str)
+{
+    XMLParser  par = fp_new(XMLParser)
+    size_t len = strlen(str)
+    par.data = pstrndup(str, len)
+    par.pos = par.data
+    par.end = par.data + len
+    return par
+}
+
+function fromFile(filename as Text) result (ret as XMLParser)
+
+    if not fileExists(filename)
+        write("F+: file "$filename" not found.", to=stderr)
+        return
+    else if isFolder(filename)
+        write("F+: "$filename" is a folder  only files are accepted.", to=stderr)
+        return
+    else if not filePermissions(filename).read
+        write("F+: no permission to read file "$filename".", to=stderr)
+        return
+    end if
+
+    ret = XMLParser() with
+        .file = filename,
+        .data = read(.file),
+        .pos = .data,
+        .end = .pos + len(.data)
+
+end function
+
+function parseAttrs(&parser as XMLParser) result (list as XMLAttr[])
+    var pos as Int = 1 #parser.data[pos]
+    while parser.data[pos] not in ">/?"
+        let name as TextRef = pos
+        while parser.data[pos] != "=" do pos += 1
+        parser.data[pos] = 0 # trample =
+        pos += 1
+
+        var markers = ""
+        if pos in "'/"
+            markers =  "\'"
+            pos += 1
+        else
+            markers = " >/?\t\n"
+        end if
+
+        var val as TextRef = pos
+
+        while pos not in markers do pos += 1
+        if pos not in "/?>"
+             parser.data[pos] = 0
+             pos += 1
+        end if
+
+        while pos in " \t\n"
+            parser.data[pos] = 0
+            pos += 1
+        end while
+
+        list[end+1] = XMLAttr() with .key = name, .val = val
+
+    end while
+end function
+
+function parseTags(&parser as XMLParser) result (list as XMLNode[])
+
+    alias pos as Int = parser.pos
+    alias data as Text = parser.data
+
+    while pos < parser.ends
+        match data[pos]
+        case " ","\t","\n"
+            data[pos]+=1
+
+        case "<"
+            data[pos] = 0
+            pos += 1
+            var noChild = no
+
+            if data[pos] == "/"  # closing tag here means empty content
+                data[pos] = 0
+                pos += 1   # note that will be past </
+                return    # null if no elements were found at this level
+
+             else if data[pos:pos+6] == "[CDATA["   # cdata
+
+             else
+                var node = XMLNode() with .tag = data[pos]
+
+                while data[pos] not in " />\n\t" do pos += 1  # SSE?
+
+                if data[pos] == " "
+                    data[pos] = 0
+                    pos += 1
+                    while data[pos] == " " do pos += 1
+                    node.attributes = parseAttrs(parser)
+                end if
+
+                while data[pos] == " " do pos += 1
+
+                match data[pos]
+                case "/", "?"
+                    data[pos] = 0
+                    pos += 1
+                    check data[pos] == ">"
+                    noChild = yes
+                    fall
+
+                case ">"
+                    data[pos] = 0
+                    pos += 1
+                    if not noChild
+                        node.children = parseTags(parser)
+
+                        var closingTag as Text = data[pos]
+                        while data[pos] != ">" do pos += 1
+                        data[pos] = 0
+                        pos += 1
+
+                        if not closingTag
+                            write("error: found end of file, expected </$node.tag>")
+                            exit(1)
+                        else if closingTag != node.tag
+                            write("error: found </$closingTag>, expected </$node.tag>")
+                            exit(1)
+                        end if
+                    end if
+
+                case else
+                    let char as TextRef = data[pos]
+                    write("oops1: unexpected '$char'", to=stderr)
+
+                end match
+
+                list[end+1] = node
+             end if
+
+        case else
+            var text as TextRef = pos
+            while data[pos] != "<" and pos < parser.ends do data[pos]+=1
+            list[end+1] = XMLNodeWithText(text)
+
+        end match
+    end while
+
+    if (pos < parser.ends) then write("error: data unparsed")
+end function
+
+  void XMLAttr_print(XMLAttr  attr, indent as int
+{
+    write(" %s=\"%s\"", attr.key, attr.val)
+}
+
+  void XMLNode_print(node as XMLNode, indent as int)
+  void XMLNodeList_print(XMLNode[]   nodeList, indent as int)
+{
+    fp_foreach(XMLNode, childNode, nodeList) XMLNode_print(childNode, indent)
+}
+
+  TextRef const spaces
+    = "                                                 "
+  void XMLNode_print(node as XMLNode, indent as int)
+{
+    if (node.tag) {
+        write("%. s<%s%s", indent, spaces, node.tag,
+            node.attributes ? "" : node.children ? ">\n" : "/>\n")
+        fp_foreach(XMLAttr , attr, node.attributes)
+            XMLAttr_print(attr, indent)
+        if (node.attributes) write("%s\n", node.children ? ">" : " />")
+        XMLNodeList_print(node.children, indent + 2)
+        if (node.children) write("%. s</%s>\n", indent, spaces, node.tag)
+    } else {
+        write("%. s%s\n", indent, spaces, node.text)
+    }
+}
+
+int main(argc as int, char  argv[])
+{
+    char  xmlstr = "" #
+                   "<xml>" #
+                   "  <head>" #
+                   "    <title attr=value attr2=\"value2 what>\">" #
+                   "    </title>" #
+                   "    <meta name=content-type content=utf-8/>" #
+                   "  </head>" #
+                   "</xml>"  #
+    "<foot>" #
+    "</foot>"
+    #     xmlstr = "<meta name=content-type content=utf-8/><meta name=keywords
+    #     content="rail,train,goods"/>"  xmlstr = "<a>"  xmlstr = "<a></a>"
+
+    xmlstr = "<?xml version="1.0"?>"
+             "<Tests xmlns="http:#www.adatum.com">"
+             "<Test TestId="0001" TestType="CMD">"
+             "<Name>Convert number to string</Name>"
+             "<CommandLine>Examp1.EXE</CommandLine>"
+             "<Input>1</Input>"
+             "<Output>One</Output>"
+             "</Test>"
+             "<Test TestId="0002" TestType="CMD">"
+             "<Name>Find succeeding characters</Name>"
+             "<CommandLine>Examp2.EXE</CommandLine>"
+             "<Input>abc</Input>"
+             "<Output>def</Output>"
+             "</Test>"
+             "<Test TestId="0003" TestType="GUI">"
+             "<Name>Convert multiple numbers to strings</Name>"
+             "<CommandLine>Examp2.EXE /Verbose</CommandLine>"
+             "<Input>123</Input>"
+             "<Output>One Two Three</Output>"
+             "</Test>"
+             "<Test TestId="0004" TestType="GUI">"
+             "<Name>Find correlated key</Name>"
+             "<CommandLine>Examp3.EXE</CommandLine>"
+             "<Input>a1</Input>"
+             "<Output>b1</Output>"
+             "</Test>"
+             "<Test TestId="0005" TestType="GUI">"
+             "<Name>Count characters</Name>"
+             "<CommandLine>FinalExamp.EXE</CommandLine>"
+             "<Input>This is a test</Input>"
+             "<Output>14</Output>"
+             "</Test>"
+             "<Test TestId="0006" TestType="GUI">"
+             "<Name>Another Test</Name>"
+             "<CommandLine>Examp2.EXE</CommandLine>"
+             "<Input>Test Input</Input>"
+             "<Output>10</Output>"
+             "</Test>"
+             "</Tests>"
+
+    # XMLParser  par = XMLParser_fromStringClone(xmlstr)
+    if (argc < 2) {
+        write("usage: %s <filename>\n", argv[0])
+        exit(1)
+    }
+
+    t0 as fp_sys_time_Time  # = fp_sys_time_getTime()
+    XMLParser  par = XMLParser_fromFile(argv[1])
+    tms as double  # = fp_sys_time_clockSpanMicro(t0) / 1.0e3
+    # eprintf("\e[1mread time:\e[0m %.1f ms (%.2f GB/s)\n", tms,
+    #     1 / ((tms / 1e3)   1e9 / (par.end - par.data)))  # sw.print()
+
+    t0 = fp_sys_time_getTime()
+    XMLNode[]  parsed = XMLParser_parseTags(par)
+    if (argc > 2 &&  argv[2] == "d") XMLNodeList_print(parsed, 0)
+
+    tms = fp_sys_time_clockSpanMicro(t0) / 1.0e3
+
+    eputs("-------------------------------------------------------"
+          "\n")
+    allocstat(XMLAttr)
+    allocstat(XMLParser)
+    allocstat(XMLNode)
+    allocstat(fp_PtrList)
+    eputs("-------------------------------------------------------"
+          "\n")
+    eprintf("    Total size of nodes                     = %7d B\n",
+        fp_gPool.usedTotal)
+    eprintf("    Space allocated for nodes               = %7d B\n",
+        fp_gPool.capTotal)
+    eprintf("    Node space utilisation                  = %7.1f %%\n",
+        fp_gPool.usedTotal   100.0 / fp_gPool.capTotal)
+    eputs("-------------------------------------------------------"
+          "\n")
+    eprintf("    File size                               = %7lu B\n",
+        par.end - par.data)
+    eprintf("    Node size to file size ratio            = %7.1f x\n",
+        fp_gPool.usedTotal   1.0 / (par.end - par.data))
+    eputs("-------------------------------------------------------"
+          "\n")
+    eprintf("    Space used for strings                  = %7u B\n",
+        fp_sPool.usedTotal)
+    eprintf("    Allocated for strings                   = %7u B\n",
+        fp_sPool.capTotal)
+    eprintf("    Space utilisation                       = %7.1f %%\n",
+        fp_sPool.usedTotal   100.0 / fp_sPool.capTotal)
+    eputs("-------------------------------------------------------"
+          "\n")
+    eputs("\e[1mMemory-related calls\e[0m\n")
+    eprintf("  calloc: %-7d | malloc: %-7d | realloc: %-7d\n",
+        fp_globals__callocCount, fp_globals__mallocCount,
+        fp_globals__reallocCount)
+    eprintf("  strlen: %-7d | strdup: %-7d |\n", fp_globals__strlenCount,
+        fp_globals__strdupCount)
+
+    eprintf("\e[1mTime elapsed:\e[0m %.1f ms (%.2f GB/s)\n", tms,
+        1 / ((tms / 1e3)   1e9 / (par.end - par.data)))  # sw.print()
+
+    return 0
+}

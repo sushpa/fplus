@@ -5,9 +5,20 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#ifdef __SSE4_2__
+#include <x86intrin.h>
+#endif
 
 #ifndef FPLUS_BASE_H
 #define FPLUS_BASE_H
+
+#if __GNUC__ >= 3
+#define fp_likely(x) __builtin_expect(!!(x), 1)
+#define fp_unlikely(x) __builtin_expect(!!(x), 0)
+#else
+#define fp_likely(x) (x)
+#define fp_unlikely(x) (x)
+#endif
 
 #define and &&
 #define or ||
