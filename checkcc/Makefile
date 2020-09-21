@@ -1,21 +1,21 @@
 all: checkc.bin
 
-CCFLAGS=-std=c99 -Werror
+CCFLAGS=-std=c99 -Werror -Imodules
 CPP=gcc
 
-TokenKindDefs.h: makeTokens.sh
-	./makeTokens.sh
+modules/TokenKindDefs.h: modules/makeTokens.sh
+	cd modules && ./makeTokens.sh
 
-checkc.bin: main.c *.h
+checkc.bin: programs/main.c modules/*.h
 	$(CPP) -O0 $(CCFLAGS) $< -lc -o $@
 
-checkc-s.bin: main.c *.h
+checkc-s.bin: programs/main.c modules/*.h
 	$(CPP) -Os $(CCFLAGS) $< -lc -o $@
 
-checkc-d.bin: main.c *.h
+checkc-d.bin: programs/main.c modules/*.h
 	$(CPP) -g -O0 $(CCFLAGS) $< -lc -o $@
 
-checkc-cov.bin: main.c *.h
+checkc-cov.bin: programs/main.c modules/*.h
 	$(CPP) -g -fprofile-arcs -ftest-coverage -O0 $(CCFLAGS) $< -lc -o $@
 
 clean:

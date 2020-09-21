@@ -901,7 +901,7 @@ static void alloc_stat() { }
 int main(int argc, char* argv[])
 {
     if (argc == 1) {
-        eputs("F+: no input files.\n");
+        eputs("jet: no input files.\n");
         return 1;
     }
     bool printDiagnostics = (argc > 2 && *argv[2] == 'd') or false;

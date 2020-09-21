@@ -14,52 +14,52 @@
 
 
 # internal use
-# fp-run <TGT> <DIAG>
-fp-run() {
+# jet_run <TGT> <DIAG>
+jet_run() {
     # [ -f "$1" ] || exit 6
     make -s -r -j DIAG=$2 -f Makerunner $1 && [ -f "$1" ] && ./$1 $*
 }
 
 # f+ <FILE> [d]
-fp-run-debug() {
-    TGT=${1%%.fp}-d.bin
-    fp-run $TGT $2
+jet_run_debug() {
+    TGT=${1%%.jet}-d.bin
+    jet_run $TGT $2
 }
 
 # f+ -r <FILE> [d]
-fp-run-release() {
-    TGT=${2%%.fp}.bin
-    fp-run $TGT $3
+jet_run_release() {
+    TGT=${2%%.jet}.bin
+    jet_run $TGT $3
 }
 
 # f+ -f <FILE> [d]
-fp-run-fast() {
-    TGT=${2%%.fp}-f.bin
-    fp-run $TGT $3
+jet_run_fast() {
+    TGT=${2%%.jet}-f.bin
+    jet_run $TGT $3
 }
 
 # f+ -c <FILE> [d]
 # This is only for private use and debugging the compiler.
-fp-gen-c() {
-    FILE=${2%%.fp}.fp
+jet_gen_c() {
+    FILE=${2%%.jet}.jet
     make -j -s -r checkc.bin && ./checkc.bin $FILE $3
 }
 
 # f+ -l <FILE> [d]
-fp-gen-fp() {
+jet_gen_jet() {
     # the l flag to checkc.bin indicates linting mode.
-    FILE=${2%%.fp}.fp
+    FILE=${2%%.jet}.jet
     make -j -s -r checkc.bin && ./checkc.bin $FILE $3 l
 }
 
 # f+ -? <FILE> [d]
-# Debugging use, same as fp-lint > /dev/null
-fp-parse() {
-    fp-gen-fp $* > /dev/null
+# Debugging use, same as jet_lint > /dev/null
+jet_parse() {
+    jet_gen-jet $* > /dev/null
 }
 
 # f+ -t [module] [test-desc] [issue-no]
-fp-run-tests() {
+jet_run_tests() {
     # need a Maketester file. Tests will be run through
     # makefiles, only repeated if source has changed.
     echo "Testing not yet implemented"
@@ -68,17 +68,17 @@ fp-run-tests() {
 # f+ -a
 # More comprehensive analysis, interval analysis,
 # abstract interpretation, fact checking, etc.
-fp-check() {
+jet_check() {
     echo "Separate analysis not yet implemented"
     # need a flag to checkc.bin
 }
 
 # f+ -p
-fp-purge() {
+jet_purge() {
     make clean
 }
 
-fp-usage() {
+jet_usage() {
     echo "usage: f+ [options] <filename> [d]
 Runs the given program in debug mode.
 options:
@@ -92,13 +92,13 @@ options:
 'd' after the file prints compiler diagnostics."
 }
 
-if [ "$1" == "-l" ]; then fp-gen-fp $*;
-elif [ "$1" == "-c" ]; then fp-gen-c $*;
-elif [ "$1" == "-r" ]; then fp-run-release $*;
-elif [ "$1" == "-f" ]; then fp-run-fast $*;
-elif [ "$1" == "-t" ]; then fp-run-tests $*;
-elif [ "$1" == "-a" ]; then fp-check $*;
-elif [ "$1" == "-p" ]; then fp-purge $*;
-elif [ "$1" == "-?" ]; then fp-parse $*;
-elif [ -f "${1%%.fp}.fp" ]; then fp-run-debug $*;
-else fp-usage $1; fi
+if [ "$1" == "-l" ]; then jet_gen_jet $*;
+elif [ "$1" == "-c" ]; then jet_gen_c $*;
+elif [ "$1" == "-r" ]; then jet_run_release $*;
+elif [ "$1" == "-f" ]; then jet_run_fast $*;
+elif [ "$1" == "-t" ]; then jet_run_tests $*;
+elif [ "$1" == "-a" ]; then jet_check $*;
+elif [ "$1" == "-p" ]; then jet_purge $*;
+elif [ "$1" == "-?" ]; then jet_parse $*;
+elif [ -f "${1%%.jet}.jet" ]; then jet_run_debug $*;
+else jet_usage $1; fi
