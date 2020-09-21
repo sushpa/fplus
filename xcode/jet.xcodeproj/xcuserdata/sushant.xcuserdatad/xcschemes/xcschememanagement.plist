@@ -4,7 +4,7 @@
 <dict>
 	<key>SchemeUserState</key>
 	<dict>
-		<key>checkcc.xcscheme_^#shared#^_</key>
+		<key>jet.xcscheme_^#shared#^_</key>
 		<dict>
 			<key>orderHint</key>
 			<integer>0</integer>
@@ -12,7 +12,7 @@
 	</dict>
 	<key>SuppressBuildableAutocreation</key>
 	<dict>
-		<key>859CB3CD241BB2D400C32B9E</key>
+		<key>85E5B8552519619600E2C253</key>
 		<dict>
 			<key>primary</key>
 			<true/>

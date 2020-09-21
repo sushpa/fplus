@@ -102,7 +102,7 @@ typedef struct Token {
     char* pos;
     uint32_t matchlen : 24;
     struct {
-        bool_t //
+        bool//
             skipws : 1, // skip whitespace
             mergearraydims : 1; // merge [:,:,:] into one token
     } flags;
@@ -304,12 +304,12 @@ const char* Token_repr(const TokenKind kind)
     return "(!unk)";
 }
 
-bool_t Token_isUnary(TokenKind kind)
+bool Token_isUnary(TokenKind kind)
 {
     return kind == TKKeyword_not; // unary - is handled separately
 }
 
-bool_t Token_isRightAssociative(TokenKind kind)
+bool Token_isRightAssociative(TokenKind kind)
 {
     return kind == TKPeriod || kind == TKPower;
 }
@@ -593,7 +593,7 @@ void Token_detect(Token* token)
     TokenKind tt_ret; // = tt;
     TokenKind tmp;
     char* start = token->pos;
-    bool_t found_e = false, found_dot = false, found_cmt = false;
+    bool found_e = false, found_dot = false, found_cmt = false;
     uint8_t found_spc = 0;
 
     switch (tt) {

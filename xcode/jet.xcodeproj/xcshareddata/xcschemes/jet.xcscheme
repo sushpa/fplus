@@ -14,10 +14,10 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "859CB3CD241BB2D400C32B9E"
-               BuildableName = "checkcc"
-               BlueprintName = "checkcc"
-               ReferencedContainer = "container:checkcc.xcodeproj">
+               BlueprintIdentifier = "85E5B8552519619600E2C253"
+               BuildableName = "jet"
+               BlueprintName = "jet"
+               ReferencedContainer = "container:jet.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -34,35 +34,22 @@
       buildConfiguration = "Debug"
       selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
-      enableASanStackUseAfterReturn = "YES"
-      disableMainThreadChecker = "YES"
       launchStyle = "0"
       useCustomWorkingDirectory = "NO"
       ignoresPersistentStateOnLaunch = "NO"
       debugDocumentVersioning = "YES"
       debugServiceExtension = "internal"
-      enableGPUValidationMode = "1"
       allowLocationSimulation = "YES">
       <BuildableProductRunnable
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "859CB3CD241BB2D400C32B9E"
-            BuildableName = "checkcc"
-            BlueprintName = "checkcc"
-            ReferencedContainer = "container:checkcc.xcodeproj">
+            BlueprintIdentifier = "85E5B8552519619600E2C253"
+            BuildableName = "jet"
+            BlueprintName = "jet"
+            ReferencedContainer = "container:jet.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
-      <CommandLineArguments>
-         <CommandLineArgument
-            argument = "/Users/Sushant/Dropbox/xcode-checkcc/checkcc/checkcc/field3d.fp"
-            isEnabled = "YES">
-         </CommandLineArgument>
-         <CommandLineArgument
-            argument = "t"
-            isEnabled = "YES">
-         </CommandLineArgument>
-      </CommandLineArguments>
    </LaunchAction>
    <ProfileAction
       buildConfiguration = "Release"
@@ -74,10 +61,10 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "859CB3CD241BB2D400C32B9E"
-            BuildableName = "checkcc"
-            BlueprintName = "checkcc"
-            ReferencedContainer = "container:checkcc.xcodeproj">
+            BlueprintIdentifier = "85E5B8552519619600E2C253"
+            BuildableName = "jet"
+            BlueprintName = "jet"
+            ReferencedContainer = "container:jet.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>
