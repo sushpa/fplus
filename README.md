@@ -1,6 +1,6 @@
+## This repository has been renamed and moved. Please visit https://github.com/jetpilots/jet
 
 # Jet
-
 
 A modern, simple language with all the features you need for scientific computing. Fast multidimensional arrays with slicing syntax, simple modular program structure, powerful assertions and implied contracts, and in-depth compile-time analysis for all major classes of bugs.
 
